@@ -12,7 +12,7 @@ Blue="\033[34m"
 install_quick_command() {
     echo -e "${Blue}正在安装简易命令...${Font}"
     
-    local command_name="hy2"
+    local command_name="v2ray"
     local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local vasmaType=false
     
@@ -75,7 +75,7 @@ show_help() {
     echo -e "${Blue}============================================${Font}"
     echo
     echo -e "${Green}用法：${Font}"
-    echo -e "  hy2 [选项]"
+    echo -e "  v2ray [选项]"
     echo
     echo -e "${Green}选项：${Font}"
     echo -e "  ${Yellow}--help, -h${Font}              显示此帮助信息"
@@ -212,7 +212,7 @@ main "$@"'
 
 # 卸载简易命令
 uninstall_quick_command() {
-    local command_name="hy2"
+    local command_name="v2ray"
     local removed=false
     
     echo -e "${Yellow}正在卸载简易命令...${Font}"
@@ -700,12 +700,12 @@ show_script_menu() {
     echo
     echo -e "${Green}请选择要运行的脚本：${Font}"
     echo
-    echo -e "${Yellow}1.${Font} V2Ray 安装脚本 ${Blue}(完整的V2Ray-Agent脚本)${Font}"
-    echo -e "${Yellow}2.${Font} Hysteria2 安装脚本 ${Blue}(专门的Hysteria2脚本)${Font}"
+    echo -e "${Yellow}1.${Font} V2Ray 安装脚本 ${Blue}(本仓库修改版install.sh)${Font}"
+    echo -e "${Yellow}2.${Font} V2Ray 原版安装脚本 ${Blue}(mack-a官方原版)${Font}"
     echo -e "${Yellow}3.${Font} Swap 管理脚本 ${Blue}(虚拟内存管理)${Font}"
     echo -e "${Yellow}4.${Font} Kernel 内核脚本 ${Blue}(内核升级和BBR)${Font}"
     echo -e "${Yellow}5.${Font} 更新 main.sh 脚本 ${Blue}(检查脚本更新)${Font}"
-    echo -e "${Yellow}6.${Font} 命令管理 ${Blue}(安装/卸载hy2快捷命令)${Font}"
+    echo -e "${Yellow}6.${Font} 命令管理 ${Blue}(安装/卸载v2ray快捷命令)${Font}"
     echo -e "${Yellow}7.${Font} 系统工具 ${Blue}(系统优化和诊断)${Font}"
     echo -e "${Yellow}8.${Font} 退出"
     echo
@@ -720,14 +720,14 @@ execute_script() {
     case $choice in
         1)
             echo -e "${Green}正在启动 V2Ray 安装脚本...${Font}"
-            echo -e "${Yellow}正在从远程仓库获取 install.sh (mack-a原版脚本)...${Font}"
+            echo -e "${Yellow}正在从远程仓库获取 install.sh (修改版本)...${Font}"
             
             # 先尝试下载脚本到临时文件
             local temp_script="/tmp/v2ray_temp.sh"
             local download_success=false
             
-            # 使用mack-a的原版脚本
-            local v2ray_url="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
+            # 使用本仓库的修改版install.sh
+            local v2ray_url="${base_url}/install.sh"
             
             if wget -qO "$temp_script" "$v2ray_url" 2>/dev/null; then
                 download_success=true
@@ -752,29 +752,33 @@ execute_script() {
             fi
             ;;
         2)
-            echo -e "${Green}正在启动 Hysteria2 安装脚本...${Font}"
-            echo -e "${Yellow}正在从远程仓库获取 hy2.sh...${Font}"
+            echo -e "${Green}正在启动 V2Ray 原版安装脚本...${Font}"
+            echo -e "${Yellow}正在从 mack-a 官方仓库获取原版 install.sh...${Font}"
             
             # 先尝试下载脚本到临时文件
-            local temp_script="/tmp/hy2_temp.sh"
+            local temp_script="/tmp/v2ray_original_temp.sh"
             local download_success=false
             
-            if wget -qO "$temp_script" "${base_url}/hy2.sh" 2>/dev/null; then
+            # 使用mack-a的官方原版脚本
+            local v2ray_original_url="https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
+            
+            if wget -qO "$temp_script" "$v2ray_original_url" 2>/dev/null; then
                 download_success=true
                 echo -e "${Green}使用 wget 下载成功${Font}"
-            elif curl -fsSL "${base_url}/hy2.sh" -o "$temp_script" 2>/dev/null; then
+            elif curl -fsSL "$v2ray_original_url" -o "$temp_script" 2>/dev/null; then
                 download_success=true
                 echo -e "${Green}使用 curl 下载成功${Font}"
             fi
             
             if [[ "$download_success" == "true" && -s "$temp_script" ]]; then
-                echo -e "${Green}开始执行 Hysteria2 安装脚本...${Font}"
+                echo -e "${Green}开始执行 V2Ray 原版安装脚本...${Font}"
+                echo -e "${Yellow}注意：这是 mack-a 的官方原版，不包含本仓库的改进${Font}"
                 # 执行脚本，不管退出状态码
                 bash "$temp_script"
-                echo -e "${Green}Hysteria2 脚本执行完成${Font}"
+                echo -e "${Green}V2Ray 原版脚本执行完成${Font}"
                 rm -f "$temp_script"
             else
-                echo -e "${Red}错误：无法从远程仓库获取 hy2.sh 脚本！${Font}"
+                echo -e "${Red}错误：无法从 mack-a 官方仓库获取原版安装脚本！${Font}"
                 echo -e "${Yellow}请检查网络连接或稍后重试${Font}"
                 rm -f "$temp_script"
             fi
@@ -1283,7 +1287,16 @@ firewall_management() {
                     ;;
                 "iptables")
                     iptables -A INPUT -p tcp --dport "$port" -j ACCEPT
-                    echo -e "${Yellow}注意：iptables规则需要手动保存${Font}"
+                    # 自动保存iptables规则
+                    if command -v netfilter-persistent >/dev/null 2>&1; then
+                        netfilter-persistent save
+                        echo -e "${Green}iptables规则已自动保存${Font}"
+                    elif [[ -f /etc/iptables/rules.v4 ]] && command -v iptables-save >/dev/null 2>&1; then
+                        iptables-save > /etc/iptables/rules.v4
+                        echo -e "${Green}iptables规则已保存到 /etc/iptables/rules.v4${Font}"
+                    else
+                        echo -e "${Yellow}注意：iptables规则需要手动保存${Font}"
+                    fi
                     ;;
                 *)
                     echo -e "${Red}无法识别防火墙类型${Font}"
@@ -1301,7 +1314,27 @@ firewall_management() {
                     firewall-cmd --reload
                     ;;
                 "iptables")
-                    echo -e "${Yellow}需要手动移除iptables规则${Font}"
+                    # 显示现有规则供用户参考
+                    echo -e "${Blue}当前iptables INPUT规则：${Font}"
+                    iptables -L INPUT -n --line-numbers | grep "$port"
+                    echo
+                    echo -e "${Yellow}请手动使用以下命令删除对应规则：${Font}"
+                    echo -e "${Blue}iptables -D INPUT <规则编号>${Font}"
+                    echo -e "${Yellow}或者使用：${Font}"
+                    echo -e "${Blue}iptables -D INPUT -p tcp --dport $port -j ACCEPT${Font}"
+                    echo
+                    read -p "是否要自动尝试删除端口 $port 的ACCEPT规则？[y/N]: " auto_remove
+                    if [[ $auto_remove =~ ^[Yy]$ ]]; then
+                        iptables -D INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null
+                        if command -v netfilter-persistent >/dev/null 2>&1; then
+                            netfilter-persistent save
+                            echo -e "${Green}iptables规则已自动保存${Font}"
+                        elif [[ -f /etc/iptables/rules.v4 ]] && command -v iptables-save >/dev/null 2>&1; then
+                            iptables-save > /etc/iptables/rules.v4
+                            echo -e "${Green}iptables规则已保存到 /etc/iptables/rules.v4${Font}"
+                        fi
+                        echo -e "${Green}端口 $port 的规则已尝试删除${Font}"
+                    fi
                     ;;
                 *)
                     echo -e "${Red}无法识别防火墙类型${Font}"
@@ -1642,12 +1675,12 @@ show_help() {
     echo -e "${Green}选项：${Font}"
     echo -e "  ${Yellow}--help, -h${Font}              显示此帮助信息"
     echo -e "  ${Yellow}--version, -v${Font}           显示版本信息"
-    echo -e "  ${Yellow}--install-command${Font}       安装简易命令 (hy2)"
+    echo -e "  ${Yellow}--install-command${Font}       安装简易命令 (v2ray)"
     echo -e "  ${Yellow}--uninstall-command${Font}     卸载简易命令"
     echo
     echo -e "${Green}简易命令：${Font}"
-    echo -e "  安装后可通过 '${Yellow}hy2${Font}' 命令启动脚本"
-    echo -e "  使用方法：${Yellow}sudo hy2${Font}"
+    echo -e "  安装后可通过 '${Yellow}v2ray${Font}' 命令启动脚本"
+    echo -e "  使用方法：${Yellow}sudo v2ray${Font}"
     echo -e "  模式：${Yellow}远程运行（始终获取最新版本）${Font}"
     echo
     echo -e "${Green}功能特性：${Font}"
@@ -1656,6 +1689,7 @@ show_help() {
     echo -e "  • V2Ray 定时重启配置"
     echo -e "  • 脚本自动更新功能"
     echo -e "  • 远程运行命令安装"
+    echo -e "  • 智能 iptables 规则管理"
     echo -e "  • 始终运行最新版本"
     echo
     echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/one-script"
@@ -1792,6 +1826,8 @@ show_version_info() {
     echo -e "  • V2Ray 定时重启配置"
     echo -e "  • 脚本自动更新功能"
     echo -e "  • 简易命令安装管理"
+    echo -e "  • 智能 iptables 规则管理"
+    echo -e "  • 优化的工具安装流程"
     echo -e "${Blue}============================================${Font}"
     echo
 }
@@ -1804,7 +1840,7 @@ command_management() {
     echo -e "${Blue}============================================${Font}"
     echo
     
-    local command_name="hy2"
+    local command_name="v2ray"
     local found=false
     
     # 检查命令状态
@@ -1875,7 +1911,7 @@ show_command_status() {
     echo -e "${Green}         简易命令状态信息${Font}"
     echo -e "${Blue}============================================${Font}"
     
-    local command_name="hy2"
+    local command_name="v2ray"
     local script_path="$(readlink -f "$0")"
     local found=false
     

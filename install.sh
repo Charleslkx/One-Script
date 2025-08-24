@@ -37,7 +37,7 @@ checkCentosSELinux() {
     if [[ -f "/etc/selinux/config" ]] && ! grep -q "SELINUX=disabled" <"/etc/selinux/config"; then
         echoContent yellow "# 注意事项"
         echoContent yellow "检测到SELinux已开启，请手动关闭，教程如下"
-        echoContent yellow "https://www.v2ray-agent.com/archives/1679931532764#heading-8 "
+        echoContent yellow "https://www.v2ray-agent.com/archives/1684115970026#centos7-%E5%85%B3%E9%97%ADselinux"
         exit 0
     fi
 }
@@ -210,6 +210,14 @@ initVar() {
     portHoppingStart=
     portHoppingEnd=
     portHopping=
+
+    hysteria2PortHoppingStart=
+    hysteria2PortHoppingEnd=
+    hysteria2PortHopping=
+
+    #    tuicPortHoppingStart=
+    #    tuicPortHoppingEnd=
+    #    tuicPortHopping=
 
     # tuic配置文件路径
     tuicConfigPath=
@@ -425,6 +433,9 @@ readInstallProtocolType() {
     currentRealityPrivateKey=
     currentRealityPublicKey=
 
+    currentRealityMldsa65Seed=
+    currentRealityMldsa65Verify=
+
     singBoxVLESSVisionPort=
     singBoxHysteria2Port=
     singBoxTrojanPort=
@@ -434,6 +445,7 @@ readInstallProtocolType() {
     singBoxVLESSRealityVisionServerName=
     singBoxVLESSRealityGRPCPort=
     singBoxVLESSRealityGRPCServerName=
+    singBoxAnyTLSPort=
     singBoxTuicPort=
     singBoxNaivePort=
     singBoxVMessWSPort=
@@ -507,6 +519,10 @@ readInstallProtocolType() {
 
                 currentRealityPublicKey=$(jq -r .inbounds[0].streamSettings.realitySettings.publicKey "${row}.json")
                 currentRealityPrivateKey=$(jq -r .inbounds[0].streamSettings.realitySettings.privateKey "${row}.json")
+
+                currentRealityMldsa65Seed=$(jq -r .inbounds[0].streamSettings.realitySettings.mldsa65Seed "${row}.json")
+                currentRealityMldsa65Verify=$(jq -r .inbounds[0].streamSettings.realitySettings.mldsa65Verify "${row}.json")
+
                 frontingTypeReality=07_VLESS_vision_reality_inbounds
 
             elif [[ "${coreInstallType}" == "2" ]]; then
@@ -547,6 +563,13 @@ readInstallProtocolType() {
             if [[ "${coreInstallType}" == "2" ]]; then
                 frontingType=10_naive_inbounds
                 singBoxNaivePort=$(jq .inbounds[0].listen_port "${row}.json")
+            fi
+        fi
+        if echo "${row}" | grep -q anytls_inbounds; then
+            currentInstallProtocolType="${currentInstallProtocolType}13,"
+            if [[ "${coreInstallType}" == "2" ]]; then
+                frontingType=13_anytls_inbounds
+                singBoxAnyTLSPort=$(jq .inbounds[0].listen_port "${row}.json")
             fi
         fi
         if echo "${row}" | grep -q VMess_HTTPUpgrade_inbounds; then
@@ -676,24 +699,7 @@ allowPort() {
         type=tcp
     fi
     # 如果防火墙启动状态则添加相应的开放端口
-    if systemctl status netfilter-persistent 2>/dev/null | grep -q "active (exited)"; then
-        local updateFirewalldStatus=
-        if ! iptables -L | grep -q "$1/${type}(mack-a)"; then
-            updateFirewalldStatus=true
-            iptables -I INPUT -p ${type} --dport "$1" -m comment --comment "allow $1/${type}(mack-a)" -j ACCEPT
-        fi
-
-        if echo "${updateFirewalldStatus}" | grep -q "true"; then
-            netfilter-persistent save
-        fi
-    elif systemctl status ufw 2>/dev/null | grep -q "active (exited)"; then
-        if ufw status | grep -q "Status: active"; then
-            if ! ufw status | grep -q "$1/${type}"; then
-                sudo ufw allow "$1/${type}"
-                checkUFWAllowPort "$1"
-            fi
-        fi
-    elif rc-update show 2>/dev/null | grep -q ufw; then
+    if dpkg -l | grep -q "^[[:space:]]*ii[[:space:]]\+ufw"; then
         if ufw status | grep -q "Status: active"; then
             if ! ufw status | grep -q "$1/${type}"; then
                 sudo ufw allow "$1/${type}"
@@ -705,17 +711,32 @@ allowPort() {
         if ! firewall-cmd --list-ports --permanent | grep -qw "$1/${type}"; then
             updateFirewalldStatus=true
             local firewallPort=$1
-
-            if echo "${firewallPort}" | grep ":"; then
-                firewallPort=$(echo "${firewallPort}" | awk -F ":" '{print $1-$2}')
+            if echo "${firewallPort}" | grep -q ":"; then
+                firewallPort=$(echo "${firewallPort}" | awk -F ":" '{print $1"-"$2}')
             fi
-
             firewall-cmd --zone=public --add-port="${firewallPort}/${type}" --permanent
             checkFirewalldAllowPort "${firewallPort}"
         fi
 
         if echo "${updateFirewalldStatus}" | grep -q "true"; then
             firewall-cmd --reload
+        fi
+    elif rc-update show 2>/dev/null | grep -q ufw; then
+        if ufw status | grep -q "Status: active"; then
+            if ! ufw status | grep -q "$1/${type}"; then
+                sudo ufw allow "$1/${type}"
+                checkUFWAllowPort "$1"
+            fi
+        fi
+    elif dpkg -l | grep -q "^[[:space:]]*ii[[:space:]]\+netfilter-persistent" && systemctl status netfilter-persistent 2>/dev/null | grep -q "active (exited)"; then
+        local updateFirewalldStatus=
+        if ! iptables -L | grep -q "$1/${type}(mack-a)"; then
+            updateFirewalldStatus=true
+            iptables -I INPUT -p ${type} --dport "$1" -m comment --comment "allow $1/${type}(mack-a)" -j ACCEPT
+        fi
+
+        if echo "${updateFirewalldStatus}" | grep -q "true"; then
+            netfilter-persistent save
         fi
     fi
 }
@@ -797,18 +818,6 @@ unInstallSingBox() {
         if grep -q 'hysteria2' </etc/v2ray-agent/sing-box/conf/config.json && [[ "${type}" == "hysteria2" ]]; then
             rm "${singBoxConfigPath}06_hysteria2_inbounds.json"
             echoContent green " ---> 删除sing-box hysteria2配置成功"
-            
-            # 清理Hysteria2端口跳跃规则
-            echoContent green " ---> 清理Hysteria2端口跳跃规则"
-            if find /usr/bin /usr/sbin | grep -q -w iptables; then
-                iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_hysteria2_portHopping" | awk '{print $1}' | while read -r line; do
-                    iptables -t nat -D PREROUTING 1
-                done
-                if [[ -f /etc/iptables/rules.v4 ]] && command -v iptables-save >/dev/null 2>&1; then
-                    iptables-save > /etc/iptables/rules.v4
-                fi
-                echoContent green " ---> 端口跳跃规则清理完成"
-            fi
         fi
         rm "${singBoxConfigPath}config.json"
     fi
@@ -996,6 +1005,18 @@ showInstallStatus() {
         if echo ${currentInstallProtocolType} | grep -q ",9,"; then
             echoContent yellow "Tuic \c"
         fi
+        if echo ${currentInstallProtocolType} | grep -q ",10,"; then
+            echoContent yellow "Naive \c"
+        fi
+        if echo ${currentInstallProtocolType} | grep -q ",11,"; then
+            echoContent yellow "VMess+TLS+HTTPUpgrade \c"
+        fi
+        if echo ${currentInstallProtocolType} | grep -q ",12,"; then
+            echoContent yellow "VLESS+XHTTP \c"
+        fi
+        if echo ${currentInstallProtocolType} | grep -q ",13,"; then
+            echoContent yellow "AnyTLS \c"
+        fi
     fi
 }
 
@@ -1075,11 +1096,27 @@ installTools() {
         ${installType} epel-release >/dev/null 2>&1
     fi
 
-    #	[[ -z `find /usr/bin /usr/sbin |grep -v grep|grep -w curl` ]]
+    if ! find /usr/bin /usr/sbin | grep -q -w sudo; then
+        echoContent green " ---> 安装sudo"
+        ${installType} sudo >/dev/null 2>&1
+    fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w wget; then
         echoContent green " ---> 安装wget"
         ${installType} wget >/dev/null 2>&1
+    fi
+
+    # 安装iptables-persistent（仅适用于基于Debian的系统）
+    if [[ "${release}" == "debian" ]] || [[ "${release}" == "ubuntu" ]]; then
+        if ! dpkg -l | grep -q iptables-persistent; then
+            echoContent green " ---> 安装iptables-persistent"
+            # 预设置答案以避免交互式提示
+            echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+            echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+            ${installType} iptables-persistent >/dev/null 2>&1
+        else
+            echoContent yellow " ---> iptables-persistent已安装，跳过"
+        fi
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w curl; then
@@ -1135,11 +1172,6 @@ installTools() {
         ${installType} qrencode >/dev/null 2>&1
     fi
 
-    if ! find /usr/bin /usr/sbin | grep -q -w sudo; then
-        echoContent green " ---> 安装sudo"
-        ${installType} sudo >/dev/null 2>&1
-    fi
-
     if ! find /usr/bin /usr/sbin | grep -q -w lsb-release; then
         echoContent green " ---> 安装lsb-release"
         ${installType} lsb-release >/dev/null 2>&1
@@ -1148,19 +1180,6 @@ installTools() {
     if ! find /usr/bin /usr/sbin | grep -q -w lsof; then
         echoContent green " ---> 安装lsof"
         ${installType} lsof >/dev/null 2>&1
-    fi
-
-    # 安装iptables-persistent（仅适用于基于Debian的系统）
-    if [[ "${release}" == "debian" ]] || [[ "${release}" == "ubuntu" ]]; then
-        if ! dpkg -l | grep -q iptables-persistent; then
-            echoContent green " ---> 安装iptables-persistent"
-            # 预设置答案以避免交互式提示
-            echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
-            echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
-            ${installType} iptables-persistent >/dev/null 2>&1
-        else
-            echoContent yellow " ---> iptables-persistent已安装，跳过"
-        fi
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w dig; then
@@ -3184,6 +3203,11 @@ initSingBoxClients() {
             currentUser="{\"uuid\":\"${uuid}\",\"name\":\"${name}-VMess_HTTPUpgrade\",\"alterId\": 0}"
             users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
         fi
+        # anytls
+        if echo "${type}" | grep -q ",13,"; then
+            currentUser="{\"password\":\"${uuid}\",\"name\":\"${name}-anytls\"}"
+            users=$(echo "${users}" | jq -r ". +=[${currentUser}]")
+        fi
 
         if echo "${type}" | grep -q ",20,"; then
             currentUser="{\"username\":\"${uuid}\",\"password\":\"${uuid}\"}"
@@ -3286,95 +3310,171 @@ initHysteria2Network() {
     fi
 }
 
-# hy端口跳跃
-hysteriaPortHopping() {
+# firewalld设置端口跳跃
+addFirewalldPortHopping() {
+
+    local start=$1
+    local end=$2
+    local targetPort=$3
+    for port in $(seq "$start" "$end"); do
+        sudo firewall-cmd --permanent --add-forward-port=port="${port}":proto=udp:toport="${targetPort}"
+    done
+    sudo firewall-cmd --reload
+}
+
+# 端口跳跃
+addPortHopping() {
+    local type=$1
+    local targetPort=$2
     if [[ -n "${portHoppingStart}" || -n "${portHoppingEnd}" ]]; then
         echoContent red " ---> 已添加不可重复添加，可删除后重新添加"
         exit 0
+    fi
+    if [[ "${release}" == "centos" ]]; then
+        if ! systemctl status firewalld 2>/dev/null | grep -q "active (running)"; then
+            echoContent red " ---> 未启动firewalld防火墙，无法设置端口跳跃。"
+            exit 0
+        fi
     fi
 
     echoContent skyBlue "\n进度 1/1 : 端口跳跃"
     echoContent red "\n=============================================================="
     echoContent yellow "# 注意事项\n"
-    echoContent yellow "仅支持Hysteria2"
+    echoContent yellow "仅支持Hysteria2、Tuic"
     echoContent yellow "端口跳跃的起始位置为30000"
     echoContent yellow "端口跳跃的结束位置为40000"
     echoContent yellow "可以在30000-40000范围中选一段"
     echoContent yellow "建议1000个左右"
+    echoContent yellow "注意不要和其他的端口跳跃设置范围一样，设置相同会覆盖。"
 
     echoContent yellow "请输入端口跳跃的范围，例如[30000-31000]"
 
-    read -r -p "范围:" hysteriaPortHoppingRange
-    if [[ -z "${hysteriaPortHoppingRange}" ]]; then
+    read -r -p "范围:" portHoppingRange
+    if [[ -z "${portHoppingRange}" ]]; then
         echoContent red " ---> 范围不可为空"
-        hysteriaPortHopping
-    elif echo "${hysteriaPortHoppingRange}" | grep -q "-"; then
+        addPortHopping "${type}" "${targetPort}"
+    elif echo "${portHoppingRange}" | grep -q "-"; then
 
         local portStart=
         local portEnd=
-        portStart=$(echo "${hysteriaPortHoppingRange}" | awk -F '-' '{print $1}')
-        portEnd=$(echo "${hysteriaPortHoppingRange}" | awk -F '-' '{print $2}')
+        portStart=$(echo "${portHoppingRange}" | awk -F '-' '{print $1}')
+        portEnd=$(echo "${portHoppingRange}" | awk -F '-' '{print $2}')
 
         if [[ -z "${portStart}" || -z "${portEnd}" ]]; then
             echoContent red " ---> 范围不合法"
-            hysteriaPortHopping
+            addPortHopping "${type}" "${targetPort}"
         elif ((portStart < 30000 || portStart > 40000 || portEnd < 30000 || portEnd > 40000 || portEnd < portStart)); then
             echoContent red " ---> 范围不合法"
-            hysteriaPortHopping
+            addPortHopping "${type}" "${targetPort}"
         else
-            echoContent green "\n端口范围: ${hysteriaPortHoppingRange}\n"
-            iptables -t nat -A PREROUTING -p udp --dport "${portStart}:${portEnd}" -m comment --comment "mack-a_hysteria2_portHopping" -j DNAT --to-destination :${hysteriaPort}
-
-            if iptables-save | grep -q "mack-a_hysteria2_portHopping"; then
-                allowPort "${portStart}:${portEnd}" udp
-                echoContent green " ---> 端口跳跃添加成功"
+            echoContent green "\n端口范围: ${portHoppingRange}\n"
+            if [[ "${release}" == "centos" ]]; then
+                sudo firewall-cmd --permanent --add-masquerade
+                sudo firewall-cmd --reload
+                addFirewalldPortHopping "${portStart}" "${portEnd}" "${targetPort}"
+                if ! sudo firewall-cmd --list-forward-ports | grep -q "toport=${targetPort}"; then
+                    echoContent red " ---> 端口跳跃添加失败"
+                    exit 0
+                fi
             else
-                echoContent red " ---> 端口跳跃添加失败"
+                iptables -t nat -A PREROUTING -p udp --dport "${portStart}:${portEnd}" -m comment --comment "mack-a_${type}_portHopping" -j DNAT --to-destination ":${targetPort}"
+                sudo netfilter-persistent save
+                if ! iptables-save | grep -q "mack-a_${type}_portHopping"; then
+                    echoContent red " ---> 端口跳跃添加失败"
+                    exit 0
+                fi
             fi
+            allowPort "${portStart}:${portEnd}" udp
+            echoContent green " ---> 端口跳跃添加成功"
         fi
     fi
 }
 
 # 读取端口跳跃的配置
-readHysteriaPortHopping() {
-    if [[ -n "${hysteriaPort}" ]]; then
-        if iptables-save | grep -q "mack-a_hysteria2_portHopping"; then
-            portHopping=
-            portHopping=$(iptables-save | grep "mack-a_hysteria2_portHopping" | cut -d " " -f 8)
+readPortHopping() {
+    local type=$1
+    local targetPort=$2
+    local portHoppingStart=
+    local portHoppingEnd=
+
+    if [[ "${release}" == "centos" ]]; then
+        portHoppingStart=$(sudo firewall-cmd --list-forward-ports | grep "toport=${targetPort}" | head -1 | cut -d ":" -f 1 | cut -d "=" -f 2)
+        portHoppingEnd=$(sudo firewall-cmd --list-forward-ports | grep "toport=${targetPort}" | tail -n 1 | cut -d ":" -f 1 | cut -d "=" -f 2)
+    else
+        if iptables-save | grep -q "mack-a_${type}_portHopping"; then
+            local portHopping=
+            portHopping=$(iptables-save | grep "mack-a_${type}_portHopping" | cut -d " " -f 8)
+
             portHoppingStart=$(echo "${portHopping}" | cut -d ":" -f 1)
             portHoppingEnd=$(echo "${portHopping}" | cut -d ":" -f 2)
         fi
     fi
+    if [[ "${type}" == "hysteria2" ]]; then
+        hysteria2PortHoppingStart="${portHoppingStart}"
+        hysteria2PortHoppingEnd=${portHoppingEnd}
+        hysteria2PortHopping="${portHoppingStart}-${portHoppingEnd}"
+    elif [[ "${type}" == "tuic" ]]; then
+        tuicPortHoppingStart="${portHoppingStart}"
+        tuicPortHoppingEnd="${portHoppingEnd}"
+        #        tuicPortHopping="${portHoppingStart}-${portHoppingEnd}"
+    fi
+}
+# 删除端口跳跃iptables规则
+deletePortHoppingRules() {
+    local type=$1
+    local start=$2
+    local end=$3
+    local targetPort=$4
+
+    if [[ "${release}" == "centos" ]]; then
+        for port in $(seq "${start}" "${end}"); do
+            sudo firewall-cmd --permanent --remove-forward-port=port="${port}":proto=udp:toport="${targetPort}"
+        done
+        sudo firewall-cmd --reload
+    else
+        iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_${type}_portHopping" | awk '{print $1}' | while read -r line; do
+            iptables -t nat -D PREROUTING 1
+            sudo netfilter-persistent save
+        done
+    fi
 }
 
-# 删除hysteria2 端口跳跃iptables规则
-deleteHysteriaPortHoppingRules() {
-    iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_hysteria2_portHopping" | awk '{print $1}' | while read -r line; do
-        iptables -t nat -D PREROUTING 1
-    done
-}
-
-# hysteria2端口跳跃菜单
-hysteriaPortHoppingMenu() {
+# 端口跳跃菜单
+portHoppingMenu() {
+    local type=$1
     # 判断iptables是否存在
     if ! find /usr/bin /usr/sbin | grep -q -w iptables; then
         echoContent red " ---> 无法识别iptables工具，无法使用端口跳跃，退出安装"
         exit 0
     fi
-    readHysteriaPortHopping
+
+    local targetPort=
+    local portHoppingStart=
+    local portHoppingEnd=
+
+    if [[ "${type}" == "hysteria2" ]]; then
+        readPortHopping "${type}" "${singBoxHysteria2Port}"
+        targetPort=${singBoxHysteria2Port}
+        portHoppingStart=${hysteria2PortHoppingStart}
+        portHoppingEnd=${hysteria2PortHoppingEnd}
+    elif [[ "${type}" == "tuic" ]]; then
+        readPortHopping "${type}" "${singBoxTuicPort}"
+        targetPort=${singBoxTuicPort}
+        portHoppingStart=${tuicPortHoppingStart}
+        portHoppingEnd=${tuicPortHoppingEnd}
+    fi
+
     echoContent skyBlue "\n进度 1/1 : 端口跳跃"
     echoContent red "\n=============================================================="
     echoContent yellow "1.添加端口跳跃"
     echoContent yellow "2.删除端口跳跃"
     echoContent yellow "3.查看端口跳跃"
-    read -r -p "范围:" selectPortHoppingStatus
+    read -r -p "请选择:" selectPortHoppingStatus
     if [[ "${selectPortHoppingStatus}" == "1" ]]; then
-        hysteriaPortHopping
+        addPortHopping "${type}" "${targetPort}"
     elif [[ "${selectPortHoppingStatus}" == "2" ]]; then
-        if [[ -n "${portHopping}" ]]; then
-            deleteHysteriaPortHoppingRules
-            echoContent green " ---> 删除成功"
-        fi
+        deletePortHoppingRules "${type}" "${portHoppingStart}" "${portHoppingEnd}" "${targetPort}"
+        echoContent green " ---> 删除成功"
     elif [[ "${selectPortHoppingStatus}" == "3" ]]; then
         if [[ -n "${portHoppingStart}" && -n "${portHoppingEnd}" ]]; then
             echoContent green " ---> 当前端口跳跃范围为: ${portHoppingStart}-${portHoppingEnd}"
@@ -3382,7 +3482,7 @@ hysteriaPortHoppingMenu() {
             echoContent yellow " ---> 未设置端口跳跃"
         fi
     else
-        hysteriaPortHoppingMenu
+        portHoppingMenu
     fi
 }
 # 初始化Hysteria配置
@@ -3971,39 +4071,6 @@ initSingBoxHysteria2Config() {
     initHysteriaPort
     initHysteria2Network
 
-    # 自动添加端口跳跃配置
-    echoContent green "\n ---> 自动配置端口跳跃范围：30000-40000"
-    
-    # 检查iptables是否存在
-    if find /usr/bin /usr/sbin | grep -q -w iptables; then
-        # 删除旧的端口跳跃规则（如果存在）
-        iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_hysteria2_portHopping" | awk '{print $1}' | while read -r line; do
-            iptables -t nat -D PREROUTING 1
-        done
-        
-        # 添加新的端口跳跃规则
-        iptables -t nat -A PREROUTING -p udp --dport "30000:40000" -m comment --comment "mack-a_hysteria2_portHopping" -j DNAT --to-destination :${hysteriaPort}
-        
-        if iptables-save | grep -q "mack-a_hysteria2_portHopping"; then
-            allowPort "30000:40000" udp
-            
-            # 保存iptables规则到iptables-persistent
-            if [[ -f /etc/iptables/rules.v4 ]] && command -v iptables-save >/dev/null 2>&1; then
-                iptables-save > /etc/iptables/rules.v4
-                echoContent green " ---> iptables规则已保存到iptables-persistent"
-            elif command -v netfilter-persistent >/dev/null 2>&1; then
-                netfilter-persistent save
-                echoContent green " ---> iptables规则已通过netfilter-persistent保存"
-            fi
-            
-            echoContent green " ---> 端口跳跃配置成功 (30000-40000)"
-        else
-            echoContent yellow " ---> 端口跳跃配置失败，将使用单端口模式"
-        fi
-    else
-        echoContent yellow " ---> 未找到iptables，跳过端口跳跃配置"
-    fi
-
     cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/hysteria2.json
 {
     "inbounds": [
@@ -4198,7 +4265,8 @@ initXrayConfig() {
 
     if [[ -n "${uuid}" ]]; then
         currentClients='[{"id":"'${uuid}'","add":"'${add}'","flow":"xtls-rprx-vision","email":"'${customEmail}'"}]'
-        echoContent yellow "\n ${customEmail}:${uuid}"
+        echoContent green "\n ${customEmail}:${uuid}"
+        echo
     fi
 
     # log
@@ -4336,6 +4404,7 @@ EOF
         initXrayXHTTPort
         initRealityClientServersName
         initRealityKey
+        initRealityMldsa65
         cat <<EOF >/etc/v2ray-agent/xray/conf/12_VLESS_XHTTP_inbounds.json
 {
 "inbounds":[
@@ -4519,6 +4588,7 @@ EOF
         initXrayRealityPort
         initRealityClientServersName
         initRealityKey
+        initRealityMldsa65
 
         cat <<EOF >/etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json
 {
@@ -4549,6 +4619,8 @@ EOF
             ],
             "privateKey": "${realityPrivateKey}",
             "publicKey": "${realityPublicKey}",
+            "mldsa65Seed": "${realityMldsa65Seed}",
+            "mldsa65Verify": "${realityMldsa65Verify}",
             "maxTimeDiff": 70000,
             "shortIds": [
                 "",
@@ -4886,41 +4958,6 @@ EOF
         mapfile -t result < <(initSingBoxPort "${singBoxHysteria2Port}")
         echoContent green "\n ---> Hysteria2端口：${result[-1]}"
         initHysteria2Network
-        
-        # 自动添加端口跳跃配置
-        echoContent green "\n ---> 自动配置端口跳跃范围：30000-40000"
-        hysteriaPort=${result[-1]}
-        
-        # 检查iptables是否存在
-        if find /usr/bin /usr/sbin | grep -q -w iptables; then
-            # 删除旧的端口跳跃规则（如果存在）
-            iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_hysteria2_portHopping" | awk '{print $1}' | while read -r line; do
-                iptables -t nat -D PREROUTING 1
-            done
-            
-            # 添加新的端口跳跃规则
-            iptables -t nat -A PREROUTING -p udp --dport "30000:40000" -m comment --comment "mack-a_hysteria2_portHopping" -j DNAT --to-destination :${hysteriaPort}
-            
-            if iptables-save | grep -q "mack-a_hysteria2_portHopping"; then
-                allowPort "30000:40000" udp
-                
-                # 保存iptables规则到iptables-persistent
-                if [[ -f /etc/iptables/rules.v4 ]] && command -v iptables-save >/dev/null 2>&1; then
-                    iptables-save > /etc/iptables/rules.v4
-                    echoContent green " ---> iptables规则已保存到iptables-persistent"
-                elif command -v netfilter-persistent >/dev/null 2>&1; then
-                    netfilter-persistent save
-                    echoContent green " ---> iptables规则已通过netfilter-persistent保存"
-                fi
-                
-                echoContent green " ---> 端口跳跃配置成功 (30000-40000)"
-            else
-                echoContent yellow " ---> 端口跳跃配置失败，将使用单端口模式"
-            fi
-        else
-            echoContent yellow " ---> 未找到iptables，跳过端口跳跃配置"
-        fi
-        
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json
 {
     "inbounds": [
@@ -5073,6 +5110,36 @@ EOF
     elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/sing-box/conf/config/11_VMess_HTTPUpgrade_inbounds.json >/dev/null 2>&1
     fi
+
+    if echo "${selectCustomInstallType}" | grep -q ",13," || [[ "$1" == "all" ]]; then
+        echoContent yellow "\n================== 配置 AnyTLS ==================\n"
+        echoContent skyBlue "\n开始配置AnyTLS协议端口"
+        echo
+        mapfile -t result < <(initSingBoxPort "${singBoxAnyTLSPort}")
+        echoContent green "\n ---> AnyTLS端口：${result[-1]}"
+        cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/13_anytls_inbounds.json
+{
+    "inbounds": [
+        {
+            "type": "anytls",
+            "listen": "::",
+            "tag":"anytls",
+            "listen_port": ${result[-1]},
+            "users": $(initSingBoxClients 13),
+            "tls": {
+                "enabled": true,
+                "server_name":"${sslDomain}",
+                "certificate_path": "/etc/v2ray-agent/tls/${sslDomain}.crt",
+                "key_path": "/etc/v2ray-agent/tls/${sslDomain}.key"
+            }
+        }
+    ]
+}
+EOF
+    elif [[ -z "$3" ]]; then
+        rm /etc/v2ray-agent/sing-box/conf/config/13_anytls_inbounds.json >/dev/null 2>&1
+    fi
+
     if [[ -z "$3" ]]; then
         removeSingBoxConfig wireguard_endpoints_IPv4_route
         removeSingBoxConfig wireguard_endpoints_IPv6_route
@@ -5346,17 +5413,19 @@ EOF
     elif [[ "${type}" == "vlessReality" ]]; then
         local realityServerName=${xrayVLESSRealityServerName}
         local publicKey=${currentRealityPublicKey}
+        local realityMldsa65Verify=${currentRealityMldsa65Verify}
+
         if [[ "${coreInstallType}" == "2" ]]; then
             realityServerName=${singBoxVLESSRealityVisionServerName}
             publicKey=${singBoxVLESSRealityPublicKey}
         fi
         echoContent yellow " ---> 通用格式(VLESS+reality+uTLS+Vision)"
-        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}\n"
+        echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+Vision)"
-        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2,serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
+        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，pqv=${realityMldsa65Verify}，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}
+vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}
 EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
@@ -5384,18 +5453,22 @@ EOF
     elif [[ "${type}" == "vlessRealityGRPC" ]]; then
         local realityServerName=${xrayVLESSRealityServerName}
         local publicKey=${currentRealityPublicKey}
+        local realityMldsa65Verify=${currentRealityMldsa65Verify}
+
         if [[ "${coreInstallType}" == "2" ]]; then
             realityServerName=${singBoxVLESSRealityGRPCServerName}
             publicKey=${singBoxVLESSRealityPublicKey}
         fi
 
         echoContent yellow " ---> 通用格式(VLESS+reality+uTLS+gRPC)"
+        # pqv=${realityMldsa65Verify}&
         echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+gRPC)"
+        # pqv=${realityMldsa65Verify}，
         echoContent green "协议类型:VLESS reality，serviceName:grpc，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:gRPC，client-fingerprint：chrome，账户名:${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}
+vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}
 EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
@@ -5508,6 +5581,35 @@ EOF
 
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vmess://${qrCodeBase64Default}\n"
 
+    elif [[ "${type}" == "anytls" ]]; then
+        echoContent yellow " ---> AnyTLS"
+
+        echoContent yellow " ---> 格式化明文(AnyTLS)"
+        echoContent green "协议类型:anytls，地址:${currentHost}，端口:${singBoxAnyTLSPort}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
+
+        echoContent green "    anytls://${id}@${currentHost}:${singBoxAnyTLSPort}?peer=${currentHost}&insecure=0&sni=${currentHost}#${email}\n"
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
+anytls://${id}@${currentHost}:${singBoxAnyTLSPort}?peer=${currentHost}&insecure=0&sni=${currentHost}#${email}
+EOF
+        cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
+  - name: "${email}"
+    type: anytls
+    port: ${singBoxAnyTLSPort}
+    server: ${currentHost}
+    password: ${id}
+    client-fingerprint: chrome
+    udp: true
+    sni: ${currentHost}
+    alpn:
+      - h2
+      - http/1.1
+EOF
+
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"anytls\",\"server\":\"${currentHost}\",\"server_port\":${singBoxAnyTLSPort},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
+
+        echoContent yellow " ---> 二维码 AnyTLS"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=anytls%3A%2F%2F${id}%40${currentHost}%3A${singBoxAnyTLSPort}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%23${email}\n"
     fi
 
 }
@@ -5518,7 +5620,6 @@ showAccounts() {
     readInstallProtocolType
     readConfigHostPathUUID
     readSingBoxConfig
-    readHysteriaPortHopping
 
     echo
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
@@ -5651,14 +5752,15 @@ showAccounts() {
     fi
     # hysteria2
     if echo ${currentInstallProtocolType} | grep -q ",6," || [[ -n "${hysteriaPort}" ]]; then
+        readPortHopping "hysteria2" "${singBoxHysteria2Port}"
         echoContent skyBlue "\n================================  Hysteria2 TLS [推荐] ================================\n"
         local path="${configPath}"
         if [[ "${coreInstallType}" == "1" ]]; then
             path="${singBoxConfigPath}"
         fi
         local hysteria2DefaultPort=
-        if [[ -n "${portHoppingStart}" && -n "${portHoppingEnd}" ]]; then
-            hysteria2DefaultPort="${portHoppingStart}-${portHoppingEnd}"
+        if [[ -n "${hysteria2PortHoppingStart}" && -n "${hysteria2PortHoppingEnd}" ]]; then
+            hysteria2DefaultPort="${hysteria2PortHopping}"
         else
             hysteria2DefaultPort=${singBoxHysteria2Port}
         fi
@@ -5769,6 +5871,17 @@ showAccounts() {
                 fi
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
         done
+    fi
+    # AnyTLS
+    if echo ${currentInstallProtocolType} | grep -q ",13,"; then
+        echoContent skyBlue "\n================================  AnyTLS ================================\n"
+
+        jq -r -c '.inbounds[]|.users[]' "${configPath}13_anytls_inbounds.json" | while read -r user; do
+            echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
+            echo
+            defaultBase64Code anytls "${singBoxAnyTLSPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
+        done
+
     fi
 }
 # 移除nginx302配置
@@ -6052,23 +6165,6 @@ unInstall() {
     fi
     checkBTPanel
     echoContent yellow " ---> 脚本不会删除acme相关配置，删除请手动执行 [rm -rf /root/.acme.sh]"
-    
-    # 清理Hysteria2端口跳跃规则
-    echoContent green " ---> 清理Hysteria2端口跳跃规则"
-    if find /usr/bin /usr/sbin | grep -q -w iptables; then
-        iptables -t nat -L PREROUTING --line-numbers | grep "mack-a_hysteria2_portHopping" | awk '{print $1}' | while read -r line; do
-            iptables -t nat -D PREROUTING 1
-        done
-        if [[ -f /etc/iptables/rules.v4 ]] && command -v iptables-save >/dev/null 2>&1; then
-            iptables-save > /etc/iptables/rules.v4
-        fi
-        echoContent green " ---> 端口跳跃规则清理完成"
-    fi
-    
-    # 清理定时重启任务
-    echoContent green " ---> 清理系统定时重启任务"
-    removeDailyRebootCron
-    
     handleNginx stop
     if [[ -z $(pgrep -f "nginx") ]]; then
         echoContent green " ---> 停止Nginx成功"
@@ -6108,7 +6204,7 @@ unInstall() {
     unInstallSubscribe
 
     if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
-        rm -rf "${nginxStaticPath}*"
+        rm -rf "${nginxStaticPath}"
         echoContent green " ---> 删除伪装网站完成"
     fi
 
@@ -7201,7 +7297,7 @@ unInstallWireGuard() {
     fi
 
     if [[ -n "${singBoxConfigPath}" ]]; then
-        if [[ ! -f "${singBoxConfigPath}wireguard_out_IPv6_route.json" && ! -f "${singBoxConfigPath}wireguard_out_IPv4_route.json" ]]; then
+        if [[ ! -f "${singBoxConfigPath}wireguard_endpoints_IPv6_route.json" && ! -f "${singBoxConfigPath}wireguard_endpoints_IPv4_route.json" ]]; then
             rm "${singBoxConfigPath}wireguard_outbound.json" >/dev/null 2>&1
             rm -rf /etc/v2ray-agent/warp/config >/dev/null 2>&1
         fi
@@ -7222,7 +7318,7 @@ removeWireGuardRoute() {
 
     # sing-box
     if [[ -n "${singBoxConfigPath}" ]]; then
-        removeSingBoxRouteRule "wireguard_out_${type}"
+        removeSingBoxRouteRule "wireguard_endpoints_${type}"
     fi
 
     unInstallWireGuard "${type}"
@@ -8231,6 +8327,7 @@ customSingBoxInstall() {
     echoContent yellow "9.Tuic"
     echoContent yellow "10.Naive"
     echoContent yellow "11.VMess+TLS+HTTPUpgrade"
+    echoContent yellow "13.anytls"
 
     read -r -p "请选择[多选]，[例如:1,2,3]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
@@ -8238,7 +8335,7 @@ customSingBoxInstall() {
         echoContent red " ---> 请使用英文逗号分隔"
         exit 0
     fi
-    if [[ "${selectCustomInstallType}" != "10" ]] && [[ "${selectCustomInstallType}" != "11" ]] && ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
+    if [[ "${selectCustomInstallType}" != "10" ]] && [[ "${selectCustomInstallType}" != "11" ]] && [[ "${selectCustomInstallType}" != "13" ]] && ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
         echoContent red " ---> 多选请使用英文逗号分隔"
         exit 0
     fi
@@ -8255,7 +8352,7 @@ customSingBoxInstall() {
         totalProgress=9
         installTools 1
         # 申请tls
-        if echo "${selectCustomInstallType}" | grep -q -E ",0,|,1,|,3,|,4,|,6,|,9,|,10,|,11,"; then
+        if echo "${selectCustomInstallType}" | grep -q -E ",0,|,1,|,3,|,4,|,6,|,9,|,10,|,11,|,13,"; then
             initTLSNginxConfig 2
             installTLS 3
             handleNginx stop
@@ -8640,7 +8737,7 @@ installSubscribe() {
         echo
         local httpSubscribeStatus=
 
-        if ! echo "${selectCustomInstallType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11," && ! echo "${currentInstallProtocolType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11," && [[ -z "${domain}" ]]; then
+        if ! echo "${selectCustomInstallType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11,|,13," && ! echo "${currentInstallProtocolType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,|,11,|,13," && [[ -z "${domain}" ]]; then
             httpSubscribeStatus=true
         fi
 
@@ -9167,7 +9264,6 @@ subscribe() {
 
         echoContent skyBlue "-------------------------备注---------------------------------"
         echoContent yellow "# 查看订阅会重新生成本地账号的订阅"
-        #        echoContent yellow "# 添加账号或者修改账号需要重新查看订阅才会重新生成对外访问的订阅内容"
         echoContent red "# 需要手动输入md5加密的salt值，如果不了解使用随机即可"
         echoContent yellow "# 不影响已添加的远程订阅的内容\n"
 
@@ -9427,6 +9523,42 @@ initRealityKey() {
     echoContent green "\n privateKey:${realityPrivateKey}"
     echoContent green "\n publicKey:${realityPublicKey}"
 }
+# 初始化 mldsa65Seed
+initRealityMldsa65() {
+    echoContent skyBlue "\n生成Reality mldsa65\n"
+    if /etc/v2ray-agent/xray/xray tls ping "${realityServerName}:${realityDomainPort}" 2>/dev/null | grep -q "X25519MLKEM768"; then
+        length=$(/etc/v2ray-agent/xray/xray tls ping "${realityServerName}:${realityDomainPort}" | grep "Certificate chain's total length:" | awk '{print $5}' | head -1)
+
+        if [ "$length" -gt 3500 ]; then
+            if [[ -n "${currentRealityMldsa65}" && -z "${lastInstallationConfig}" ]]; then
+                read -r -p "读取到上次安装记录，是否使用上次安装时的Seed/Verify ？[y/n]:" historyMldsa65Status
+                if [[ "${historyMldsa65Status}" == "y" ]]; then
+                    realityMldsa65Seed=${currentRealityMldsa65Seed}
+                    realityMldsa65Verify=${currentRealityMldsa65Verify}
+                fi
+            elif [[ -n "${currentRealityMldsa65Seed}" && -n "${lastInstallationConfig}" ]]; then
+                realityMldsa65Seed=${currentRealityMldsa65Seed}
+                realityMldsa65Verify=${currentRealityMldsa65Verify}
+            fi
+            if [[ -z "${realityMldsa65Seed}" ]]; then
+                #        if [[ "${selectCoreType}" == "2" || "${coreInstallType}" == "2" ]]; then
+                #            realityX25519Key=$(/etc/v2ray-agent/sing-box/sing-box generate reality-keypair)
+                #            realityPrivateKey=$(echo "${realityX25519Key}" | head -1 | awk '{print $2}')
+                #            realityPublicKey=$(echo "${realityX25519Key}" | tail -n 1 | awk '{print $2}')
+                #            echo "publicKey:${realityPublicKey}" >/etc/v2ray-agent/sing-box/conf/config/reality_key
+                #        else
+                realityMldsa65=$(/etc/v2ray-agent/xray/xray mldsa65)
+                realityMldsa65Seed=$(echo "${realityMldsa65}" | head -1 | awk '{print $2}')
+                realityMldsa65Verify=$(echo "${realityMldsa65}" | tail -n 1 | awk '{print $2}')
+                #        fi
+            fi
+            #    echoContent green "\n Seed:${realityMldsa65Seed}"
+            #    echoContent green "\n Verify:${realityMldsa65Verify}"
+        fi
+    else
+        echoContent green " 目标域名不支持X25519MLKEM768，忽略ML-DSA-65。"
+    fi
+}
 # 检查reality域名是否符合
 checkRealityDest() {
     local traceResult=
@@ -9586,6 +9718,7 @@ initXrayRealityConfig() {
     initXrayRealityPort
     initRealityKey
     initRealityClientServersName
+    initRealityMldsa65
 }
 # 修改reality域名端口等信息
 updateXrayRealityConfig() {
@@ -9721,7 +9854,7 @@ manageHysteria() {
     elif [[ "${installHysteria2Status}" == "2" && "${hysteria2Status}" == "true" ]]; then
         unInstallSingBox hysteria2
     elif [[ "${installHysteria2Status}" == "3" && "${hysteria2Status}" == "true" ]]; then
-        hysteriaPortHoppingMenu
+        portHoppingMenu hysteria2
     fi
 }
 
@@ -9734,6 +9867,7 @@ manageTuic() {
         echoContent yellow "依赖sing-box内核\n"
         echoContent yellow "1.重新安装"
         echoContent yellow "2.卸载"
+        echoContent yellow "3.端口跳跃管理"
         tuicStatus=true
     else
         echoContent yellow "依赖sing-box内核\n"
@@ -9746,6 +9880,8 @@ manageTuic() {
         singBoxTuicInstall
     elif [[ "${installTuicStatus}" == "2" && "${tuicStatus}" == "true" ]]; then
         unInstallSingBox tuic
+    elif [[ "${installTuicStatus}" == "3" && "${tuicStatus}" == "true" ]]; then
+        portHoppingMenu tuic
     fi
 }
 # sing-box log日志
@@ -9849,15 +9985,11 @@ menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
     echoContent green "作者：mack-a"
-    echoContent green "当前版本：v3.4.14"
+    echoContent green "当前版本：v3.4.26"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
     echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
     checkWgetShowProgress
-    echoContent red "\n=========================== 推广区============================"
-    echoContent red "                                              "
-    echoContent green "VPS选购攻略：https://www.v2ray-agent.com/archives/1679975663984"
-    echoContent green "年付10美金低价VPS AS4837：https://www.v2ray-agent.com/archives/racknerdtao-can-zheng-li-nian-fu-10mei-yuan"
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
         echoContent yellow "1.重新安装"
@@ -9949,31 +10081,5 @@ menu() {
         ;;
     esac
 }
-
-# 移除每天凌晨5点重启的定时任务
-removeDailyRebootCron() {
-    # 检查是否存在重启任务
-    if ! crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-        echoContent yellow " ---> 未找到每日凌晨5点重启任务"
-        return
-    fi
-    
-    # 备份当前crontab并删除重启任务
-    crontab -l 2>/dev/null | grep -v "0 5 \* \* \* /sbin/reboot" >/tmp/backup_crontab_remove_reboot.cron
-    
-    # 应用新的crontab
-    crontab /tmp/backup_crontab_remove_reboot.cron
-    
-    # 清理临时文件
-    rm -f /tmp/backup_crontab_remove_reboot.cron
-    
-    # 验证任务是否删除成功
-    if ! crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-        echoContent green " ---> 每日凌晨5点自动重启任务删除成功"
-    else
-        echoContent red " ---> 定时重启任务删除失败"
-    fi
-}
-
 cronFunction
 menu
