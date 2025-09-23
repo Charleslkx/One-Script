@@ -3439,6 +3439,52 @@ deletePortHoppingRules() {
     fi
 }
 
+# 自动为Hysteria2配置端口跳跃
+autoAddHysteria2PortHopping() {
+    local targetPort=$1
+    local portStart=35000
+    local portEnd=36000
+
+    if [[ -z "${targetPort}" ]]; then
+        return
+    fi
+
+    if [[ "${release}" == "centos" ]]; then
+        echoContent yellow " ---> 检测到CentOS系统，自动端口跳跃暂未适配"
+        return
+    fi
+
+    if ! command -v iptables >/dev/null || ! command -v iptables-save >/dev/null || ! command -v netfilter-persistent >/dev/null; then
+        echoContent yellow " ---> 未检测到iptables/iptables-save或netfilter-persistent，跳过自动端口跳跃配置"
+        return
+    fi
+
+    local existingRule
+    existingRule=$(iptables-save | grep "mack-a_hysteria2_portHopping")
+
+    if [[ -n "${existingRule}" ]]; then
+        if echo "${existingRule}" | grep -q "${portStart}:${portEnd}" && echo "${existingRule}" | grep -q ":${targetPort}"; then
+            echoContent yellow " ---> 检测到已有Hysteria2端口跳跃规则，跳过自动配置"
+        else
+            echoContent yellow " ---> 已存在其他Hysteria2端口跳跃规则，跳过自动配置"
+        fi
+        return
+    fi
+
+    iptables -t nat -A PREROUTING -p udp --dport ${portStart}:${portEnd} -m comment --comment "mack-a_hysteria2_portHopping" -j DNAT --to-destination :${targetPort}
+
+    existingRule=$(iptables-save | grep "mack-a_hysteria2_portHopping")
+    if [[ -z "${existingRule}" ]]; then
+        echoContent red " ---> 自动添加Hysteria2端口跳跃失败"
+        iptables -t nat -D PREROUTING -p udp --dport ${portStart}:${portEnd} -m comment --comment "mack-a_hysteria2_portHopping" -j DNAT --to-destination :${targetPort} >/dev/null 2>&1
+        return
+    fi
+
+    allowPort "${portStart}:${portEnd}" udp
+    sudo netfilter-persistent save >/dev/null 2>&1
+    echoContent green " ---> 已自动添加Hysteria2端口跳跃 ${portStart}-${portEnd} -> ${targetPort}"
+}
+
 # 端口跳跃菜单
 portHoppingMenu() {
     local type=$1
@@ -4981,6 +5027,7 @@ EOF
     ]
 }
 EOF
+        autoAddHysteria2PortHopping "${result[-1]}"
     elif [[ -z "$3" ]]; then
         rm /etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json >/dev/null 2>&1
     fi
