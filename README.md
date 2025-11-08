@@ -25,6 +25,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/charleslkx/one-script/master
 - 防火墙规则持久化
 - 自动定时重启
 - 一键命令 hy2 快速启动
+- 默认出站优先 IPv6，无法命中 IPv6 时自动回落 IPv4
 
 ## 使用说明
 

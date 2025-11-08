@@ -3821,10 +3821,12 @@ removeSingBoxRouteRule() {
 # 添加sing-box出站
 addSingBoxOutbound() {
     local tag=$1
-    local type="ipv4"
+    local domainStrategy="prefer_ipv6"
     local detour=$2
-    if echo "${tag}" | grep -q "IPv6"; then
-        type=ipv6
+    if echo "${tag}" | grep -qi "IPv6"; then
+        domainStrategy="ipv6_only"
+    elif echo "${tag}" | grep -qi "IPv4"; then
+        domainStrategy="ipv4_only"
     fi
     if [[ -n "${detour}" ]]; then
         cat <<EOF >"${singBoxConfigPath}${tag}.json"
@@ -3834,7 +3836,7 @@ addSingBoxOutbound() {
              "type": "direct",
              "tag": "${tag}",
              "detour": "${detour}",
-             "domain_strategy": "${type}_only"
+             "domain_strategy": "${domainStrategy}"
         }
     ]
 }
@@ -3846,7 +3848,8 @@ EOF
      "outbounds": [
         {
              "type": "direct",
-             "tag": "${tag}"
+             "tag": "${tag}",
+             "domain_strategy": "${domainStrategy}"
         }
     ]
 }
@@ -3870,7 +3873,7 @@ EOF
         {
              "type": "direct",
              "tag": "${tag}",
-             "domain_strategy": "${type}_only"
+             "domain_strategy": "${domainStrategy}"
         }
     ]
 }
@@ -4060,6 +4063,85 @@ EOF
   ]
 }
 EOF
+    fi
+}
+
+# 确保默认出站优先使用IPv6，IPv4作为回落
+ensureXrayIPv6PreferredRouting() {
+    local routingDir="/etc/v2ray-agent/xray/conf"
+    local routingFile="${routingDir}/09_routing.json"
+    if [[ ! -d "${routingDir}" ]]; then
+        return
+    fi
+
+    addXrayOutbound IPv6_out
+    addXrayOutbound IPv4_out
+
+    if [[ ! -f "${routingFile}" ]]; then
+        cat <<EOF >${routingFile}
+{
+  "routing": {
+    "domainStrategy": "IPOnDemand",
+    "rules": [
+      {
+        "type": "field",
+        "domain": [
+          "domain:gstatic.com",
+          "domain:googleapis.com",
+	  "domain:googleapis.cn"
+        ],
+        "outboundTag": "z_direct_outbound"
+      },
+      {
+        "type": "field",
+        "ip": [
+          "::/0"
+        ],
+        "outboundTag": "IPv6_out"
+      },
+      {
+        "type": "field",
+        "ip": [
+          "0.0.0.0/0"
+        ],
+        "outboundTag": "IPv4_out"
+      }
+    ]
+  }
+}
+EOF
+        return
+    fi
+
+    local routingTmp
+    routingTmp=$(jq '
+      if (.routing // null) == null then .routing = {} end |
+      if (.routing.rules? | type) == "array" then . else .routing.rules = [] end |
+      .routing.domainStrategy = (.routing.domainStrategy // "IPOnDemand") |
+      (if any(.routing.rules[]?; .outboundTag=="IPv6_out" and (((.ip // []) | index("::/0")) != null))
+          then .
+          else .routing.rules += [
+            {
+              "type": "field",
+              "ip": ["::/0"],
+              "outboundTag": "IPv6_out"
+            }
+          ]
+       end) |
+      (if any(.routing.rules[]?; .outboundTag=="IPv4_out" and (((.ip // []) | index("0.0.0.0/0")) != null))
+          then .
+          else .routing.rules += [
+            {
+              "type": "field",
+              "ip": ["0.0.0.0/0"],
+              "outboundTag": "IPv4_out"
+            }
+          ]
+       end)
+    ' "${routingFile}")
+
+    if [[ -n "${routingTmp}" ]]; then
+        echo "${routingTmp}" | jq . >"${routingFile}"
     fi
 }
 
@@ -4346,6 +4428,7 @@ EOF
     fi
 
     addXrayOutbound "z_direct_outbound"
+    ensureXrayIPv6PreferredRouting
     # dns
     if [[ ! -f "/etc/v2ray-agent/xray/conf/11_dns.json" ]]; then
         cat <<EOF >/etc/v2ray-agent/xray/conf/11_dns.json
@@ -4362,6 +4445,7 @@ EOF
     cat <<EOF >/etc/v2ray-agent/xray/conf/09_routing.json
 {
   "routing": {
+    "domainStrategy": "IPOnDemand",
     "rules": [
       {
         "type": "field",
@@ -4371,6 +4455,20 @@ EOF
 	  "domain:googleapis.cn"
         ],
         "outboundTag": "z_direct_outbound"
+      },
+      {
+        "type": "field",
+        "ip": [
+          "::/0"
+        ],
+        "outboundTag": "IPv6_out"
+      },
+      {
+        "type": "field",
+        "ip": [
+          "0.0.0.0/0"
+        ],
+        "outboundTag": "IPv4_out"
       }
     ]
   }
@@ -4722,6 +4820,7 @@ EOF
         removeXrayOutbound wireguard_out_IPv6
         removeXrayOutbound wireguard_out_IPv4
         addXrayOutbound z_direct_outbound
+        ensureXrayIPv6PreferredRouting
     fi
 }
 
@@ -6928,6 +7027,7 @@ ipv6Routing() {
 
             removeXrayOutbound IPv6_out
             addXrayOutbound "z_direct_outbound"
+            ensureXrayIPv6PreferredRouting
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
@@ -6950,7 +7050,7 @@ showIPv6Routing() {
     if [[ "${coreInstallType}" == "1" ]]; then
         if [[ -f "${configPath}09_routing.json" ]]; then
             echoContent yellow "Xray-core："
-            jq -r -c '.routing.rules[]|select (.outboundTag=="IPv6_out")|.domain' ${configPath}09_routing.json | jq -r
+            jq -r -c '.routing.rules[]|select (.outboundTag=="IPv6_out" and (.domain != null))|.domain' ${configPath}09_routing.json | jq -r
         elif [[ ! -f "${configPath}09_routing.json" && -f "${configPath}IPv6_out.json" ]]; then
             echoContent yellow "Xray-core"
             echoContent green " ---> 已设置IPv6全局分流"
@@ -7470,6 +7570,7 @@ warpRoutingReg() {
 
             removeXrayOutbound "wireguard_out_${type}"
             addXrayOutbound "z_direct_outbound"
+            ensureXrayIPv6PreferredRouting
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
@@ -7756,6 +7857,7 @@ removeSocks5Routing() {
             removeXrayOutbound socks5_outbound
             unInstallRouting socks5_outbound outboundTag
             addXrayOutbound z_direct_outbound
+            ensureXrayIPv6PreferredRouting
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
@@ -7775,6 +7877,7 @@ removeSocks5Routing() {
             removeXrayOutbound socks5_outbound
             unInstallRouting socks5_outbound outboundTag
             addXrayOutbound z_direct_outbound
+            ensureXrayIPv6PreferredRouting
         fi
 
         if [[ -n "${singBoxConfigPath}" ]]; then
