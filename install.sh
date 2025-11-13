@@ -947,6 +947,220 @@ readConfigHostPathUUID() {
     fi
 }
 
+cdnResolveCacheKeys=()
+cdnResolveCacheValues=()
+cdnNodeAddress=
+cdnNodePreference=
+
+normalizeCDNPreference() {
+    local preference=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+    case "${preference}" in
+    ipv6 | 6)
+        echo "ipv6"
+        ;;
+    ipv4 | 4 | "")
+        echo "ipv4"
+        ;;
+    *)
+        echo "ipv4"
+        ;;
+    esac
+}
+
+isIPv4() {
+    [[ $1 =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
+}
+
+isIPv6() {
+    [[ $1 == *:* ]]
+}
+
+formatAddressForURI() {
+    local host=$1
+    if [[ -z "${host}" ]]; then
+        echo ""
+        return
+    fi
+    if isIPv6 "${host}"; then
+        if [[ "${host}" == \[*\] ]]; then
+            echo "${host}"
+        else
+            echo "[${host}]"
+        fi
+    else
+        echo "${host}"
+    fi
+}
+
+parseCDNNodeEntry() {
+    local entry=$1
+    local trimmedEntry=
+    trimmedEntry=$(echo "${entry}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' )
+    if [[ -z "${trimmedEntry}" ]]; then
+        cdnNodeAddress=
+        cdnNodePreference=
+        return
+    fi
+    if [[ "${trimmedEntry}" == *"|"* ]]; then
+        cdnNodeAddress=${trimmedEntry%%|*}
+        cdnNodePreference=$(normalizeCDNPreference "${trimmedEntry##*|}")
+    else
+        cdnNodeAddress=${trimmedEntry}
+        cdnNodePreference=
+    fi
+}
+
+getCDNConnectAddress() {
+    local address=$1
+    local preference=$2
+    if [[ -z "${address}" ]]; then
+        echo ""
+        return
+    fi
+    local normalizedPreference=
+    normalizedPreference=$(normalizeCDNPreference "${preference}")
+    local cacheKey="${address}|${normalizedPreference}"
+    local index=0
+    for key in "${cdnResolveCacheKeys[@]}"; do
+        if [[ "${key}" == "${cacheKey}" ]]; then
+            echo "${cdnResolveCacheValues[${index}]}"
+            return
+        fi
+        index=$((index + 1))
+    done
+
+    local resolvedAddress="${address}"
+    if [[ "${normalizedPreference}" == "ipv6" ]]; then
+        if ! isIPv6 "${address}"; then
+            local ipv6Result=
+            ipv6Result=$(dig +time=2 +short AAAA "${address}" | head -1 | tr -d '\r')
+            if [[ -n "${ipv6Result}" ]]; then
+                resolvedAddress="${ipv6Result}"
+            fi
+        fi
+    else
+        if ! isIPv4 "${address}"; then
+            local ipv4Result=
+            ipv4Result=$(dig +time=2 +short A "${address}" | grep -E '^(([0-9]{1,3}\.){3}[0-9]{1,3})$' | head -1 | tr -d '\r')
+            if [[ -n "${ipv4Result}" ]]; then
+                resolvedAddress="${ipv4Result}"
+            fi
+        fi
+    fi
+
+    cdnResolveCacheKeys+=("${cacheKey}")
+    cdnResolveCacheValues+=("${resolvedAddress}")
+    echo "${resolvedAddress}"
+}
+
+describeCDNPreference() {
+    local preference=
+    preference=$(normalizeCDNPreference "$1")
+    if [[ "${preference}" == "ipv6" ]]; then
+        echo "IPv6优先"
+    else
+        echo "IPv4优先"
+    fi
+}
+
+promptCDNPreference() {
+    local nodeAddress=$1
+    local defaultPreference=${2:-ipv4}
+    defaultPreference=$(normalizeCDNPreference "${defaultPreference}")
+    local ipv4Label="[默认]"
+    local ipv6Label=
+    if [[ "${defaultPreference}" == "ipv6" ]]; then
+        ipv4Label=
+        ipv6Label="[默认]"
+    fi
+    echoContent yellow "\n为节点 ${nodeAddress} 选择访问方式"
+    echoContent yellow "1.IPv4优先${ipv4Label}"
+    echoContent yellow "2.IPv6优先${ipv6Label}"
+    local selectPreference=
+    read -r -p "请选择[1-2]:" selectPreference
+    if [[ -z "${selectPreference}" ]]; then
+        if [[ "${defaultPreference}" == "ipv6" ]]; then
+            selectPreference=2
+        else
+            selectPreference=1
+        fi
+    fi
+    if [[ "${selectPreference}" == "2" ]]; then
+        echo "ipv6"
+    else
+        echo "ipv4"
+    fi
+}
+
+# 构建带有优先级配置的CDN节点列表
+buildCDNPreferenceList() {
+    local rawList=$1
+    local formattedEntries=()
+    local hasEntry=false
+    while read -r node; do
+        parseCDNNodeEntry "${node}"
+        if [[ -z "${cdnNodeAddress}" ]]; then
+            continue
+        fi
+        hasEntry=true
+        local preference=$(promptCDNPreference "${cdnNodeAddress}" "${cdnNodePreference:-ipv4}")
+        formattedEntries+=("${cdnNodeAddress}|${preference}")
+    done < <(echo "${rawList}" | tr ',' '\n')
+
+    if [[ "${hasEntry}" == false ]]; then
+        echo ""
+    else
+        (IFS=','; echo "${formattedEntries[*]}")
+    fi
+}
+
+configureExistingCDNPreference() {
+    if [[ ! -f "/etc/v2ray-agent/cdn" ]]; then
+        echoContent yellow " ---> 未检测到CDN节点，请先添加"
+        return
+    fi
+    local rawList=
+    rawList=$(head -1 /etc/v2ray-agent/cdn)
+    if [[ -z "${rawList}" ]]; then
+        echoContent yellow " ---> 未检测到CDN节点，请先添加"
+        return
+    fi
+    local entries=()
+    while read -r node; do
+        parseCDNNodeEntry "${node}"
+        if [[ -z "${cdnNodeAddress}" ]]; then
+            continue
+        fi
+        entries+=("${cdnNodeAddress}|${cdnNodePreference:-ipv4}")
+    done < <(echo "${rawList}" | tr ',' '\n')
+
+    if [[ ${#entries[@]} -eq 0 ]]; then
+        echoContent yellow " ---> 未检测到CDN节点，请先添加"
+        return
+    fi
+
+    echoContent skyBlue "\n当前节点及其优先级"
+    local idx=1
+    for entry in "${entries[@]}"; do
+        parseCDNNodeEntry "${entry}"
+        echoContent yellow "${idx}. ${cdnNodeAddress} [$(describeCDNPreference "${cdnNodePreference:-ipv4}")]"
+        idx=$((idx + 1))
+    done
+    read -r -p "请选择需要修改的节点编号:" selectNodeIndex
+    if [[ -z "${selectNodeIndex}" ]] || ! [[ "${selectNodeIndex}" =~ ^[0-9]+$ ]] || ((selectNodeIndex < 1)) || ((selectNodeIndex > ${#entries[@]})); then
+        echoContent red " ---> 节点编号输入有误"
+        return
+    fi
+    local targetEntry=${entries[$((selectNodeIndex - 1))]}
+    parseCDNNodeEntry "${targetEntry}"
+    local updatedPreference=
+    updatedPreference=$(promptCDNPreference "${cdnNodeAddress}" "${cdnNodePreference:-ipv4}")
+    entries[$((selectNodeIndex - 1))]="${cdnNodeAddress}|${updatedPreference}"
+    (IFS=','; echo "${entries[*]}") >/etc/v2ray-agent/cdn
+    echoContent green " ---> 节点优先级更新成功"
+    subscribe false false
+}
+
 # 状态展示
 showInstallStatus() {
     if [[ -n "${coreInstallType}" ]]; then
@@ -5315,11 +5529,29 @@ defaultBase64Code() {
     local id=$4
     local add=$5
     local path=$6
+    local ipPreference=$7
     local user=
     user=$(echo "${email}" | awk -F "[-]" '{print $1}')
     if [[ ! -f "/etc/v2ray-agent/subscribe_local/sing-box/${user}" ]]; then
         echo [] >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
     fi
+    local normalizedIPPreference=
+    if [[ -n "${ipPreference}" ]]; then
+        normalizedIPPreference=$(normalizeCDNPreference "${ipPreference}")
+    fi
+    local clashIPVersionLine=
+    local singBoxDomainStrategyField=
+    if [[ "${normalizedIPPreference}" == "ipv6" ]]; then
+        clashIPVersionLine="    ip-version: ipv6
+"
+        singBoxDomainStrategyField=",\"domain_strategy\":\"prefer_ipv6\""
+    elif [[ "${normalizedIPPreference}" == "ipv4" && -n "${ipPreference}" ]]; then
+        clashIPVersionLine="    ip-version: ipv4
+"
+        singBoxDomainStrategyField=",\"domain_strategy\":\"prefer_ipv4\""
+    fi
+    local uriAddress=
+    uriAddress=$(formatAddressForURI "${add}")
     local singBoxSubscribeLocalConfig=
     if [[ "${type}" == "vlesstcp" ]]; then
 
@@ -5365,13 +5597,13 @@ EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
     type: vmess
-    server: ${add}
+    server: "${add}"
     port: ${port}
     uuid: ${id}
     alterId: 0
     cipher: none
     udp: true
-    tls: true
+${clashIPVersionLine}    tls: true
     client-fingerprint: chrome
     servername: ${currentHost}
     network: ws
@@ -5380,7 +5612,7 @@ EOF
       headers:
         Host: ${currentHost}
 EOF
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\",\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"max_early_data\":2048,\"early_data_header_name\":\"Sec-WebSocket-Protocol\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\"${singBoxDomainStrategyField},\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"max_early_data\":2048,\"early_data_header_name\":\"Sec-WebSocket-Protocol\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
 
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
@@ -5389,22 +5621,22 @@ EOF
     elif [[ "${type}" == "vlessws" ]]; then
 
         echoContent yellow " ---> 通用格式(VLESS+WS+TLS)"
-        echoContent green "    vless://${id}@${add}:${port}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=${path}#${email}\n"
+        echoContent green "    vless://${id}@${uriAddress}:${port}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=${path}#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
         echoContent green "    协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${port}，client-fingerprint: chrome,用户ID:${id}，安全:tls，传输方式:ws，路径:${path}，账户名:${email}\n"
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-vless://${id}@${add}:${port}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=${path}#${email}
+vless://${id}@${uriAddress}:${port}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=${path}#${email}
 EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
     type: vless
-    server: ${add}
+    server: "${add}"
     port: ${port}
     uuid: ${id}
     udp: true
-    tls: true
+${clashIPVersionLine}    tls: true
     network: ws
     client-fingerprint: chrome
     servername: ${currentHost}
@@ -5414,11 +5646,11 @@ EOF
         Host: ${currentHost}
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"headers\":{\"Host\":\"${currentHost}\"}}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32},\"packet_encoding\":\"xudp\"${singBoxDomainStrategyField},\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"headers\":{\"Host\":\"${currentHost}\"}}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+WS+TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26path%3D${path}%23${email}"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${uriAddress}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26path%3D${path}%23${email}"
 
     elif [[ "${type}" == "vlessXHTTP" ]]; then
 
@@ -5438,13 +5670,13 @@ EOF
     then
 
         echoContent yellow " ---> 通用格式(VLESS+gRPC+TLS)"
-        echoContent green "    vless://${id}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&fp=chrome&serviceName=${currentPath}grpc&alpn=h2&sni=${currentHost}#${email}\n"
+        echoContent green "    vless://${id}@${uriAddress}:${port}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&fp=chrome&serviceName=${currentPath}grpc&alpn=h2&sni=${currentHost}#${email}\n"
 
         echoContent yellow " ---> 格式化明文(VLESS+gRPC+TLS)"
         echoContent green "    协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${port}，用户ID:${id}，安全:tls，传输方式:gRPC，alpn:h2，client-fingerprint: chrome,serviceName:${currentPath}grpc，账户名:${email}\n"
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-vless://${id}@${add}:${port}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&serviceName=${currentPath}grpc&fp=chrome&alpn=h2&sni=${currentHost}#${email}
+vless://${id}@${uriAddress}:${port}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&serviceName=${currentPath}grpc&fp=chrome&alpn=h2&sni=${currentHost}#${email}
 EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
@@ -5453,7 +5685,7 @@ EOF
     port: ${port}
     uuid: ${id}
     udp: true
-    tls: true
+${clashIPVersionLine}    tls: true
     network: grpc
     client-fingerprint: chrome
     servername: ${currentHost}
@@ -5461,11 +5693,11 @@ EOF
       grpc-service-name: ${currentPath}grpc
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"vless\",\"server\": \"${add}\",\"server_port\": ${port},\"uuid\": \"${id}\",\"tls\": {  \"enabled\": true,  \"server_name\": \"${currentHost}\",  \"utls\": {    \"enabled\": true,    \"fingerprint\": \"chrome\"  }},\"packet_encoding\": \"xudp\",\"transport\": {  \"type\": \"grpc\",  \"service_name\": \"${currentPath}grpc\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"vless\",\"server\": \"${add}\",\"server_port\": ${port},\"uuid\": \"${id}\",\"tls\": {  \"enabled\": true,  \"server_name\": \"${currentHost}\",  \"utls\": {    \"enabled\": true,    \"fingerprint\": \"chrome\"  }},\"packet_encoding\": \"xudp\"${singBoxDomainStrategyField},\"transport\": {  \"type\": \"grpc\",  \"service_name\": \"${currentPath}grpc\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${add}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${currentHost}%26serviceName%3D${currentPath}grpc%26fp%3Dchrome%26path%3D${currentPath}grpc%26sni%3D${currentHost}%26alpn%3Dh2%23${email}"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${uriAddress}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${currentHost}%26serviceName%3D${currentPath}grpc%26fp%3Dchrome%26path%3D${currentPath}grpc%26sni%3D${currentHost}%26alpn%3Dh2%23${email}"
 
     elif [[ "${type}" == "trojan" ]]; then
         # URLEncode
@@ -5496,28 +5728,28 @@ EOF
         # URLEncode
 
         echoContent yellow " ---> Trojan gRPC(TLS)"
-        echoContent green "    trojan://${id}@${add}:${port}?encryption=none&peer=${currentHost}&fp=chrome&security=tls&type=grpc&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}\n"
+        echoContent green "    trojan://${id}@${uriAddress}:${port}?encryption=none&peer=${currentHost}&fp=chrome&security=tls&type=grpc&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
-trojan://${id}@${add}:${port}?encryption=none&peer=${currentHost}&security=tls&type=grpc&fp=chrome&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}
+trojan://${id}@${uriAddress}:${port}?encryption=none&peer=${currentHost}&security=tls&type=grpc&fp=chrome&sni=${currentHost}&alpn=h2&path=${currentPath}trojangrpc&serviceName=${currentPath}trojangrpc#${email}
 EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
-    server: ${add}
+    server: "${add}"
     port: ${port}
     type: trojan
     password: ${id}
     network: grpc
     sni: ${currentHost}
     udp: true
-    grpc-opts:
+${clashIPVersionLine}    grpc-opts:
       grpc-service-name: ${currentPath}trojangrpc
 EOF
 
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${add}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"insecure\":true,\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"transport\":{\"type\":\"grpc\",\"service_name\":\"${currentPath}trojangrpc\",\"idle_timeout\":\"15s\",\"ping_timeout\":\"15s\",\"permit_without_stream\":false},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${add}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"insecure\":true,\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}}${singBoxDomainStrategyField},\"transport\":{\"type\":\"grpc\",\"service_name\":\"${currentPath}trojangrpc\",\"idle_timeout\":\"15s\",\"ping_timeout\":\"15s\",\"permit_without_stream\":false},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
         echoContent yellow " ---> 二维码 Trojan gRPC(TLS)"
-        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${add}%3a${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
+        echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${uriAddress}%3a${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
 
     elif [[ "${type}" == "hysteria" ]]; then
         echoContent yellow " ---> Hysteria(TLS)"
@@ -5705,13 +5937,13 @@ EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/clashMeta/${user}"
   - name: "${email}"
     type: vmess
-    server: ${add}
+    server: "${add}"
     port: ${port}
     uuid: ${id}
     alterId: 0
     cipher: auto
     udp: true
-    tls: true
+${clashIPVersionLine}    tls: true
     client-fingerprint: chrome
     servername: ${currentHost}
     network: ws
@@ -5721,7 +5953,7 @@ EOF
        Host: ${currentHost}
      v2ray-http-upgrade: true
 EOF
-        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"security\":\"auto\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\",\"transport\":{\"type\":\"httpupgrade\",\"path\":\"${path}\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
+        singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vmess\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"security\":\"auto\",\"alter_id\":0,\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"packetaddr\"${singBoxDomainStrategyField},\"transport\":{\"type\":\"httpupgrade\",\"path\":\"${path}\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
 
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
@@ -5808,12 +6040,17 @@ showAccounts() {
 
             local count=
             while read -r line; do
-                echoContent skyBlue "\n ---> 账号:${email}${count}"
-                if [[ -n "${line}" ]]; then
-                    defaultBase64Code vlessws "${vlessWSPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
-                    count=$((count + 1))
-                    echo
+                parseCDNNodeEntry "${line}"
+                if [[ -z "${cdnNodeAddress}" ]]; then
+                    continue
                 fi
+                local nodePreference="${cdnNodePreference:-ipv4}"
+                local connectAddress=
+                connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
+                defaultBase64Code vlessws "${vlessWSPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${connectAddress}" "${path}" "${nodePreference}"
+                count=$((count + 1))
+                echo
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
         done
     fi
@@ -5825,12 +6062,17 @@ showAccounts() {
             email=$(echo "${user}" | jq -r .email)
             local count=
             while read -r line; do
+                parseCDNNodeEntry "${line}"
+                if [[ -z "${cdnNodeAddress}" ]]; then
+                    continue
+                fi
+                local nodePreference="${cdnNodePreference:-ipv4}"
+                local connectAddress=
+                connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
-                if [[ -n "${line}" ]]; then
-                    defaultBase64Code trojangrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .password)" "${line}"
-                    count=$((count + 1))
-                fi
+                defaultBase64Code trojangrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .password)" "${connectAddress}" "" "${nodePreference}"
+                count=$((count + 1))
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
 
         done
@@ -5855,12 +6097,17 @@ showAccounts() {
 
             local count=
             while read -r line; do
+                parseCDNNodeEntry "${line}"
+                if [[ -z "${cdnNodeAddress}" ]]; then
+                    continue
+                fi
+                local nodePreference="${cdnNodePreference:-ipv4}"
+                local connectAddress=
+                connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
-                if [[ -n "${line}" ]]; then
-                    defaultBase64Code vmessws "${vmessPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
-                    count=$((count + 1))
-                fi
+                defaultBase64Code vmessws "${vmessPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${connectAddress}" "${path}" "${nodePreference}"
+                count=$((count + 1))
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
         done
     fi
@@ -5886,12 +6133,17 @@ showAccounts() {
 
             local count=
             while read -r line; do
+                parseCDNNodeEntry "${line}"
+                if [[ -z "${cdnNodeAddress}" ]]; then
+                    continue
+                fi
+                local nodePreference="${cdnNodePreference:-ipv4}"
+                local connectAddress=
+                connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
-                if [[ -n "${line}" ]]; then
-                    defaultBase64Code vlessgrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .id)" "${line}"
-                    count=$((count + 1))
-                fi
+                defaultBase64Code vlessgrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .id)" "${connectAddress}" "" "${nodePreference}"
+                count=$((count + 1))
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
 
         done
@@ -5988,12 +6240,17 @@ showAccounts() {
 
             local count=
             while read -r line; do
+                parseCDNNodeEntry "${line}"
+                if [[ -z "${cdnNodeAddress}" ]]; then
+                    continue
+                fi
+                local nodePreference="${cdnNodePreference:-ipv4}"
+                local connectAddress=
+                connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
                 echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
-                if [[ -n "${line}" ]]; then
-                    defaultBase64Code vmessHTTPUpgrade "${vmessHTTPUpgradePort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
-                    count=$((count + 1))
-                fi
+                defaultBase64Code vmessHTTPUpgrade "${vmessHTTPUpgradePort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${connectAddress}" "${path}" "${nodePreference}"
+                count=$((count + 1))
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
         done
     fi
@@ -6009,12 +6266,17 @@ showAccounts() {
 
             local count=
             while read -r line; do
-                echoContent skyBlue "\n ---> 账号:${email}${count}"
-                if [[ -n "${line}" ]]; then
-                    defaultBase64Code vlessXHTTP "${xrayVLESSRealityXHTTPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${line}" "${path}"
-                    count=$((count + 1))
-                    echo
+                parseCDNNodeEntry "${line}"
+                if [[ -z "${cdnNodeAddress}" ]]; then
+                    continue
                 fi
+                local nodePreference="${cdnNodePreference:-ipv4}"
+                local connectAddress=
+                connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
+                defaultBase64Code vlessXHTTP "${xrayVLESSRealityXHTTPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${connectAddress}" "${path}" "${nodePreference}"
+                count=$((count + 1))
+                echo
             done < <(echo "${currentCDNAddress}" | tr ',' '\n')
         done
     fi
@@ -6378,6 +6640,7 @@ manageCDN() {
         echoContent yellow "4.CNAME www.visa.com.hk"
         echoContent yellow "5.手动输入[可输入多个，比如: 1.1.1.1,1.1.2.2,cloudflare.com 逗号分隔]"
         echoContent yellow "6.移除CDN节点"
+        echoContent yellow "7.调整节点IPv4/IPv6优先级"
         echoContent red "=============================================================="
         read -r -p "请选择:" selectCDNType
         case ${selectCDNType} in
@@ -6401,13 +6664,24 @@ manageCDN() {
             echoContent green " ---> 移除成功"
             exit 0
             ;;
+        7)
+            configureExistingCDNPreference
+            exit 0
+            ;;
         esac
 
         if [[ -n "${setCDNDomain}" ]]; then
-            echo >/etc/v2ray-agent/cdn
-            echo "${setCDNDomain}" >"/etc/v2ray-agent/cdn"
-            echoContent green " ---> 修改CDN成功"
-            subscribe false false
+            local cdnWithPreference=
+            cdnWithPreference=$(buildCDNPreferenceList "${setCDNDomain}")
+            if [[ -n "${cdnWithPreference}" ]]; then
+                echo >/etc/v2ray-agent/cdn
+                echo "${cdnWithPreference}" >"/etc/v2ray-agent/cdn"
+                echoContent green " ---> 修改CDN成功"
+                subscribe false false
+            else
+                echoContent red " ---> 不可以为空，请重新输入"
+                manageCDN 1
+            fi
         else
             echoContent red " ---> 不可以为空，请重新输入"
             manageCDN 1
