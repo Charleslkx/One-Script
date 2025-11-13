@@ -71,14 +71,14 @@ quick_switch_ip_priority() {
     local current_pref
     current_pref=$(detect_global_ip_preference)
     if [[ "${current_pref}" == "ipv4" ]]; then
-        echo -e "${Yellow}当前状态：IPv4 优先（/etc/gai.conf）${Font}"
+        echo -e "${Yellow}当前状态：IPv4 优先（通过 /etc/gai.conf 配置）${Font}"
     else
-        echo -e "${Yellow}当前状态：IPv6 优先（默认）${Font}"
+        echo -e "${Yellow}当前状态：IPv6 优先（系统默认）${Font}"
     fi
     echo
     echo -e "${Green}请选择目标优先级：${Font}"
-    echo -e "${Yellow}1.${Font} 设置为 IPv4 优先（为全部外部访问更偏向 IPv4）"
-    echo -e "${Yellow}2.${Font} 设置为 IPv6 优先（恢复默认优先级）"
+    echo -e "${Yellow}1.${Font} 设置为 IPv4 优先（解析域名时优先使用 IPv4）"
+    echo -e "${Yellow}2.${Font} 设置为 IPv6 优先（恢复系统默认策略）"
     echo -e "${Yellow}3.${Font} 取消操作"
     echo
     read -p "请输入选择 [1-3]: " ip_choice
@@ -86,11 +86,11 @@ quick_switch_ip_priority() {
     case "${ip_choice}" in
     1)
         set_global_ip_preference "ipv4"
-        echo -e "${Green}已设置为 IPv4 优先。新的设置在下次域名解析时生效。${Font}"
+        echo -e "${Green}已设置为 IPv4 优先。对新发起的域名解析立即生效。${Font}"
         ;;
     2)
         set_global_ip_preference "ipv6"
-        echo -e "${Green}已恢复为 IPv6 优先（系统默认行为）。${Font}"
+        echo -e "${Green}已恢复为 IPv6 优先。对新发起的域名解析立即生效。${Font}"
         ;;
     *)
         echo -e "${Yellow}已取消操作。${Font}"
