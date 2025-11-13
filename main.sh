@@ -8,6 +8,139 @@ Red="\033[31m"
 Yellow="\033[33m"
 Blue="\033[34m"
 
+cdn_file="/etc/v2ray-agent/cdn"
+cdn_node_address=
+cdn_node_preference=
+
+normalize_cdn_preference_main() {
+    local pref=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+    case "${pref}" in
+    ipv6 | 6)
+        echo "ipv6"
+        ;;
+    ipv4 | 4 | "")
+        echo "ipv4"
+        ;;
+    *)
+        echo "ipv4"
+        ;;
+    esac
+}
+
+parse_cdn_entry_main() {
+    local entry=$(echo "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    if [[ -z "${entry}" ]]; then
+        cdn_node_address=
+        cdn_node_preference=
+        return
+    fi
+    if [[ "${entry}" == *"|"* ]]; then
+        cdn_node_address=${entry%%|*}
+        cdn_node_preference=$(normalize_cdn_preference_main "${entry##*|}")
+    else
+        cdn_node_address=${entry}
+        cdn_node_preference=
+    fi
+}
+
+describe_cdn_preference_main() {
+    local pref=$(normalize_cdn_preference_main "$1")
+    if [[ "${pref}" == "ipv6" ]]; then
+        echo "IPv6优先"
+    else
+        echo "IPv4优先"
+    fi
+}
+
+update_all_cdn_preferences() {
+    local target_pref=$(normalize_cdn_preference_main "$1")
+    local raw_list="$2"
+    local updated_entries=()
+    while IFS= read -r node; do
+        parse_cdn_entry_main "${node}"
+        if [[ -n "${cdn_node_address}" ]]; then
+            updated_entries+=("${cdn_node_address}|${target_pref}")
+        fi
+    done < <(echo "${raw_list}" | tr ',' '\n')
+
+    if [[ ${#updated_entries[@]} -eq 0 ]]; then
+        return 1
+    fi
+    (IFS=','; echo "${updated_entries[*]}") > "${cdn_file}"
+    return 0
+}
+
+quick_switch_ip_priority() {
+    echo -e "${Blue}============================================${Font}"
+    echo -e "${Green}    快速切换节点 IPv4/IPv6 优先级${Font}"
+    echo -e "${Blue}============================================${Font}"
+    echo
+
+    if [[ ! -f "${cdn_file}" ]]; then
+        echo -e "${Yellow}未检测到 CDN 节点配置文件（${cdn_file}）。${Font}"
+        echo -e "${Yellow}请先通过 install.sh 的 CDN 管理功能添加节点。${Font}"
+        return
+    fi
+
+    local raw_list
+    raw_list=$(head -1 "${cdn_file}" | tr -d '\r')
+    if [[ -z "${raw_list// }" ]]; then
+        echo -e "${Yellow}当前未配置任何 CDN 节点，无法切换优先级。${Font}"
+        return
+    fi
+
+    local nodes=()
+    while IFS= read -r node; do
+        parse_cdn_entry_main "${node}"
+        if [[ -n "${cdn_node_address}" ]]; then
+            local pref="${cdn_node_preference:-ipv4}"
+            nodes+=("${cdn_node_address}|${pref}")
+        fi
+    done < <(echo "${raw_list}" | tr ',' '\n')
+
+    if [[ ${#nodes[@]} -eq 0 ]]; then
+        echo -e "${Yellow}未能解析任何有效的 CDN 节点，请检查 ${cdn_file} 内容。${Font}"
+        return
+    fi
+
+    echo -e "${Green}当前节点列表：${Font}"
+    local idx=1
+    for entry in "${nodes[@]}"; do
+        parse_cdn_entry_main "${entry}"
+        echo -e "  ${Yellow}${idx}.${Font} ${cdn_node_address} -> $(describe_cdn_preference_main "${cdn_node_preference:-ipv4}")"
+        idx=$((idx + 1))
+    done
+    echo
+    echo -e "${Green}请选择目标优先级：${Font}"
+    echo -e "${Yellow}1.${Font} 全部切换为 IPv4 优先"
+    echo -e "${Yellow}2.${Font} 全部切换为 IPv6 优先"
+    echo -e "${Yellow}3.${Font} 取消操作"
+    echo
+    read -p "请输入选择 [1-3]: " ip_choice
+
+    case "${ip_choice}" in
+    1)
+        if update_all_cdn_preferences "ipv4" "${raw_list}"; then
+            echo -e "${Green}已将所有节点切换为 IPv4 优先。${Font}"
+            echo -e "${Yellow}提示：如需刷新订阅，可在 install.sh 中重新生成。${Font}"
+        else
+            echo -e "${Red}更新失败，未找到有效节点。${Font}"
+        fi
+        ;;
+    2)
+        if update_all_cdn_preferences "ipv6" "${raw_list}"; then
+            echo -e "${Green}已将所有节点切换为 IPv6 优先。${Font}"
+            echo -e "${Yellow}提示：如需刷新订阅，可在 install.sh 中重新生成。${Font}"
+        else
+            echo -e "${Red}更新失败，未找到有效节点。${Font}"
+        fi
+        ;;
+    *)
+        echo -e "${Yellow}已取消操作。${Font}"
+        ;;
+    esac
+}
+
 # 安装简易命令（远程运行版本）
 install_quick_command() {
     echo -e "${Blue}正在安装简易命令...${Font}"
@@ -707,7 +840,8 @@ show_script_menu() {
     echo -e "${Yellow}5.${Font} 更新 main.sh 脚本 ${Blue}(检查脚本更新)${Font}"
     echo -e "${Yellow}6.${Font} 命令管理 ${Blue}(安装/卸载v2ray快捷命令)${Font}"
     echo -e "${Yellow}7.${Font} 系统工具 ${Blue}(系统优化和诊断)${Font}"
-    echo -e "${Yellow}8.${Font} 退出"
+    echo -e "${Yellow}8.${Font} 快速切换节点IPv4/IPv6优先级"
+    echo -e "${Yellow}9.${Font} 退出"
     echo
     echo -e "${Blue}============================================${Font}"
 }
@@ -834,11 +968,14 @@ execute_script() {
             system_tools_menu
             ;;
         8)
+            quick_switch_ip_priority
+            ;;
+        9)
             echo -e "${Green}感谢使用，再见！${Font}"
             exit 0
             ;;
         *)
-            echo -e "${Red}无效选择，请输入 1-8${Font}"
+            echo -e "${Red}无效选择，请输入 1-9${Font}"
             sleep 2
             main_menu
             ;;
@@ -880,10 +1017,10 @@ add_crontab_reboot() {
 main_menu() {
     while true; do
         show_script_menu
-        read -p "请输入您的选择 [1-8]: " choice
+        read -p "请输入您的选择 [1-9]: " choice
         execute_script "$choice"
         echo
-        if [[ "$choice" != "8" ]]; then
+        if [[ "$choice" != "9" ]]; then
             read -p "脚本执行完毕，按回车键返回主菜单..."
         fi
     done
