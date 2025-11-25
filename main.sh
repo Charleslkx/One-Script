@@ -845,7 +845,7 @@ show_script_menu() {
     lang_echo "${Yellow}5.${Font} 命令管理 ${Blue}(安装/卸载v2ray快捷命令)${Font}" "${Yellow}5.${Font} Command manager ${Blue}(install/uninstall quick command)${Font}"
     lang_echo "${Yellow}6.${Font} 系统工具 ${Blue}(系统优化和诊断)${Font}" "${Yellow}6.${Font} System tools ${Blue}(tuning & diagnostics)${Font}"
     lang_echo "${Yellow}7.${Font} 快速切换节点IPv4/IPv6优先级" "${Yellow}7.${Font} Quick IPv4/IPv6 preference switch"
-    lang_echo "${Yellow}8.${Font} WARP & Sing-box 基础设施配置" "${Yellow}8.${Font} WARP & Sing-box provisioning"
+    lang_echo "${Yellow}8.${Font} 内核安装脚本 (BBR/BBR Plus)" "${Yellow}8.${Font} Kernel installer (BBR/BBR Plus)"
     lang_echo "${Yellow}9.${Font} 查询核心配置路径" "${Yellow}9.${Font} Show core config paths"
     lang_echo "${Yellow}10.${Font} 退出" "${Yellow}10.${Font} Exit"
     echo
@@ -952,22 +952,22 @@ execute_script() {
             quick_switch_ip_priority
             ;;
         8)
-            lang_echo "${Green}正在启动 WARP & Sing-box 配置脚本...${Font}" "${Green}Launching WARP & Sing-box setup...${Font}"
+            lang_echo "${Green}正在启动内核安装脚本...${Font}" "${Green}Launching kernel installation script...${Font}"
             local script_dir="$(dirname "$(readlink -f "$0")")"
-            local local_script="${script_dir}/setup_warp_singbox.sh"
+            local local_script="${script_dir}/install_kernel.sh"
             
             if [[ -f "$local_script" ]]; then
                 bash "$local_script"
             else
-                lang_echo "${Yellow}正在从远程仓库获取 setup_warp_singbox.sh...${Font}" "${Yellow}Fetching setup_warp_singbox.sh from repository...${Font}"
-                local temp_script="/tmp/setup_warp_singbox.sh"
-                local warp_url="${base_url}/setup_warp_singbox.sh"
+                lang_echo "${Yellow}正在从远程仓库获取 install_kernel.sh...${Font}" "${Yellow}Fetching install_kernel.sh from repository...${Font}"
+                local temp_script="/tmp/install_kernel.sh"
+                local kernel_url="${base_url}/install_kernel.sh"
                 
-                if wget -qO "$temp_script" "$warp_url" 2>/dev/null || curl -fsSL "$warp_url" -o "$temp_script" 2>/dev/null; then
+                if wget -qO "$temp_script" "$kernel_url" 2>/dev/null || curl -fsSL "$kernel_url" -o "$temp_script" 2>/dev/null; then
                     bash "$temp_script"
                     rm -f "$temp_script"
                 else
-                    lang_echo "${Red}错误：无法从远程仓库获取 setup_warp_singbox.sh 脚本！${Font}" "${Red}Error: unable to download setup_warp_singbox.sh!${Font}"
+                    lang_echo "${Red}错误：无法从远程仓库获取 install_kernel.sh 脚本！${Font}" "${Red}Error: unable to download install_kernel.sh!${Font}"
                     lang_echo "${Yellow}请检查网络连接或稍后重试${Font}" "${Yellow}Check your network connection or try again later${Font}"
                 fi
             fi
