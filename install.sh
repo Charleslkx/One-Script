@@ -5999,6 +5999,16 @@ showAccounts() {
     readConfigHostPathUUID
     readSingBoxConfig
 
+    echoContent skyBlue "========================= 核心配置文件路径 ==========================="
+    if [[ "${coreInstallType}" == "1" ]]; then
+        echoContent yellow "Xray 配置文件目录: /etc/v2ray-agent/xray/conf/"
+        echoContent yellow "Xray 主配置文件: /etc/v2ray-agent/xray/conf/config.json"
+    elif [[ "${coreInstallType}" == "2" ]]; then
+        echoContent yellow "Sing-box 配置文件目录: /etc/v2ray-agent/sing-box/conf/"
+        echoContent yellow "Sing-box 主配置文件: /etc/v2ray-agent/sing-box/conf/config.json"
+    fi
+    echoContent skyBlue "======================================================================"
+
     echo
     echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
 
@@ -7064,20 +7074,80 @@ handleFirewall() {
     fi
 }
 
+```
 # 安装BBR
+
+# 自动开启 BBR
+enable_bbr() {
+    # 如果仅安装 Hysteria (6)，则跳过
+    if [[ "${selectCustomInstallType}" == ",6," ]]; then
+        echoContent yellow "\n ---> 仅安装 Hysteria，跳过 BBR 自动开启"
+        return
+    fi
+    
+    echoContent skyBlue "\n进度  自动配置 : 检查并开启 BBR"
+    
+    local bbr_enabled=false
+    if sysctl net.ipv4.tcp_congestion_control 2>/dev/null | grep -q "bbr"; then
+        bbr_enabled=true
+    fi
+    
+    if [[ "${bbr_enabled}" == "false" ]]; then
+        echoContent green " ---> 正在开启 BBR..."
+        if ! grep -q "net.core.default_qdisc" /etc/sysctl.conf; then
+            echo "net.core.default_qdisc = fq" >> /etc/sysctl.conf
+        else
+            sed -i 's/^net.core.default_qdisc.*/net.core.default_qdisc = fq/' /etc/sysctl.conf
+        fi
+        
+        if ! grep -q "net.ipv4.tcp_congestion_control" /etc/sysctl.conf; then
+            echo "net.ipv4.tcp_congestion_control = bbr" >> /etc/sysctl.conf
+        else
+            sed -i 's/^net.ipv4.tcp_congestion_control.*/net.ipv4.tcp_congestion_control = bbr/' /etc/sysctl.conf
+        fi
+        
+        sysctl -p >/dev/null 2>&1
+        echoContent green " ---> BBR 已开启"
+    else
+        echoContent green " ---> BBR 已开启 (无需重复配置)"
+    fi
+}
+
+# 查看、检查日志
+checkLog() {
+    if [[ "${coreInstallType}" == "2" ]]; then
+        exit 0
+    fi
+    if [[ -z "${configPath}" && -z "${realityStatus}" ]]; then
+        exit 0
+    fi
+    local realityLogShow=
+    local logStatus=false
+    if grep -q "access" ${configPath}00_log.json; then
+        logStatus=true
+    fi
+
+    echoContent skyBlue "\n功能 $1/${totalProgress} : 查看日志"
+    echoContent red "\n=============================================================="
+    echoContent yellow "# 建议仅调试时打开access日志\n"
+
+    if [[ "${logStatus}" == "false" ]]; then
+        echoContent yellow "1.打开access日志"
+    else
+        echoContent yellow "1.关闭access日志"
+    fi
+
+    echoContent yellow "2.监听access日志"
+    echoContent yellow "3.监听error日志"
+    echoContent yellow "4.查看证书定时任务日志"
+    echoContent yellow "5.查看证书安装日志"
+    echoContent yellow "6.清空日志"
+    echoContent red "
+```
 bbrInstall() {
     echoContent red "\n=============================================================="
     echoContent green "BBR、DD脚本用的[ylx2016]的成熟作品，地址[https://github.com/ylx2016/Linux-NetSpeed]，请熟知"
-    echoContent yellow "1.安装脚本【推荐原版BBR+FQ】"
-    echoContent yellow "2.回退主目录"
-    echoContent red "=============================================================="
-    read -r -p "请选择:" installBBRStatus
-    if [[ "${installBBRStatus}" == "1" ]]; then
-        wget -N --no-check-certificate "https://raw.githubusercontent.com/ylx2016/Linux-NetSpeed/master/tcp.sh" && chmod +x tcp.sh && ./tcp.sh
-    else
-        menu
-    fi
-}
+    echoContent yellow "1.安装脚本【推荐原版BBR+F
 
 # 查看、检查日志
 checkLog() {
@@ -8791,6 +8861,8 @@ customSingBoxInstall() {
         handleSingBox start
         handleNginx stop
         handleNginx start
+        # 开启BBR
+        enable_bbr_feature
         # 生成账号
         checkGFWStatue 8
         showAccounts 9
@@ -8887,6 +8959,8 @@ customXrayInstall() {
 
         handleXray stop
         handleXray start
+        # 开启BBR
+        enable_bbr_feature
         # 生成账号
         checkGFWStatue 11
         showAccounts 12
@@ -8966,6 +9040,8 @@ xrayCoreInstall() {
     handleXray start
 
     handleNginx start
+    # 开启BBR
+    enable_bbr_feature
     # 生成账号
     checkGFWStatue 11
     showAccounts 12
@@ -9005,6 +9081,8 @@ singBoxInstall() {
     handleSingBox start
     handleNginx stop
     handleNginx start
+    # 开启BBR
+    enable_bbr_feature
     # 生成账号
     showAccounts 9
 }

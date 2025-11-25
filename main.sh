@@ -8,6 +8,54 @@ Red="\033[31m"
 Yellow="\033[33m"
 Blue="\033[34m"
 
+LANGUAGE_CHOICE="zh"
+
+lang_text() {
+    local zh="$1"
+    local en="$2"
+    if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
+        printf "%b" "${en}"
+    else
+        printf "%b" "${zh}"
+    fi
+}
+
+lang_echo() {
+    local zh="$1"
+    local en="$2"
+    if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
+        echo -e "${en}"
+    else
+        echo -e "${zh}"
+    fi
+}
+
+select_language() {
+    local preset="${ONE_SCRIPT_LANG:-}"
+    if [[ -z "${preset}" ]]; then
+        echo -e "${Blue}请选择语言 / Select language:${Font}"
+        echo -e "${Yellow}1.${Font} 中文 (默认)"
+        echo -e "${Yellow}2.${Font} English"
+        read -p "输入选择 [1/2]: " preset
+    fi
+
+    case "$(echo "${preset}" | tr '[:upper:]' '[:lower:]')" in
+    2 | en | eng | english)
+        LANGUAGE_CHOICE="en"
+        ;;
+    1 | zh | cn | chinese | "")
+        LANGUAGE_CHOICE="zh"
+        ;;
+    *)
+        LANGUAGE_CHOICE="zh"
+        ;;
+    esac
+
+    export ONE_SCRIPT_LANG="${LANGUAGE_CHOICE}"
+}
+
+select_language
+
 GAI_CONF_FILE="/etc/gai.conf"
 GAI_CONF_BACKUP="/etc/gai.conf.bak"
 
@@ -64,36 +112,36 @@ set_global_ip_preference() {
 
 quick_switch_ip_priority() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}    快速切换服务器 IPv4/IPv6 优先级${Font}"
+    lang_echo "${Green}    快速切换服务器 IPv4/IPv6 优先级${Font}" "${Green}    Quick switch IPv4/IPv6 priority${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
 
     local current_pref
     current_pref=$(detect_global_ip_preference)
     if [[ "${current_pref}" == "ipv4" ]]; then
-        echo -e "${Yellow}当前状态：IPv4 优先（通过 /etc/gai.conf 配置）${Font}"
+        lang_echo "${Yellow}当前状态：IPv4 优先（通过 /etc/gai.conf 配置）${Font}" "${Yellow}Current: IPv4 preferred (via /etc/gai.conf)${Font}"
     else
-        echo -e "${Yellow}当前状态：IPv6 优先（系统默认）${Font}"
+        lang_echo "${Yellow}当前状态：IPv6 优先（系统默认）${Font}" "${Yellow}Current: IPv6 preferred (system default)${Font}"
     fi
     echo
-    echo -e "${Green}请选择目标优先级：${Font}"
-    echo -e "${Yellow}1.${Font} 设置为 IPv4 优先（解析域名时优先使用 IPv4）"
-    echo -e "${Yellow}2.${Font} 设置为 IPv6 优先（恢复系统默认策略）"
-    echo -e "${Yellow}3.${Font} 取消操作"
+    lang_echo "${Green}请选择目标优先级：${Font}" "${Green}Choose target preference:${Font}"
+    lang_echo "${Yellow}1.${Font} 设置为 IPv4 优先（解析域名时优先使用 IPv4）" "${Yellow}1.${Font} Prefer IPv4 for DNS resolution"
+    lang_echo "${Yellow}2.${Font} 设置为 IPv6 优先（恢复系统默认策略）" "${Yellow}2.${Font} Prefer IPv6 (system default)"
+    lang_echo "${Yellow}3.${Font} 取消操作" "${Yellow}3.${Font} Cancel"
     echo
-    read -p "请输入选择 [1-3]: " ip_choice
+    read -p "$(lang_text "请输入选择 [1-3]: " "Choose [1-3]: ")" ip_choice
 
     case "${ip_choice}" in
     1)
         set_global_ip_preference "ipv4"
-        echo -e "${Green}已设置为 IPv4 优先。对新发起的域名解析立即生效。${Font}"
+        lang_echo "${Green}已设置为 IPv4 优先。对新发起的域名解析立即生效。${Font}" "${Green}IPv4 preference applied for new DNS lookups.${Font}"
         ;;
     2)
         set_global_ip_preference "ipv6"
-        echo -e "${Green}已恢复为 IPv6 优先。对新发起的域名解析立即生效。${Font}"
+        lang_echo "${Green}已恢复为 IPv6 优先。对新发起的域名解析立即生效。${Font}" "${Green}Restored IPv6 preference for new DNS lookups.${Font}"
         ;;
     *)
-        echo -e "${Yellow}已取消操作。${Font}"
+        lang_echo "${Yellow}已取消操作。${Font}" "${Yellow}Cancelled.${Font}"
         ;;
     esac
 }
@@ -773,32 +821,33 @@ create_swap_file() {
 show_script_menu() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}      One-Script 脚本管理工具${Font}"
+    lang_echo "${Green}      One-Script 脚本管理工具${Font}" "${Green}      One-Script Script Manager${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
-    echo -e "${Green}系统信息：${Font}"
+    lang_echo "${Green}系统信息：${Font}" "${Green}System info:${Font}"
     if command -v uname >/dev/null 2>&1; then
-        echo -e "${Yellow}  操作系统：$(uname -o) $(uname -m)${Font}"
-        echo -e "${Yellow}  内核版本：$(uname -r)${Font}"
+        lang_echo "${Yellow}  操作系统：$(uname -o) $(uname -m)${Font}" "${Yellow}  OS: $(uname -o) $(uname -m)${Font}"
+        lang_echo "${Yellow}  内核版本：$(uname -r)${Font}" "${Yellow}  Kernel: $(uname -r)${Font}"
     fi
     if [[ -f "/etc/os-release" ]]; then
         source /etc/os-release
-        echo -e "${Yellow}  发行版本：${NAME} ${VERSION}${Font}"
+        lang_echo "${Yellow}  发行版本：${NAME} ${VERSION}${Font}" "${Yellow}  Release: ${NAME} ${VERSION}${Font}"
     fi
-    echo -e "${Yellow}  当前用户：$(whoami)${Font}"
-    echo -e "${Yellow}  系统时间：$(date '+%Y-%m-%d %H:%M:%S')${Font}"
+    lang_echo "${Yellow}  当前用户：$(whoami)${Font}" "${Yellow}  User: $(whoami)${Font}"
+    lang_echo "${Yellow}  系统时间：$(date '+%Y-%m-%d %H:%M:%S')${Font}" "${Yellow}  Time: $(date '+%Y-%m-%d %H:%M:%S')${Font}"
     echo
-    echo -e "${Green}请选择要运行的脚本：${Font}"
+    lang_echo "${Green}请选择要运行的脚本：${Font}" "${Green}Select the script to run:${Font}"
     echo
-    echo -e "${Yellow}1.${Font} V2Ray 安装脚本 ${Blue}(本仓库修改版install.sh)${Font}"
-    echo -e "${Yellow}2.${Font} V2Ray 原版安装脚本 ${Blue}(mack-a官方原版)${Font}"
-    echo -e "${Yellow}3.${Font} Swap 管理脚本 ${Blue}(虚拟内存管理)${Font}"
-    echo -e "${Yellow}4.${Font} Kernel 内核脚本 ${Blue}(内核升级和BBR)${Font}"
-    echo -e "${Yellow}5.${Font} 更新 main.sh 脚本 ${Blue}(检查脚本更新)${Font}"
-    echo -e "${Yellow}6.${Font} 命令管理 ${Blue}(安装/卸载v2ray快捷命令)${Font}"
-    echo -e "${Yellow}7.${Font} 系统工具 ${Blue}(系统优化和诊断)${Font}"
-    echo -e "${Yellow}8.${Font} 快速切换节点IPv4/IPv6优先级"
-    echo -e "${Yellow}9.${Font} 退出"
+    lang_echo "${Yellow}1.${Font} V2Ray 安装脚本 ${Blue}(本仓库修改版install.sh)${Font}" "${Yellow}1.${Font} V2Ray installer ${Blue}(modified install.sh in this repo)${Font}"
+    lang_echo "${Yellow}2.${Font} V2Ray 原版安装脚本 ${Blue}(mack-a官方原版)${Font}" "${Yellow}2.${Font} V2Ray original installer ${Blue}(mack-a official)${Font}"
+    lang_echo "${Yellow}3.${Font} Swap 管理脚本 ${Blue}(虚拟内存管理)${Font}" "${Yellow}3.${Font} Swap manager ${Blue}(virtual memory)${Font}"
+    lang_echo "${Yellow}4.${Font} 更新 main.sh 脚本 ${Blue}(检查脚本更新)${Font}" "${Yellow}4.${Font} Update main.sh ${Blue}(check for updates)${Font}"
+    lang_echo "${Yellow}5.${Font} 命令管理 ${Blue}(安装/卸载v2ray快捷命令)${Font}" "${Yellow}5.${Font} Command manager ${Blue}(install/uninstall quick command)${Font}"
+    lang_echo "${Yellow}6.${Font} 系统工具 ${Blue}(系统优化和诊断)${Font}" "${Yellow}6.${Font} System tools ${Blue}(tuning & diagnostics)${Font}"
+    lang_echo "${Yellow}7.${Font} 快速切换节点IPv4/IPv6优先级" "${Yellow}7.${Font} Quick IPv4/IPv6 preference switch"
+    lang_echo "${Yellow}8.${Font} WARP & Sing-box 基础设施配置" "${Yellow}8.${Font} WARP & Sing-box provisioning"
+    lang_echo "${Yellow}9.${Font} 查询核心配置路径" "${Yellow}9.${Font} Show core config paths"
+    lang_echo "${Yellow}10.${Font} 退出" "${Yellow}10.${Font} Exit"
     echo
     echo -e "${Blue}============================================${Font}"
 }
@@ -810,8 +859,8 @@ execute_script() {
     
     case $choice in
         1)
-            echo -e "${Green}正在启动 V2Ray 安装脚本...${Font}"
-            echo -e "${Yellow}正在从远程仓库获取 install.sh (修改版本)...${Font}"
+            lang_echo "${Green}正在启动 V2Ray 安装脚本...${Font}" "${Green}Launching V2Ray installer...${Font}"
+            lang_echo "${Yellow}正在从远程仓库获取 install.sh (修改版本)...${Font}" "${Yellow}Fetching install.sh (modified) from repository...${Font}"
             
             # 先尝试下载脚本到临时文件
             local temp_script="/tmp/v2ray_temp.sh"
@@ -819,32 +868,35 @@ execute_script() {
             
             # 使用本仓库的修改版install.sh
             local v2ray_url="${base_url}/install.sh"
+            if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
+                v2ray_url="${base_url}/install_en.sh"
+            fi
             
             if wget -qO "$temp_script" "$v2ray_url" 2>/dev/null; then
                 download_success=true
-                echo -e "${Green}使用 wget 下载成功${Font}"
+                lang_echo "${Green}使用 wget 下载成功${Font}" "${Green}Downloaded with wget${Font}"
             elif curl -fsSL "$v2ray_url" -o "$temp_script" 2>/dev/null; then
                 download_success=true
-                echo -e "${Green}使用 curl 下载成功${Font}"
+                lang_echo "${Green}使用 curl 下载成功${Font}" "${Green}Downloaded with curl${Font}"
             fi
             
             if [[ "$download_success" == "true" && -s "$temp_script" ]]; then
-                echo -e "${Green}开始执行 V2Ray 安装脚本...${Font}"
+                lang_echo "${Green}开始执行 V2Ray 安装脚本...${Font}" "${Green}Starting installer...${Font}"
                 # 执行脚本，不管退出状态码
                 bash "$temp_script"
-                echo -e "${Green}V2Ray 脚本执行完成${Font}"
+                lang_echo "${Green}V2Ray 脚本执行完成${Font}" "${Green}V2Ray install script finished${Font}"
                 rm -f "$temp_script"
                 # 添加定时重启任务
                 add_crontab_reboot
             else
-                echo -e "${Red}错误：无法从远程仓库获取 V2Ray 安装脚本！${Font}"
-                echo -e "${Yellow}请检查网络连接或稍后重试${Font}"
+                lang_echo "${Red}错误：无法从远程仓库获取 V2Ray 安装脚本！${Font}" "${Red}Error: unable to download V2Ray installer!${Font}"
+                lang_echo "${Yellow}请检查网络连接或稍后重试${Font}" "${Yellow}Check your network connection or try again later${Font}"
                 rm -f "$temp_script"
             fi
             ;;
         2)
-            echo -e "${Green}正在启动 V2Ray 原版安装脚本...${Font}"
-            echo -e "${Yellow}正在从 mack-a 官方仓库获取原版 install.sh...${Font}"
+            lang_echo "${Green}正在启动 V2Ray 原版安装脚本...${Font}" "${Green}Launching original V2Ray installer...${Font}"
+            lang_echo "${Yellow}正在从 mack-a 官方仓库获取原版 install.sh...${Font}" "${Yellow}Fetching official install.sh from mack-a...${Font}"
             
             # 先尝试下载脚本到临时文件
             local temp_script="/tmp/v2ray_original_temp.sh"
@@ -855,84 +907,80 @@ execute_script() {
             
             if wget -qO "$temp_script" "$v2ray_original_url" 2>/dev/null; then
                 download_success=true
-                echo -e "${Green}使用 wget 下载成功${Font}"
+                lang_echo "${Green}使用 wget 下载成功${Font}" "${Green}Downloaded with wget${Font}"
             elif curl -fsSL "$v2ray_original_url" -o "$temp_script" 2>/dev/null; then
                 download_success=true
-                echo -e "${Green}使用 curl 下载成功${Font}"
+                lang_echo "${Green}使用 curl 下载成功${Font}" "${Green}Downloaded with curl${Font}"
             fi
             
             if [[ "$download_success" == "true" && -s "$temp_script" ]]; then
-                echo -e "${Green}开始执行 V2Ray 原版安装脚本...${Font}"
-                echo -e "${Yellow}注意：这是 mack-a 的官方原版，不包含本仓库的改进${Font}"
+                lang_echo "${Green}开始执行 V2Ray 原版安装脚本...${Font}" "${Green}Starting official installer...${Font}"
+                lang_echo "${Yellow}注意：这是 mack-a 的官方原版，不包含本仓库的改进${Font}" "${Yellow}Note: this is the official version without this repo's tweaks${Font}"
                 # 执行脚本，不管退出状态码
                 bash "$temp_script"
-                echo -e "${Green}V2Ray 原版脚本执行完成${Font}"
+                lang_echo "${Green}V2Ray 原版脚本执行完成${Font}" "${Green}Official V2Ray script finished${Font}"
                 rm -f "$temp_script"
             else
-                echo -e "${Red}错误：无法从 mack-a 官方仓库获取原版安装脚本！${Font}"
-                echo -e "${Yellow}请检查网络连接或稍后重试${Font}"
+                lang_echo "${Red}错误：无法从 mack-a 官方仓库获取原版安装脚本！${Font}" "${Red}Error: unable to download installer from mack-a!${Font}"
+                lang_echo "${Yellow}请检查网络连接或稍后重试${Font}" "${Yellow}Check your network connection or try again later${Font}"
                 rm -f "$temp_script"
             fi
             ;;
         3)
-            echo -e "${Green}正在启动 Swap 管理脚本...${Font}"
-            echo -e "${Yellow}正在从远程仓库获取 swap.sh...${Font}"
+            lang_echo "${Green}正在启动 Swap 管理脚本...${Font}" "${Green}Launching swap manager...${Font}"
+            lang_echo "${Yellow}正在从远程仓库获取 swap.sh...${Font}" "${Yellow}Fetching swap.sh from repository...${Font}"
             if bash <(wget -qO- "${base_url}/swap.sh" 2>/dev/null || curl -fsSL "${base_url}/swap.sh" 2>/dev/null); then
-                echo -e "${Green}脚本执行完成${Font}"
+                lang_echo "${Green}脚本执行完成${Font}" "${Green}Script finished${Font}"
             else
-                echo -e "${Red}错误：无法从远程仓库获取 swap.sh 脚本！${Font}"
-                echo -e "${Yellow}请检查网络连接或稍后重试${Font}"
+                lang_echo "${Red}错误：无法从远程仓库获取 swap.sh 脚本！${Font}" "${Red}Error: unable to download swap.sh!${Font}"
+                lang_echo "${Yellow}请检查网络连接或稍后重试${Font}" "${Yellow}Check your network connection or try again later${Font}"
             fi
             ;;
         4)
-            echo -e "${Green}正在启动 kernel.sh 脚本...${Font}"
-            echo -e "${Yellow}正在从远程仓库获取 install_kernel.sh...${Font}"
-            
-            # 先尝试下载脚本到临时文件
-            local temp_script="/tmp/install_kernel_temp.sh"
-            local download_success=false
-            
-            if wget -qO "$temp_script" "${base_url}/install_kernel.sh" 2>/dev/null; then
-                download_success=true
-                echo -e "${Green}使用 wget 下载成功${Font}"
-            elif curl -fsSL "${base_url}/install_kernel.sh" -o "$temp_script" 2>/dev/null; then
-                download_success=true
-                echo -e "${Green}使用 curl 下载成功${Font}"
-            fi
-            
-            if [[ "$download_success" == "true" && -s "$temp_script" ]]; then
-                echo -e "${Green}开始执行 kernel.sh 脚本...${Font}"
-                # 执行脚本，不管退出状态码
-                bash "$temp_script"
-                echo -e "${Green}kernel.sh 脚本执行完成${Font}"
-                rm -f "$temp_script"
-            else
-                echo -e "${Red}错误：无法从远程仓库获取 install_kernel.sh 脚本！${Font}"
-                echo -e "${Yellow}请检查网络连接或稍后重试${Font}"
-                rm -f "$temp_script"
-            fi
-            ;;
-        5)
-            echo -e "${Green}正在更新 main.sh 脚本...${Font}"
+            lang_echo "${Green}正在更新 main.sh 脚本...${Font}" "${Green}Updating main.sh...${Font}"
             update_main_script
             ;;
-        6)
-            echo -e "${Green}进入命令管理...${Font}"
+        5)
+            lang_echo "${Green}进入命令管理...${Font}" "${Green}Opening command manager...${Font}"
             command_management
             ;;
-        7)
-            echo -e "${Green}进入系统工具...${Font}"
+        6)
+            lang_echo "${Green}进入系统工具...${Font}" "${Green}Opening system tools...${Font}"
             system_tools_menu
             ;;
-        8)
+        7)
             quick_switch_ip_priority
             ;;
+        8)
+            lang_echo "${Green}正在启动 WARP & Sing-box 配置脚本...${Font}" "${Green}Launching WARP & Sing-box setup...${Font}"
+            local script_dir="$(dirname "$(readlink -f "$0")")"
+            local local_script="${script_dir}/setup_warp_singbox.sh"
+            
+            if [[ -f "$local_script" ]]; then
+                bash "$local_script"
+            else
+                lang_echo "${Yellow}正在从远程仓库获取 setup_warp_singbox.sh...${Font}" "${Yellow}Fetching setup_warp_singbox.sh from repository...${Font}"
+                local temp_script="/tmp/setup_warp_singbox.sh"
+                local warp_url="${base_url}/setup_warp_singbox.sh"
+                
+                if wget -qO "$temp_script" "$warp_url" 2>/dev/null || curl -fsSL "$warp_url" -o "$temp_script" 2>/dev/null; then
+                    bash "$temp_script"
+                    rm -f "$temp_script"
+                else
+                    lang_echo "${Red}错误：无法从远程仓库获取 setup_warp_singbox.sh 脚本！${Font}" "${Red}Error: unable to download setup_warp_singbox.sh!${Font}"
+                    lang_echo "${Yellow}请检查网络连接或稍后重试${Font}" "${Yellow}Check your network connection or try again later${Font}"
+                fi
+            fi
+            ;;
         9)
-            echo -e "${Green}感谢使用，再见！${Font}"
+            show_config_paths
+            ;;
+        10)
+            lang_echo "${Green}感谢使用，再见！${Font}" "${Green}Thanks for using, bye!${Font}"
             exit 0
             ;;
         *)
-            echo -e "${Red}无效选择，请输入 1-9${Font}"
+            lang_echo "${Red}无效选择，请输入 1-10${Font}" "${Red}Invalid choice, please enter 1-10${Font}"
             sleep 2
             main_menu
             ;;
@@ -974,13 +1022,67 @@ add_crontab_reboot() {
 main_menu() {
     while true; do
         show_script_menu
-        read -p "请输入您的选择 [1-9]: " choice
+        read -p "$(lang_text "请输入您的选择 [1-10]: " "Choose an option [1-10]: ")" choice
         execute_script "$choice"
         echo
-        if [[ "$choice" != "9" ]]; then
-            read -p "脚本执行完毕，按回车键返回主菜单..."
+        if [[ "$choice" != "10" ]]; then
+            read -p "$(lang_text "脚本执行完毕，按回车键返回主菜单..." "Script finished. Press Enter to return to the main menu...")"
         fi
     done
+}
+
+# 显示核心配置路径
+show_config_paths() {
+    echo -e "${Blue}============================================${Font}"
+    lang_echo "${Green}           核心配置文件路径查询${Font}" "${Green}           Core config path lookup${Font}"
+    echo -e "${Blue}============================================${Font}"
+    echo
+
+    # 1. 检查 Sing-box
+    lang_echo "${Green}Sing-box 配置：${Font}" "${Green}Sing-box config:${Font}"
+    local sb_found=false
+    
+    # 检查 install.sh 安装路径
+    if [[ -f "/etc/v2ray-agent/sing-box/conf/config.json" ]]; then
+        lang_echo "${Yellow}  主配置文件 (install.sh): /etc/v2ray-agent/sing-box/conf/config.json${Font}" "${Yellow}  Main config (install.sh): /etc/v2ray-agent/sing-box/conf/config.json${Font}"
+        sb_found=true
+    fi
+    if [[ -f "/etc/v2ray-agent/sing-box/conf/config_warp_template.json" ]]; then
+        lang_echo "${Yellow}  WARP 模板文件: /etc/v2ray-agent/sing-box/conf/config_warp_template.json${Font}" "${Yellow}  WARP template: /etc/v2ray-agent/sing-box/conf/config_warp_template.json${Font}"
+        sb_found=true
+    fi
+    
+    # 检查标准安装路径
+    if [[ -f "/etc/sing-box/config.json" ]]; then
+        lang_echo "${Yellow}  主配置文件 (标准): /etc/sing-box/config.json${Font}" "${Yellow}  Main config (standard): /etc/sing-box/config.json${Font}"
+        sb_found=true
+    fi
+    
+    if [[ "$sb_found" == "false" ]]; then
+        lang_echo "${Red}  未检测到 Sing-box 配置文件${Font}" "${Red}  No Sing-box config found${Font}"
+    fi
+    echo
+
+    # 2. 检查 Xray (install.sh)
+    lang_echo "${Green}Xray 配置：${Font}" "${Green}Xray config:${Font}"
+    if [[ -f "/etc/v2ray-agent/xray/conf/config.json" ]]; then
+        lang_echo "${Yellow}  主配置文件: /etc/v2ray-agent/xray/conf/config.json${Font}" "${Yellow}  Main config: /etc/v2ray-agent/xray/conf/config.json${Font}"
+    else
+        lang_echo "${Red}  未检测到 Xray 配置文件${Font}" "${Red}  No Xray config found${Font}"
+    fi
+    echo
+
+    # 3. 检查 WARP
+    lang_echo "${Green}Cloudflare WARP 配置：${Font}" "${Green}Cloudflare WARP:${Font}"
+    if command -v warp-cli >/dev/null 2>&1; then
+        lang_echo "${Yellow}  WARP 是 CLI 工具，无直接编辑的配置文件。${Font}" "${Yellow}  WARP is CLI-only; no editable config file.${Font}"
+        lang_echo "${Yellow}  查看设置: warp-cli settings${Font}" "${Yellow}  View settings: warp-cli settings${Font}"
+        lang_echo "${Yellow}  检查连接: curl -x socks5://127.0.0.1:40000 https://ifconfig.me${Font}" "${Yellow}  Check connection: curl -x socks5://127.0.0.1:40000 https://ifconfig.me${Font}"
+    else
+        lang_echo "${Red}  未检测到 warp-cli${Font}" "${Red}  warp-cli not found${Font}"
+    fi
+    
+    echo -e "${Blue}============================================${Font}"
 }
 
 # 初始化函数（优化版）
@@ -1013,29 +1115,87 @@ initialize() {
 }
 
 # 系统工具菜单
-system_tools_menu() {
-    clear
+bbr_management() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}           系统工具和诊断${Font}"
+    lang_echo "${Green}           BBR 管理${Font}" "${Green}           BBR Management${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
-    echo -e "${Green}系统工具选项：${Font}"
-    echo -e "${Yellow}1.${Font} 系统信息查看"
-    echo -e "${Yellow}2.${Font} 网络诊断工具"
-    echo -e "${Yellow}3.${Font} 性能监控和优化"
-    echo -e "${Yellow}4.${Font} 防火墙管理"
-    echo -e "${Yellow}5.${Font} 服务管理"
-    echo -e "${Yellow}6.${Font} 磁盘空间清理"
-    echo -e "${Yellow}7.${Font} 系统日志查看"
-    echo -e "${Yellow}8.${Font} 时间同步设置"
-    echo -e "${Yellow}9.${Font} 返回主菜单"
+    # 检查当前状态
+    local current_algo=$(sysctl net.ipv4.tcp_congestion_control 2>/dev/null | awk '{print $3}')
+    local current_qdisc=$(sysctl net.core.default_qdisc 2>/dev/null | awk '{print $3}')
+    
+    lang_echo "${Yellow}当前 TCP 拥塞控制算法：${current_algo:-未知}${Font}" "${Yellow}Current TCP congestion control: ${current_algo:-unknown}${Font}"
+    lang_echo "${Yellow}当前队列调度算法：${current_qdisc:-未知}${Font}" "${Yellow}Current queue discipline: ${current_qdisc:-unknown}${Font}"
+    echo
+    
+    lang_echo "${Green}请选择操作：${Font}" "${Green}Choose an action:${Font}"
+    lang_echo "${Yellow}1.${Font} 开启 BBR" "${Yellow}1.${Font} Enable BBR"
+    lang_echo "${Yellow}2.${Font} 关闭 BBR (恢复默认 cubic)" "${Yellow}2.${Font} Disable BBR (restore cubic)"
+    lang_echo "${Yellow}3.${Font} 返回上级菜单" "${Yellow}3.${Font} Back"
+    echo
+    
+    read -p "$(lang_text "请输入选择 [1-3]: " "Choose [1-3]: ")" bbr_choice
+    case $bbr_choice in
+        1)
+            lang_echo "${Green}正在开启 BBR...${Font}" "${Green}Enabling BBR...${Font}"
+            if ! grep -q "net.core.default_qdisc" /etc/sysctl.conf; then
+                echo "net.core.default_qdisc = fq" >> /etc/sysctl.conf
+            else
+                sed -i 's/^net.core.default_qdisc.*/net.core.default_qdisc = fq/' /etc/sysctl.conf
+            fi
+            
+            if ! grep -q "net.ipv4.tcp_congestion_control" /etc/sysctl.conf; then
+                echo "net.ipv4.tcp_congestion_control = bbr" >> /etc/sysctl.conf
+            else
+                sed -i 's/^net.ipv4.tcp_congestion_control.*/net.ipv4.tcp_congestion_control = bbr/' /etc/sysctl.conf
+            fi
+            
+            sysctl -p >/dev/null 2>&1
+            lang_echo "${Green}BBR 已开启！${Font}" "${Green}BBR enabled!${Font}"
+            ;;
+        2)
+            lang_echo "${Green}正在关闭 BBR...${Font}" "${Green}Disabling BBR...${Font}"
+            sed -i '/net.core.default_qdisc/d' /etc/sysctl.conf
+            sed -i '/net.ipv4.tcp_congestion_control/d' /etc/sysctl.conf
+            
+            # 恢复默认
+            sysctl -w net.core.default_qdisc=fq_codel >/dev/null 2>&1
+            sysctl -w net.ipv4.tcp_congestion_control=cubic >/dev/null 2>&1
+            
+            lang_echo "${Green}BBR 已关闭，已恢复为 cubic。${Font}" "${Green}BBR disabled; restored to cubic.${Font}"
+            ;;
+        *)
+            ;;
+    esac
+    read -p "$(lang_text "按回车键返回..." "Press Enter to return...")"
+    system_tools_menu
+}
+
+system_tools_menu() {
+    clear
+    echo -e "${Blue}============================================${Font}"
+    lang_echo "${Green}           系统工具和诊断${Font}" "${Green}           System tools & diagnostics${Font}"
+    echo -e "${Blue}============================================${Font}"
+    echo
+    
+    lang_echo "${Green}系统工具选项：${Font}" "${Green}System tool options:${Font}"
+    lang_echo "${Yellow}1.${Font} 系统信息查看" "${Yellow}1.${Font} System info"
+    lang_echo "${Yellow}2.${Font} 网络诊断工具" "${Yellow}2.${Font} Network diagnostics"
+    lang_echo "${Yellow}3.${Font} 性能监控和优化" "${Yellow}3.${Font} Performance monitor & tuning"
+    lang_echo "${Yellow}4.${Font} 防火墙管理" "${Yellow}4.${Font} Firewall management"
+    lang_echo "${Yellow}5.${Font} 服务管理" "${Yellow}5.${Font} Service management"
+    lang_echo "${Yellow}6.${Font} 磁盘空间清理" "${Yellow}6.${Font} Disk cleanup"
+    lang_echo "${Yellow}7.${Font} 系统日志查看" "${Yellow}7.${Font} System logs"
+    lang_echo "${Yellow}8.${Font} 时间同步设置" "${Yellow}8.${Font} Time sync"
+    lang_echo "${Yellow}9.${Font} BBR 管理" "${Yellow}9.${Font} BBR management"
+    lang_echo "${Yellow}10.${Font} 返回主菜单" "${Yellow}10.${Font} Back to main menu"
     echo
     echo -e "${Blue}============================================${Font}"
     
     local choice
     while true; do
-        read -p "请选择操作 [1-9]: " choice
+        read -p "$(lang_text "请选择操作 [1-10]: " "Choose an action [1-10]: ")" choice
         case $choice in
             1)
                 show_system_info
@@ -1070,11 +1230,15 @@ system_tools_menu() {
                 break
                 ;;
             9)
+                bbr_management
+                break
+                ;;
+            10)
                 echo -e "${Yellow}返回主菜单${Font}"
                 return 0
                 ;;
             *)
-                echo -e "${Red}无效选择，请输入 1-9${Font}"
+                echo -e "${Red}无效选择，请输入 1-10${Font}"
                 ;;
         esac
     done
