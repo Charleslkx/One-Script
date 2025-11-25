@@ -7074,7 +7074,6 @@ handleFirewall() {
     fi
 }
 
-```
 # 安装BBR
 
 # 自动开启 BBR
@@ -7142,15 +7141,6 @@ checkLog() {
     echoContent yellow "4.查看证书定时任务日志"
     echoContent yellow "5.查看证书安装日志"
     echoContent yellow "6.清空日志"
-    echoContent red "
-```
-bbrInstall() {
-    echoContent red "\n=============================================================="
-    echoContent green "BBR、DD脚本用的[ylx2016]的成熟作品，地址[https://github.com/ylx2016/Linux-NetSpeed]，请熟知"
-    echoContent yellow "1.安装脚本【推荐原版BBR+F
-
-# 查看、检查日志
-checkLog() {
     if [[ "${coreInstallType}" == "2" ]]; then
         echoContent red "\n ---> 此功能仅支持Xray-core内核"
         exit 0
@@ -7236,6 +7226,22 @@ EOF
     6)
         echo >${configPathLog}access.log
         echo >${configPathLog}error.log
+        ;;
+    esac
+}
+
+# BBR/加速管理（外部脚本）
+bbrInstall() {
+    echoContent red "\n=============================================================="
+    echoContent green "BBR/加速脚本来自 ylx2016/Linux-NetSpeed： https://github.com/ylx2016/Linux-NetSpeed"
+    echoContent yellow "1.运行外部脚本"
+    echoContent yellow "0.返回"
+    read -r -p "请选择:" bbrSelect
+    case ${bbrSelect} in
+    1)
+        bash <(curl -fsSL https://raw.githubusercontent.com/ylx2016/Linux-NetSpeed/master/tcp.sh)
+        ;;
+    *)
         ;;
     esac
 }
