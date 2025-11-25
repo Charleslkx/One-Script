@@ -103,6 +103,10 @@ check_os() {
         source /etc/os-release
         OS=$ID
         VERSION=$VERSION_ID
+        CODENAME=${VERSION_CODENAME:-}
+        if [[ -z "$CODENAME" && -x /usr/bin/lsb_release ]]; then
+            CODENAME=$(lsb_release -cs 2>/dev/null || true)
+        fi
     else
         lang_echo "${Red}无法检测操作系统，脚本仅支持 Debian/Ubuntu${Font}" "${Red}Cannot detect OS. Supported: Debian/Ubuntu only.${Font}"
         exit 1
@@ -110,6 +114,11 @@ check_os() {
 
     if [[ "$OS" != "debian" && "$OS" != "ubuntu" ]]; then
         lang_echo "${Red}不支持的操作系统: $OS。仅支持 Debian 和 Ubuntu。${Font}" "${Red}Unsupported OS: $OS. Only Debian and Ubuntu are supported.${Font}"
+        exit 1
+    fi
+    
+    if [[ -z "$CODENAME" ]]; then
+        lang_echo "${Red}无法确定系统代号 (codename)，请手动设置 VERSION_CODENAME 环境变量。${Font}" "${Red}Could not determine OS codename; please set VERSION_CODENAME manually.${Font}"
         exit 1
     fi
 }
@@ -126,7 +135,7 @@ install_warp() {
     curl -fsSL https://pkg.cloudflareclient.com/pubkey.gpg | gpg --yes --dearmor --output /usr/share/keyrings/cloudflare-warp-archive-keyring.gpg
 
     # 添加源
-    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $OS $VERSION main" | tee /etc/apt/sources.list.d/cloudflare-client.list
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/cloudflare-warp-archive-keyring.gpg] https://pkg.cloudflareclient.com/ $CODENAME main" | tee /etc/apt/sources.list.d/cloudflare-client.list
 
     # 安装
     apt-get update
