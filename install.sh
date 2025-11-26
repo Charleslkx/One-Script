@@ -8868,7 +8868,7 @@ customSingBoxInstall() {
         handleNginx stop
         handleNginx start
         # 开启BBR
-        enable_bbr_feature
+        enable_bbr
         # 生成账号
         checkGFWStatue 8
         showAccounts 9
@@ -8966,7 +8966,7 @@ customXrayInstall() {
         handleXray stop
         handleXray start
         # 开启BBR
-        enable_bbr_feature
+        enable_bbr
         # 生成账号
         checkGFWStatue 11
         showAccounts 12
@@ -9047,7 +9047,7 @@ xrayCoreInstall() {
 
     handleNginx start
     # 开启BBR
-    enable_bbr_feature
+    enable_bbr
     # 生成账号
     checkGFWStatue 11
     showAccounts 12
@@ -9088,7 +9088,7 @@ singBoxInstall() {
     handleNginx stop
     handleNginx start
     # 开启BBR
-    enable_bbr_feature
+    enable_bbr
     # 生成账号
     showAccounts 9
 }
