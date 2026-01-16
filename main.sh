@@ -847,6 +847,9 @@ execute_script() {
                 install_script_name="install.sh"
             fi
             local v2ray_url="${base_url}/${install_script_name}"
+            if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
+                v2ray_url="${base_url}/install_en.sh"
+            fi
             
             if wget -qO "$temp_script" "$v2ray_url" 2>/dev/null; then
                 download_success=true

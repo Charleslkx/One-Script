@@ -7045,20 +7045,34 @@ updateV2RayAgent() {
     echoContent skyBlue "\nProgress  $1/${totalProgress} : Update v2ray-agent script"
     rm -rf /etc/v2ray-agent/install.sh
     if [[ "${release}" == "alpine" ]]; then
+<<<<<<< HEAD
         wget -c -q -O /etc/v2ray-agent/install.sh -N --no-check-certificate "https://raw.githubusercontent.com/charleslkx/one-script/master/install_en.sh"
     else
         wget -c -q "${wgetShowProgressStatus}" -O /etc/v2ray-agent/install.sh -N --no-check-certificate "https://raw.githubusercontent.com/charleslkx/one-script/master/install_en.sh"
+=======
+        wget -c -q -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
+    else
+        wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
+>>>>>>> parent of 604df8d (en fix)
     fi
 
     sudo chmod 700 /etc/v2ray-agent/install.sh
     local version
     version=$(grep 'Current Version: v' "/etc/v2ray-agent/install.sh" | awk -F "[v]" '{print $2}' | tail -n +2 | head -n 1 | awk -F "[\"]" '{print $1}')
 
+<<<<<<< HEAD
     echoContent green "\n ---> Update finished"
     echoContent yellow " ---> Please execute [vasma] manually to open the script"
     echoContent green " ---> Current Version: ${version}\n"
     echoContent yellow "If update fails, please execute the following command manually\n"
     echoContent skyBlue "wget -O /root/install.sh -N --no-check-certificate https://raw.githubusercontent.com/charleslkx/one-script/master/install_en.sh && chmod 700 /root/install.sh && /root/install.sh"
+=======
+    echoContent green "\n ---> 更新完毕"
+    echoContent yellow " ---> 请手动执行[vasma]打开脚本"
+    echoContent green " ---> 当前版本：${version}\n"
+    echoContent yellow "如更新不成功，请手动执行下面命令\n"
+    echoContent skyBlue "wget -P /root -N --no-check-certificate https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh && chmod 700 /root/install.sh && /root/install.sh"
+>>>>>>> parent of 604df8d (en fix)
     echo
     exit 0
 }
