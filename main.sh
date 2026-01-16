@@ -1030,6 +1030,31 @@ resolve_proxy_binary() {
     echo ""
 }
 
+detect_singbox_listen_port() {
+    local config_path=$1
+    local port=""
+
+    if [[ ! -f "$config_path" ]]; then
+        return 1
+    fi
+
+    if command -v jq >/dev/null 2>&1; then
+        port=$(jq -r '.inbounds[]? | select(.type=="vless") | .listen_port' "$config_path" 2>/dev/null | head -n1)
+        if [[ -z "$port" || "$port" == "null" ]]; then
+            port=$(jq -r '.inbounds[]? | .listen_port' "$config_path" 2>/dev/null | head -n1)
+        fi
+    else
+        port=$(grep -m1 -Eo '"listen_port"[[:space:]]*:[[:space:]]*[0-9]+' "$config_path" 2>/dev/null | sed -E 's/.*:[[:space:]]*([0-9]+)/\1/')
+    fi
+
+    if is_valid_port "$port"; then
+        echo "$port"
+        return 0
+    fi
+
+    return 1
+}
+
 # 检测代理软件类型和配置路径
 detect_proxy_software() {
     local proxy_type=""
@@ -1152,8 +1177,26 @@ setup_blue_green_deployment() {
     lang_echo "${Yellow}[3/7]${Font} $(lang_text "创建双实例配置..." "Creating dual-instance configs...")"
 
     # 选择实例端口
+    local external_port=443
+    if [[ "$proxy_type" == "sing-box" ]]; then
+        local detected_port=""
+        detected_port=$(detect_singbox_listen_port "$original_config")
+        if is_valid_port "$detected_port"; then
+            external_port="$detected_port"
+        fi
+    fi
+
     local port_a=10080
     local port_b=10081
+
+    if [[ "$external_port" == "$port_a" || "$external_port" == "$port_b" ]]; then
+        local candidate_a=$((external_port + 1))
+        local candidate_b=$((external_port + 2))
+        if is_valid_port "$candidate_a" && is_valid_port "$candidate_b"; then
+            port_a=$candidate_a
+            port_b=$candidate_b
+        fi
+    fi
 
     if ! is_port_available "$port_a" || ! is_port_available "$port_b"; then
         lang_echo "${Yellow}检测到默认端口被占用，请手动设置端口${Font}" "${Yellow}Default ports are in use, please set custom ports${Font}"
@@ -1182,12 +1225,6 @@ setup_blue_green_deployment() {
     if [[ ! -f "${original_config}.backup" ]]; then
         cp "${original_config}" "${original_config}.backup"
         lang_echo "${Green}  已备份原配置${Font}" "${Green}  Original config backed up${Font}"
-    fi
-    
-    # 读取原配置中的端口（如果存在）
-    local original_port="443"
-    if command -v jq >/dev/null 2>&1; then
-        original_port=$(jq -r '.inbounds[0].port // 443' "${original_config}" 2>/dev/null || echo "443")
     fi
     
     # 创建实例 A 配置（端口 10080）
@@ -1222,7 +1259,7 @@ setup_blue_green_deployment() {
     cat > /etc/v2ray-agent/blue_green_ports.conf << EOF
 PORT_A=${port_a}
 PORT_B=${port_b}
-EXTERNAL_PORT=443
+EXTERNAL_PORT=${external_port}
 EOF
     
     # 确保日志目录存在，避免 systemd namespace 失败
