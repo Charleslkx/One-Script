@@ -7127,6 +7127,43 @@ enable_bbr_feature() {
     enable_bbr
 }
 
+run_kernel_install_script() {
+    local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
+    local script_dir
+    script_dir="$(dirname "$(readlink -f "$0")")"
+    local local_script="${script_dir}/install_kernel.sh"
+
+    if [[ -f "${local_script}" ]]; then
+        bash "${local_script}"
+        return
+    fi
+
+    echoContent yellow " ---> 正在从远程仓库获取 install_kernel.sh..."
+    local temp_script="/tmp/install_kernel.sh"
+    local kernel_url="${base_url}/install_kernel.sh"
+
+    if wget -qO "${temp_script}" "${kernel_url}" 2>/dev/null || curl -fsSL "${kernel_url}" -o "${temp_script}" 2>/dev/null; then
+        bash "${temp_script}"
+        rm -f "${temp_script}"
+    else
+        echoContent red " ---> 错误：无法从远程仓库获取 install_kernel.sh 脚本！"
+        echoContent yellow " ---> 请检查网络连接或稍后重试"
+    fi
+}
+
+prompt_bbr_kernel_install() {
+    echoContent yellow "\n ---> 是否需要安装 BBR 内核加速？"
+    read -r -p "请输入 [y/N]:" bbrKernelSelect
+    case "${bbrKernelSelect}" in
+    y | Y)
+        run_kernel_install_script
+        ;;
+    *)
+        echoContent yellow " ---> 已跳过 BBR 内核安装"
+        ;;
+    esac
+}
+
 # 查看、检查日志
 checkLog() {
     if [[ "${coreInstallType}" == "2" ]]; then
@@ -9102,8 +9139,8 @@ singBoxInstall() {
     handleSingBox start
     handleNginx stop
     handleNginx start
-    # 开启BBR
-    enable_bbr_feature
+    # 是否安装 BBR 内核
+    prompt_bbr_kernel_install
     # 生成账号
     showAccounts 9
 }
