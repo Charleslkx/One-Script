@@ -7053,6 +7053,15 @@ enable_bbr() {
     echoContent skyBlue "\n进度  自动配置 : 检查并开启 BBR"
     
     local bbr_enabled=false
+    local available_algos
+    available_algos=$(sysctl net.ipv4.tcp_available_congestion_control 2>/dev/null | sed 's/^.*=//')
+    if [[ -n "${available_algos// }" ]]; then
+        echoContent yellow " ---> 可用拥塞控制算法: ${available_algos}"
+    fi
+    if [[ -n "${available_algos// }" ]] && ! echo "${available_algos}" | grep -qw "bbr"; then
+        echoContent red " ---> 未检测到内核支持 BBR，跳过开启"
+        return
+    fi
     if sysctl net.ipv4.tcp_congestion_control 2>/dev/null | grep -q "bbr"; then
         bbr_enabled=true
     fi
@@ -7072,10 +7081,37 @@ enable_bbr() {
         fi
         
         sysctl -p >/dev/null 2>&1
-        echoContent green " ---> BBR 已开启"
+        local current_algo
+        local current_qdisc
+        current_algo=$(sysctl net.ipv4.tcp_congestion_control 2>/dev/null | awk -F "=" '{print $2}' | awk '{$1=$1;print}')
+        current_qdisc=$(sysctl net.core.default_qdisc 2>/dev/null | awk -F "=" '{print $2}' | awk '{$1=$1;print}')
+        if [[ "${current_algo}" == "bbr" && "${current_qdisc}" == "fq" ]]; then
+            echoContent green " ---> BBR 已开启"
+        else
+            echoContent red " ---> BBR 开启失败，请检查内核支持与配置"
+        fi
+        echoContent yellow " ---> 当前状态: ${current_algo:-unknown} + ${current_qdisc:-unknown}"
     else
         echoContent green " ---> BBR 已开启 (无需重复配置)"
     fi
+}
+
+enable_bbr_feature() {
+    local bbr_script_dir="/etc/v2ray-agent/bbr"
+    local bbr_script_path="${bbr_script_dir}/tcp.sh"
+
+    if [[ ! -f "${bbr_script_path}" ]]; then
+        echoContent yellow " ---> 未发现BBR脚本，正在下载..."
+        mkdir -p "${bbr_script_dir}"
+        if command -v curl >/dev/null 2>&1; then
+            curl -fsSL -o "${bbr_script_path}" "https://raw.githubusercontent.com/ylx2016/Linux-NetSpeed/master/tcp.sh"
+        else
+            wget -q -O "${bbr_script_path}" "https://raw.githubusercontent.com/ylx2016/Linux-NetSpeed/master/tcp.sh"
+        fi
+        chmod 700 "${bbr_script_path}"
+    fi
+
+    enable_bbr
 }
 
 # 查看、检查日志

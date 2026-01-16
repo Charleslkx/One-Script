@@ -810,7 +810,8 @@ show_script_menu() {
     lang_echo "${Yellow}8.${Font} 内核安装脚本 (BBR/BBR Plus)" "${Yellow}8.${Font} Kernel installer (BBR/BBR Plus)"
     lang_echo "${Yellow}9.${Font} 查询核心配置路径" "${Yellow}9.${Font} Show core config paths"
     lang_echo "${Yellow}10.${Font} 蓝绿部署管理 ${Blue}(零中断重启方案)${Font}" "${Yellow}10.${Font} Blue-Green deployment ${Blue}(zero-downtime restart)${Font}"
-    lang_echo "${Yellow}11.${Font} 退出" "${Yellow}11.${Font} Exit"
+    lang_echo "${Yellow}11.${Font} BBR 管理 ${Blue}(快速开关)${Font}" "${Yellow}11.${Font} BBR management ${Blue}(quick toggle)${Font}"
+    lang_echo "${Yellow}12.${Font} 退出" "${Yellow}12.${Font} Exit"
     echo
     echo -e "${Blue}============================================${Font}"
 }
@@ -960,11 +961,15 @@ execute_script() {
             blue_green_menu
             ;;
         11)
+            lang_echo "${Green}进入 BBR 管理...${Font}" "${Green}Opening BBR management...${Font}"
+            bbr_management
+            ;;
+        12)
             lang_echo "${Green}感谢使用，再见！${Font}" "${Green}Thanks for using, bye!${Font}"
             exit 0
             ;;
         *)
-            lang_echo "${Red}无效选择，请输入 1-11${Font}" "${Red}Invalid choice, please enter 1-11${Font}"
+            lang_echo "${Red}无效选择，请输入 1-12${Font}" "${Red}Invalid choice, please enter 1-12${Font}"
             sleep 2
             main_menu
             ;;
@@ -1570,10 +1575,10 @@ blue_green_menu() {
 main_menu() {
     while true; do
         show_script_menu
-        read -p "$(lang_text "请输入您的选择 [1-11]: " "Choose an option [1-11]: ")" choice
+        read -p "$(lang_text "请输入您的选择 [1-12]: " "Choose an option [1-12]: ")" choice
         execute_script "$choice"
         echo
-        if [[ "$choice" != "11" ]]; then
+        if [[ "$choice" != "12" ]]; then
             read -p "$(lang_text "脚本执行完毕，按回车键返回主菜单..." "Script finished. Press Enter to return to the main menu...")"
         fi
     done
@@ -1672,13 +1677,17 @@ bbr_management() {
     # 检查当前状态
     local current_algo=$(sysctl net.ipv4.tcp_congestion_control 2>/dev/null | awk '{print $3}')
     local current_qdisc=$(sysctl net.core.default_qdisc 2>/dev/null | awk '{print $3}')
+    local available_algos=$(sysctl net.ipv4.tcp_available_congestion_control 2>/dev/null | sed 's/^.*=//')
     
     lang_echo "${Yellow}当前 TCP 拥塞控制算法：${current_algo:-未知}${Font}" "${Yellow}Current TCP congestion control: ${current_algo:-unknown}${Font}"
     lang_echo "${Yellow}当前队列调度算法：${current_qdisc:-未知}${Font}" "${Yellow}Current queue discipline: ${current_qdisc:-unknown}${Font}"
+    if [[ -n "${available_algos// }" ]]; then
+        lang_echo "${Yellow}可用拥塞控制算法：${available_algos}${Font}" "${Yellow}Available congestion controls: ${available_algos}${Font}"
+    fi
     echo
     
     lang_echo "${Green}请选择操作：${Font}" "${Green}Choose an action:${Font}"
-    lang_echo "${Yellow}1.${Font} 开启 BBR" "${Yellow}1.${Font} Enable BBR"
+    lang_echo "${Yellow}1.${Font} 开启 BBR v1 + FQ" "${Yellow}1.${Font} Enable BBR v1 + FQ"
     lang_echo "${Yellow}2.${Font} 关闭 BBR (恢复默认 cubic)" "${Yellow}2.${Font} Disable BBR (restore cubic)"
     lang_echo "${Yellow}3.${Font} 返回上级菜单" "${Yellow}3.${Font} Back"
     echo
@@ -1686,7 +1695,13 @@ bbr_management() {
     read -p "$(lang_text "请输入选择 [1-3]: " "Choose [1-3]: ")" bbr_choice
     case $bbr_choice in
         1)
-            lang_echo "${Green}正在开启 BBR...${Font}" "${Green}Enabling BBR...${Font}"
+            if [[ -n "${available_algos// }" ]] && ! echo "${available_algos}" | grep -qw "bbr"; then
+                lang_echo "${Red}未检测到内核支持 BBR，无法开启。${Font}" "${Red}BBR not supported by kernel; cannot enable.${Font}"
+                read -p "$(lang_text "按回车键返回..." "Press Enter to return...")"
+                system_tools_menu
+                return 0
+            fi
+            lang_echo "${Green}正在开启 BBR v1 + FQ...${Font}" "${Green}Enabling BBR v1 + FQ...${Font}"
             if ! grep -q "net.core.default_qdisc" /etc/sysctl.conf; then
                 echo "net.core.default_qdisc = fq" >> /etc/sysctl.conf
             else
@@ -1700,7 +1715,13 @@ bbr_management() {
             fi
             
             sysctl -p >/dev/null 2>&1
-            lang_echo "${Green}BBR 已开启！${Font}" "${Green}BBR enabled!${Font}"
+            current_algo=$(sysctl net.ipv4.tcp_congestion_control 2>/dev/null | awk '{print $3}')
+            current_qdisc=$(sysctl net.core.default_qdisc 2>/dev/null | awk '{print $3}')
+            if [[ "${current_algo}" == "bbr" && "${current_qdisc}" == "fq" ]]; then
+                lang_echo "${Green}BBR 已开启！${Font}" "${Green}BBR enabled!${Font}"
+            else
+                lang_echo "${Red}BBR 开启失败，请检查内核支持与配置。${Font}" "${Red}Failed to enable BBR; check kernel support/config.${Font}"
+            fi
             ;;
         2)
             lang_echo "${Green}正在关闭 BBR...${Font}" "${Green}Disabling BBR...${Font}"
