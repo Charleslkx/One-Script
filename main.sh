@@ -1177,6 +1177,9 @@ PORT_B=${port_b}
 EXTERNAL_PORT=443
 EOF
     
+    # 确保日志目录存在，避免 systemd namespace 失败
+    install -d -m 755 "/var/log/${proxy_type}"
+    
     # 创建 systemd 服务文件
     lang_echo "${Yellow}[4/7]${Font} $(lang_text "创建 systemd 服务..." "Creating systemd services...")"
     
