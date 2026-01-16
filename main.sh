@@ -809,7 +809,7 @@ show_script_menu() {
     lang_echo "${Yellow}7.${Font} 快速切换节点IPv4/IPv6优先级" "${Yellow}7.${Font} Quick IPv4/IPv6 preference switch"
     lang_echo "${Yellow}8.${Font} 内核安装脚本 (BBR/BBR Plus)" "${Yellow}8.${Font} Kernel installer (BBR/BBR Plus)"
     lang_echo "${Yellow}9.${Font} 查询核心配置路径" "${Yellow}9.${Font} Show core config paths"
-    lang_echo "${Yellow}10.${Font} ${Green}蓝绿部署管理 ${Blue}(零中断重启方案)${Font}" "${Yellow}10.${Font} ${Green}Blue-Green deployment ${Blue}(zero-downtime restart)${Font}"
+    lang_echo "${Yellow}10.${Font} 蓝绿部署管理 ${Blue}(零中断重启方案)${Font}" "${Yellow}10.${Font} Blue-Green deployment ${Blue}(zero-downtime restart)${Font}"
     lang_echo "${Yellow}11.${Font} 退出" "${Yellow}11.${Font} Exit"
     echo
     echo -e "${Blue}============================================${Font}"
@@ -2603,7 +2603,7 @@ show_version_info() {
 command_management() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}           命令管理${Font}"
+    lang_echo "${Green}           命令管理${Font}" "${Green}           Command Management${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
@@ -2637,17 +2637,17 @@ command_management() {
     fi
     
     echo
-    echo -e "${Green}命令管理选项：${Font}"
-    echo -e "${Yellow}1.${Font} 安装远程运行命令 (${command_name})"
-    echo -e "${Yellow}2.${Font} 卸载远程运行命令"
-    echo -e "${Yellow}3.${Font} 查看详细状态"
-    echo -e "${Yellow}4.${Font} 返回主菜单"
+    lang_echo "${Green}命令管理选项：${Font}" "${Green}Command options:${Font}"
+    lang_echo "${Yellow}1.${Font} 安装远程运行命令 (${command_name})" "${Yellow}1.${Font} Install remote command (${command_name})"
+    lang_echo "${Yellow}2.${Font} 卸载远程运行命令" "${Yellow}2.${Font} Uninstall remote command"
+    lang_echo "${Yellow}3.${Font} 查看详细状态" "${Yellow}3.${Font} Show detailed status"
+    lang_echo "${Yellow}4.${Font} 返回主菜单" "${Yellow}4.${Font} Back to main menu"
     echo
     echo -e "${Blue}============================================${Font}"
     
     local choice
     while true; do
-        read -p "请选择操作 [1-4]: " choice
+        read -p "$(lang_text "请选择操作 [1-4]: " "Choose an action [1-4]: ")" choice
         case $choice in
             1)
                 install_quick_command
@@ -2662,11 +2662,11 @@ command_management() {
                 break
                 ;;
             4)
-                echo -e "${Yellow}返回主菜单${Font}"
+                lang_echo "${Yellow}返回主菜单${Font}" "${Yellow}Back to main menu${Font}"
                 return 0
                 ;;
             *)
-                echo -e "${Red}无效选择，请输入 1-4${Font}"
+                lang_echo "${Red}无效选择，请输入 1-4${Font}" "${Red}Invalid choice, enter 1-4${Font}"
                 ;;
         esac
     done
@@ -2675,23 +2675,23 @@ command_management() {
 # 显示命令状态
 show_command_status() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}         简易命令状态信息${Font}"
+    lang_echo "${Green}         简易命令状态信息${Font}" "${Green}         Command Status Info${Font}"
     echo -e "${Blue}============================================${Font}"
     
     local command_name="v2ray"
     local script_path="$(readlink -f "$0")"
     local found=false
     
-    echo -e "${Green}当前脚本路径：${Font}${script_path}"
-    echo -e "${Green}简易命令名称：${Font}${command_name}"
+    lang_echo "${Green}当前脚本路径：${Font}${script_path}" "${Green}Current script path:${Font} ${script_path}"
+    lang_echo "${Green}简易命令名称：${Font}${command_name}" "${Green}Command name:${Font} ${command_name}"
     echo
     
     # 检查各个位置的命令
-    echo -e "${Green}命令安装状态：${Font}"
+    lang_echo "${Green}命令安装状态：${Font}" "${Green}Installation status:${Font}"
     
     if [[ -f "/usr/bin/${command_name}" ]]; then
         echo -e "${Green}  /usr/bin/${command_name} ✓${Font}"
-        echo -e "${Green}  链接目标：$(readlink "/usr/bin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
+        lang_echo "${Green}  链接目标：$(readlink "/usr/bin/${command_name}" 2>/dev/null || echo "无法读取")${Font}" "${Green}  Link target: $(readlink "/usr/bin/${command_name}" 2>/dev/null || echo "N/A")${Font}"
         found=true
     else
         echo -e "${Yellow}  /usr/bin/${command_name} ✗${Font}"
@@ -2699,7 +2699,7 @@ show_command_status() {
     
     if [[ -f "/usr/sbin/${command_name}" ]]; then
         echo -e "${Green}  /usr/sbin/${command_name} ✓${Font}"
-        echo -e "${Green}  链接目标：$(readlink "/usr/sbin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
+        lang_echo "${Green}  链接目标：$(readlink "/usr/sbin/${command_name}" 2>/dev/null || echo "无法读取")${Font}" "${Green}  Link target: $(readlink "/usr/sbin/${command_name}" 2>/dev/null || echo "N/A")${Font}"
         found=true
     else
         echo -e "${Yellow}  /usr/sbin/${command_name} ✗${Font}"
@@ -2707,7 +2707,7 @@ show_command_status() {
     
     if [[ -f "/usr/local/bin/${command_name}" ]]; then
         echo -e "${Green}  /usr/local/bin/${command_name} ✓${Font}"
-        echo -e "${Green}  链接目标：$(readlink "/usr/local/bin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
+        lang_echo "${Green}  链接目标：$(readlink "/usr/local/bin/${command_name}" 2>/dev/null || echo "无法读取")${Font}" "${Green}  Link target: $(readlink "/usr/local/bin/${command_name}" 2>/dev/null || echo "N/A")${Font}"
         found=true
     else
         echo -e "${Yellow}  /usr/local/bin/${command_name} ✗${Font}"
@@ -2715,27 +2715,27 @@ show_command_status() {
     
     echo
     if [[ "$found" == "true" ]]; then
-        echo -e "${Green}总体状态：${Font}已安装 ✓（远程运行模式）"
+        lang_echo "${Green}总体状态：${Font}已安装 ✓（远程运行模式）" "${Green}Overall status:${Font} Installed ✓ (remote mode)"
         echo
-        echo -e "${Green}使用方法：${Font}"
+        lang_echo "${Green}使用方法：${Font}" "${Green}Usage:${Font}"
         echo -e "  ${Blue}${command_name}${Font}                # 从远程启动最新版本脚本"
         echo -e "  ${Blue}sudo ${command_name}${Font}           # 以root权限从远程启动脚本"
         echo -e "  ${Blue}${command_name} --help${Font}         # 查看帮助信息"
         echo -e "  ${Blue}${command_name} --version${Font}      # 查看版本信息"
         echo
-        echo -e "${Green}特性：${Font}"
+        lang_echo "${Green}特性：${Font}" "${Green}Features:${Font}"
         echo -e "  • 始终运行最新版本"
         echo -e "  • 无需本地存储脚本"
         echo -e "  • 自动检查网络连接"
     else
-        echo -e "${Yellow}总体状态：${Font}未安装"
+        lang_echo "${Yellow}总体状态：${Font}未安装" "${Yellow}Overall status:${Font} Not installed"
         echo
-        echo -e "${Yellow}安装后可使用：${Font}"
+        lang_echo "${Yellow}安装后可使用：${Font}" "${Yellow}After installation:${Font}"
         echo -e "  ${Blue}sudo ${command_name}${Font}           # 从远程启动脚本"
     fi
     
     echo
-    echo -e "${Yellow}PATH 环境变量：${Font}"
+    lang_echo "${Yellow}PATH 环境变量：${Font}" "${Yellow}PATH environment:${Font}"
     echo -e "${Blue}$(echo $PATH | tr ':' '\n' | grep -E '(usr/bin|usr/sbin|usr/local/bin)' || echo "未找到相关路径")${Font}"
     
     echo -e "${Blue}============================================${Font}"

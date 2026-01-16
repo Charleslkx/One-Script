@@ -88,11 +88,11 @@ main(){
 root_need
 ovz_no
 clear
-echo -e "———————————————————————————————————————"
+echo -e "${Blue}============================================${Font}"
 lang_echo "${Green}Linux VPS一键添加/删除swap脚本${Font}" "${Green}Linux VPS swap add/remove script${Font}"
 lang_echo "${Green}1、添加swap${Font}" "${Green}1) Add swap${Font}"
 lang_echo "${Green}2、删除swap${Font}" "${Green}2) Delete swap${Font}"
-echo -e "———————————————————————————————————————"
+echo -e "${Blue}============================================${Font}"
 read -p "$(lang_text "请输入数字 [1-2]:" "Enter choice [1-2]: ")" num
 case "$num" in
     1)
