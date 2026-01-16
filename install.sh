@@ -5,7 +5,8 @@
 export LANG=en_US.UTF-8
 
 sanitize_output() {
-    printf "%s" "$1" | LC_ALL=C sed 's/[^[:ascii:]]/ /g'
+    # Keep printable ASCII only to avoid locale-dependent sed class errors.
+    printf "%s" "$1" | LC_ALL=C sed 's/[^ -~]/ /g'
 }
 
 echoContent() {
