@@ -7055,12 +7055,25 @@ enable_bbr() {
     local bbr_enabled=false
     local available_algos
     available_algos=$(sysctl net.ipv4.tcp_available_congestion_control 2>/dev/null | sed 's/^.*=//')
+    local kernel_version
+    kernel_version=$(uname -r 2>/dev/null)
+    local bbr_module_loaded="no"
+    if lsmod 2>/dev/null | awk '{print $1}' | grep -qx "tcp_bbr"; then
+        bbr_module_loaded="yes"
+    fi
     if [[ -n "${available_algos// }" ]]; then
         echoContent yellow " ---> 可用拥塞控制算法: ${available_algos}"
     fi
+    echoContent yellow " ---> 内核版本: ${kernel_version:-unknown}"
+    echoContent yellow " ---> BBR 模块加载状态: ${bbr_module_loaded}"
     if [[ -n "${available_algos// }" ]] && ! echo "${available_algos}" | grep -qw "bbr"; then
-        echoContent red " ---> 未检测到内核支持 BBR，跳过开启"
-        return
+        if modprobe tcp_bbr >/dev/null 2>&1; then
+            available_algos=$(sysctl net.ipv4.tcp_available_congestion_control 2>/dev/null | sed 's/^.*=//')
+        fi
+        if [[ -n "${available_algos// }" ]] && ! echo "${available_algos}" | grep -qw "bbr"; then
+            echoContent red " ---> 未检测到内核支持 BBR，跳过开启"
+            return
+        fi
     fi
     if sysctl net.ipv4.tcp_congestion_control 2>/dev/null | grep -q "bbr"; then
         bbr_enabled=true

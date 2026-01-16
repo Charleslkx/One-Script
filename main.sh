@@ -1678,12 +1678,20 @@ bbr_management() {
     local current_algo=$(sysctl net.ipv4.tcp_congestion_control 2>/dev/null | awk '{print $3}')
     local current_qdisc=$(sysctl net.core.default_qdisc 2>/dev/null | awk '{print $3}')
     local available_algos=$(sysctl net.ipv4.tcp_available_congestion_control 2>/dev/null | sed 's/^.*=//')
+    local kernel_version
+    kernel_version=$(uname -r 2>/dev/null)
+    local bbr_module_loaded="no"
+    if lsmod 2>/dev/null | awk '{print $1}' | grep -qx "tcp_bbr"; then
+        bbr_module_loaded="yes"
+    fi
     
     lang_echo "${Yellow}当前 TCP 拥塞控制算法：${current_algo:-未知}${Font}" "${Yellow}Current TCP congestion control: ${current_algo:-unknown}${Font}"
     lang_echo "${Yellow}当前队列调度算法：${current_qdisc:-未知}${Font}" "${Yellow}Current queue discipline: ${current_qdisc:-unknown}${Font}"
     if [[ -n "${available_algos// }" ]]; then
         lang_echo "${Yellow}可用拥塞控制算法：${available_algos}${Font}" "${Yellow}Available congestion controls: ${available_algos}${Font}"
     fi
+    lang_echo "${Yellow}内核版本：${kernel_version:-未知}${Font}" "${Yellow}Kernel: ${kernel_version:-unknown}${Font}"
+    lang_echo "${Yellow}BBR 模块加载状态：${bbr_module_loaded}${Font}" "${Yellow}BBR module loaded: ${bbr_module_loaded}${Font}"
     echo
     
     lang_echo "${Green}请选择操作：${Font}" "${Green}Choose an action:${Font}"
@@ -1695,12 +1703,17 @@ bbr_management() {
     read -p "$(lang_text "请输入选择 [1-3]: " "Choose [1-3]: ")" bbr_choice
     case $bbr_choice in
         1)
-            if [[ -n "${available_algos// }" ]] && ! echo "${available_algos}" | grep -qw "bbr"; then
-                lang_echo "${Red}未检测到内核支持 BBR，无法开启。${Font}" "${Red}BBR not supported by kernel; cannot enable.${Font}"
-                read -p "$(lang_text "按回车键返回..." "Press Enter to return...")"
-                system_tools_menu
-                return 0
-            fi
+    if [[ -n "${available_algos// }" ]] && ! echo "${available_algos}" | grep -qw "bbr"; then
+        if modprobe tcp_bbr >/dev/null 2>&1; then
+            available_algos=$(sysctl net.ipv4.tcp_available_congestion_control 2>/dev/null | sed 's/^.*=//')
+        fi
+        if [[ -n "${available_algos// }" ]] && ! echo "${available_algos}" | grep -qw "bbr"; then
+            lang_echo "${Red}未检测到内核支持 BBR，无法开启。${Font}" "${Red}BBR not supported by kernel; cannot enable.${Font}"
+            read -p "$(lang_text "按回车键返回..." "Press Enter to return...")"
+            system_tools_menu
+            return 0
+        fi
+    fi
             lang_echo "${Green}正在开启 BBR v1 + FQ...${Font}" "${Green}Enabling BBR v1 + FQ...${Font}"
             if ! grep -q "net.core.default_qdisc" /etc/sysctl.conf; then
                 echo "net.core.default_qdisc = fq" >> /etc/sysctl.conf
