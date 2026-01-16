@@ -867,16 +867,6 @@ execute_script() {
                 else
                     lang_echo "${Yellow}已跳过蓝绿部署配置${Font}" "${Yellow}Blue-Green deployment skipped${Font}"
                     lang_echo "${Yellow}可稍后在主菜单选项 10 中配置${Font}" "${Yellow}You can configure it later in main menu option 10${Font}"
-                    echo
-                    lang_echo "${Yellow}注意：如需定时重启，请考虑以下影响：${Font}" "${Yellow}Note: If you need scheduled restart:${Font}"
-                    lang_echo "${Red}  • 定时重启会造成服务中断${Font}" "${Red}  • Scheduled reboot causes service interruption${Font}"
-                    lang_echo "${Red}  • 可能在业务高峰期重启${Font}" "${Red}  • May restart during peak hours${Font}"
-                    lang_echo "${Green}  • 蓝绿部署可避免上述问题${Font}" "${Green}  • Blue-Green deployment avoids these issues${Font}"
-                    echo
-                    read -p "$(lang_text "是否仍要添加定时重启? (不推荐) (y/n): " "Still add scheduled reboot? (Not recommended) (y/n): ")" add_cron
-                    if [[ "$add_cron" == "y" || "$add_cron" == "Y" ]]; then
-                        add_crontab_reboot
-                    fi
                 fi
             else
                 lang_echo "${Red}错误：无法从远程仓库获取 V2Ray 安装脚本！${Font}" "${Red}Error: unable to download V2Ray installer!${Font}"
@@ -981,47 +971,6 @@ execute_script() {
     esac
 }
 
-# 添加定时重启任务（已弃用，推荐使用蓝绿部署）
-add_crontab_reboot() {
-    lang_echo "${Yellow}警告：定时重启会导致服务中断${Font}" "${Yellow}Warning: Scheduled reboot causes service interruption${Font}"
-    lang_echo "${Yellow}建议使用蓝绿部署实现零中断重启${Font}" "${Yellow}Recommend using Blue-Green deployment for zero-downtime restart${Font}"
-    echo
-    
-    read -p "$(lang_text "是否继续添加定时重启? (y/n): " "Continue with scheduled reboot? (y/n): ")" confirm
-    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-        lang_echo "${Yellow}已取消${Font}" "${Yellow}Cancelled${Font}"
-        return 0
-    fi
-    
-    lang_echo "${Blue}正在配置系统定时重启任务...${Font}" "${Blue}Configuring scheduled reboot...${Font}"
-    
-    # 检查是否已存在重启任务
-    if crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-        lang_echo "${Yellow}检测到已存在定时重启任务，跳过添加。${Font}" "${Yellow}Scheduled reboot already exists, skipping.${Font}"
-        return 0
-    fi
-    
-    # 备份当前的crontab
-    crontab -l 2>/dev/null > /tmp/current_crontab || touch /tmp/current_crontab
-    
-    # 添加新的重启任务
-    echo "0 5 * * * /sbin/reboot" >> /tmp/current_crontab
-    
-    # 应用新的crontab
-    if crontab /tmp/current_crontab; then
-        lang_echo "${Green}定时重启任务添加成功！${Font}" "${Green}Scheduled reboot added successfully!${Font}"
-        lang_echo "${Green}系统将在每日凌晨5:00自动重启${Font}" "${Green}System will reboot daily at 5:00 AM${Font}"
-        rm -f /tmp/current_crontab
-    else
-        lang_echo "${Red}定时重启任务添加失败！${Font}" "${Red}Failed to add scheduled reboot!${Font}"
-        rm -f /tmp/current_crontab
-    fi
-    
-    lang_echo "${Blue}当前定时任务：${Font}" "${Blue}Current cron jobs:${Font}"
-    crontab -l 2>/dev/null | grep -v "^#" | grep -v "^$" || lang_echo "${Yellow}暂无定时任务${Font}" "${Yellow}No cron jobs${Font}"
-    echo
-}
-
 # ============================================
 # 蓝绿部署相关函数
 # ============================================
@@ -1031,21 +980,39 @@ detect_proxy_software() {
     local proxy_type=""
     local config_dir=""
     local bin_path=""
+    local detected_bin=""
+
+    detect_bin() {
+        local name=$1
+        local path=""
+        path=$(command -v "$name" 2>/dev/null || true)
+        if [[ -z "$path" ]]; then
+            if [[ -x "/usr/local/bin/${name}" ]]; then
+                path="/usr/local/bin/${name}"
+            elif [[ -x "/usr/bin/${name}" ]]; then
+                path="/usr/bin/${name}"
+            elif [[ -x "/usr/sbin/${name}" ]]; then
+                path="/usr/sbin/${name}"
+            fi
+        fi
+        echo "$path"
+    }
     
     # 检测 Xray
-    if [[ -f "/usr/local/bin/xray" ]]; then
+    detected_bin=$(detect_bin "xray")
+    if [[ -n "$detected_bin" || -f "/etc/v2ray-agent/xray/conf/config.json" ]]; then
         proxy_type="xray"
-        bin_path="/usr/local/bin/xray"
+        bin_path="$detected_bin"
         config_dir="/etc/v2ray-agent/xray/conf"
     # 检测 sing-box
-    elif [[ -f "/usr/local/bin/sing-box" ]]; then
+    elif [[ -n "$(detect_bin "sing-box")" || -f "/etc/v2ray-agent/sing-box/conf/config.json" ]]; then
         proxy_type="sing-box"
-        bin_path="/usr/local/bin/sing-box"
+        bin_path=$(detect_bin "sing-box")
         config_dir="/etc/v2ray-agent/sing-box/conf"
     # 检测 v2ray
-    elif [[ -f "/usr/local/bin/v2ray" ]]; then
+    elif [[ -n "$(detect_bin "v2ray")" || -f "/etc/v2ray-agent/v2ray/conf/config.json" ]]; then
         proxy_type="v2ray"
-        bin_path="/usr/local/bin/v2ray"
+        bin_path=$(detect_bin "v2ray")
         config_dir="/etc/v2ray-agent/v2ray/conf"
     fi
     
@@ -2377,7 +2344,6 @@ show_help() {
     echo -e "${Green}功能特性：${Font}"
     echo -e "  • 智能 Swap 内存管理"
     echo -e "  • 远程脚本获取执行"
-    echo -e "  • V2Ray 定时重启配置"
     echo -e "  • 脚本自动更新功能"
     echo -e "  • 远程运行命令安装"
     echo -e "  • 智能 iptables 规则管理"
@@ -2514,7 +2480,6 @@ show_version_info() {
     echo -e "${Green}功能特性：${Font}"
     echo -e "  • 智能 Swap 内存管理"
     echo -e "  • 远程脚本获取执行"  
-    echo -e "  • V2Ray 定时重启配置"
     echo -e "  • 脚本自动更新功能"
     echo -e "  • 简易命令安装管理"
     echo -e "  • 智能 iptables 规则管理"

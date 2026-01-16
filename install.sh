@@ -1469,40 +1469,6 @@ installTools() {
         fi
     fi
 
-    # 添加每天凌晨5点重启的定时任务
-    echoContent green " ---> 配置系统定时重启"
-    installDailyRebootCron
-
-}
-
-# 添加每天凌晨5点重启的定时任务
-installDailyRebootCron() {
-    # 检查是否已存在重启任务
-    if crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-        echoContent yellow " ---> 每日凌晨5点重启任务已存在，跳过添加"
-        return
-    fi
-    
-    # 备份当前crontab
-    crontab -l 2>/dev/null >/tmp/backup_crontab_reboot.cron || touch /tmp/backup_crontab_reboot.cron
-    
-    # 添加重启任务到备份文件
-    echo "0 5 * * * /sbin/reboot" >>/tmp/backup_crontab_reboot.cron
-    
-    # 应用新的crontab
-    crontab /tmp/backup_crontab_reboot.cron
-    
-    # 清理临时文件
-    rm -f /tmp/backup_crontab_reboot.cron
-    
-    # 验证任务是否添加成功
-    if crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-        echoContent green " ---> 每日凌晨5点自动重启任务添加成功"
-        echoContent yellow " ---> 系统将在每天凌晨5:00自动重启以保持最佳性能"
-        echoContent skyBlue " ---> 如需取消重启任务，请执行: crontab -e 手动删除相关行"
-    else
-        echoContent red " ---> 定时重启任务添加失败"
-    fi
 }
 
 # 开机启动
