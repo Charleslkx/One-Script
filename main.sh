@@ -432,56 +432,56 @@ check_system_environment() {
         removeType='apt -y autoremove'
         
         if grep </etc/issue -q -i "16."; then
-            echo -e "${Red}Ubuntu 16                 ${Font}"
+            echo -e "${Red}Ubuntu 16 is not supported.${Font}"
             exit 0
         fi
     fi
     
     if [[ -z ${release} ]]; then
-        echo -e "${Red}                      ${Font}"
-        echo -e "${Yellow}$(cat /etc/issue)${Font}"
-        echo -e "${Yellow}$(cat /proc/version)${Font}"
+        echo -e "${Red}Unsupported system.${Font}"
+        echo -e "${Yellow}Issue: $(cat /etc/issue)${Font}"
+        echo -e "${Yellow}Kernel: $(cat /proc/version)${Font}"
         exit 0
     fi
     
-    echo -e "${Green}      ${release}${Font}"
-    echo -e "${Green}     ${installType}${Font}"
+    echo -e "${Green}Release: ${release}${Font}"
+    echo -e "${Green}Package install: ${installType}${Font}"
 }
 
 # 检查CPU架构
 check_cpu_vendor() {
-    echo -e "${Blue}    CPU  ...${Font}"
+    echo -e "${Blue}Checking CPU architecture...${Font}"
     
     if [[ -n $(which uname) ]]; then
         if [[ "$(uname)" == "Linux" ]]; then
             case "$(uname -m)" in
             'amd64' | 'x86_64')
                 cpuVendor="amd64"
-                echo -e "${Green}CPU   x86_64/amd64${Font}"
+                echo -e "${Green}CPU: x86_64/amd64${Font}"
                 ;;
             'armv8' | 'aarch64')
                 cpuVendor="arm64"
-                echo -e "${Green}CPU   arm64${Font}"
+                echo -e "${Green}CPU: arm64${Font}"
                 ;;
             'armv7' | 'armv7l')
                 cpuVendor="arm"
-                echo -e "${Green}CPU   arm${Font}"
+                echo -e "${Green}CPU: arm${Font}"
                 ;;
             *)
                 cpuVendor="amd64"
-                echo -e "${Yellow}          amd64${Font}"
+                echo -e "${Yellow}Unknown CPU arch, defaulting to amd64${Font}"
                 ;;
             esac
         fi
     else
         cpuVendor="amd64"
-        echo -e "${Yellow}            amd64${Font}"
+        echo -e "${Yellow}Cannot detect CPU arch, defaulting to amd64${Font}"
     fi
 }
 
 # 安装基础工具包
 install_basic_tools() {
-    echo -e "${Blue}         ...${Font}"
+    echo -e "${Blue}Installing base tools...${Font}"
     
     # 修复ubuntu个别系统问题
     if [[ "${release}" == "ubuntu" ]]; then
@@ -493,7 +493,7 @@ install_basic_tools() {
         pgrep -f apt | xargs kill -9 >/dev/null 2>&1
     fi
     
-    echo -e "${Green} --->        ${Font}"
+    echo -e "${Green} -> Updating package index${Font}"
     ${upgrade} >/dev/null 2>&1
     
     if [[ "${release}" == "centos" ]]; then
@@ -506,7 +506,7 @@ install_basic_tools() {
     
     for tool in "${tools[@]}"; do
         if ! command -v "$tool" >/dev/null 2>&1; then
-            echo -e "${Green} --->    $tool${Font}"
+            echo -e "${Green} -> Installing $tool${Font}"
             ${installType} "$tool" >/dev/null 2>&1
         fi
     done
@@ -514,52 +514,52 @@ install_basic_tools() {
     # 安装系统特定的工具
     if [[ "${release}" == "centos" ]]; then
         if ! command -v dig >/dev/null 2>&1; then
-            echo -e "${Green} --->    bind-utils (dig)${Font}"
+            echo -e "${Green} -> Installing bind-utils (dig)${Font}"
             ${installType} bind-utils >/dev/null 2>&1
         fi
     elif [[ "${release}" == "ubuntu" ]] || [[ "${release}" == "debian" ]]; then
         if ! command -v dig >/dev/null 2>&1; then
-            echo -e "${Green} --->    dnsutils (dig)${Font}"
+            echo -e "${Green} -> Installing dnsutils (dig)${Font}"
             ${installType} dnsutils >/dev/null 2>&1
         fi
         
         if ! command -v cron >/dev/null 2>&1; then
-            echo -e "${Green} --->    cron${Font}"
+            echo -e "${Green} -> Installing cron${Font}"
             ${installType} cron >/dev/null 2>&1
         fi
     elif [[ "${release}" == "alpine" ]]; then
         if ! command -v dig >/dev/null 2>&1; then
-            echo -e "${Green} --->    bind-tools (dig)${Font}"
+            echo -e "${Green} -> Installing bind-tools (dig)${Font}"
             ${installType} bind-tools >/dev/null 2>&1
         fi
     fi
     
-    echo -e "${Green}         ${Font}"
+    echo -e "${Green}Base tools ready${Font}"
 }
 
 # 检查网络连接
 check_network_connectivity() {
-    echo -e "${Blue}        ...${Font}"
+    echo -e "${Blue}Checking network connectivity...${Font}"
     
     # 检查IPv4连接
     if ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then
-        echo -e "${Green}IPv4       ${Font}"
+        echo -e "${Green}IPv4: OK${Font}"
     else
-        echo -e "${Yellow}IPv4       ${Font}"
+        echo -e "${Yellow}IPv4: FAIL${Font}"
     fi
     
     # 检查域名解析
     if ping -c 1 -W 3 github.com >/dev/null 2>&1; then
-        echo -e "${Green}      ${Font}"
+        echo -e "${Green}DNS: OK${Font}"
     else
-        echo -e "${Yellow}          ${Font}"
+        echo -e "${Yellow}DNS: FAIL${Font}"
     fi
     
     # 检查GitHub连接性
     if curl -s --connect-timeout 10 https://api.github.com >/dev/null 2>&1; then
-        echo -e "${Green}GitHub     ${Font}"
+        echo -e "${Green}GitHub API: OK${Font}"
     else
-        echo -e "${Yellow}GitHub                  ${Font}"
+        echo -e "${Yellow}GitHub API: FAIL${Font}"
     fi
 }
 
@@ -567,9 +567,9 @@ check_network_connectivity() {
 check_selinux() {
     if [[ "${release}" == "centos" ]] && [[ -f "/etc/selinux/config" ]]; then
         if ! grep -q "SELINUX=disabled" "/etc/selinux/config"; then
-            echo -e "${Yellow}   SELinux   ${Font}"
-            echo -e "${Yellow}    SELinux       ${Font}"
-            echo -e "${Blue}      /etc/selinux/config      SELINUX=enforcing    SELINUX=disabled${Font}"
+            echo -e "${Yellow}SELinux is enabled.${Font}"
+            echo -e "${Yellow}Set SELINUX=disabled in /etc/selinux/config.${Font}"
+            echo -e "${Blue}/etc/selinux/config: SELINUX=enforcing -> SELINUX=disabled${Font}"
         fi
     fi
 }
@@ -583,18 +583,18 @@ get_memory_size() {
 
 # 自动创建swap（优化版）
 auto_create_swap() {
-    echo -e "${Blue}         swap  ...${Font}"
+    echo -e "${Blue}Checking swap status...${Font}"
     
     local memory_mb=$(get_memory_size)
-    echo -e "${Green}       ${memory_mb}MB${Font}"
+    echo -e "${Green}Memory: ${memory_mb}MB${Font}"
     
     # 检查是否已存在swap文件
     if [[ -f "/swapfile" ]] || grep -q "swapfile" /etc/fstab 2>/dev/null; then
-        echo -e "${Yellow}      swap        ${Font}"
+        echo -e "${Yellow}Swapfile already exists.${Font}"
         
         # 显示当前swap状态
         if [[ -f "/proc/swaps" ]]; then
-            echo -e "${Green}  swap   ${Font}"
+            echo -e "${Green}Current swap devices:${Font}"
             cat /proc/swaps
         fi
         return 0
@@ -603,7 +603,7 @@ auto_create_swap() {
     # 检查是否有其他swap分区
     local existing_swap=$(swapon --show 2>/dev/null | wc -l)
     if [[ $existing_swap -gt 1 ]]; then
-        echo -e "${Yellow}       swap       swap  ${Font}"
+        echo -e "${Yellow}Existing swap devices detected:${Font}"
         swapon --show 2>/dev/null
         return 0
     fi
@@ -611,7 +611,7 @@ auto_create_swap() {
     # 检查磁盘可用空间
     local available_space_kb=$(df / | tail -1 | awk '{print $4}')
     local available_space_mb=$((available_space_kb / 1024))
-    echo -e "${Green}        ${available_space_mb}MB${Font}"
+    echo -e "${Green}Disk available: ${available_space_mb}MB${Font}"
     
     # 根据内存大小决定推荐的swap大小
     local recommended_swap_size
@@ -619,34 +619,34 @@ auto_create_swap() {
     
     if [[ $memory_mb -lt 512 ]]; then
         recommended_swap_size=1024  # 1GB
-        echo -e "${Yellow}       512MB     1GB swap${Font}"
+        echo -e "${Yellow}Recommended swap: 1GB (RAM < 512MB)${Font}"
     elif [[ $memory_mb -lt 1024 ]]; then
         recommended_swap_size=2048  # 2GB
-        echo -e "${Yellow}       1GB     2GB swap${Font}"
+        echo -e "${Yellow}Recommended swap: 2GB (RAM < 1GB)${Font}"
     elif [[ $memory_mb -lt 2048 ]]; then
         recommended_swap_size=2048  # 2GB
-        echo -e "${Yellow}       2GB     2GB swap${Font}"
+        echo -e "${Yellow}Recommended swap: 2GB (RAM < 2GB)${Font}"
     else
         recommended_swap_size=1024  # 1GB
-        echo -e "${Yellow}            1GB swap${Font}"
+        echo -e "${Yellow}Recommended swap: 1GB${Font}"
     fi
     
     # 检查推荐大小是否超过可用空间
     if [[ $recommended_swap_size -gt $max_swap_size ]]; then
         if [[ $max_swap_size -gt 512 ]]; then
             recommended_swap_size=$max_swap_size
-            echo -e "${Yellow}          swap    ${recommended_swap_size}MB${Font}"
+            echo -e "${Yellow}Adjusted swap size: ${recommended_swap_size}MB (disk limit)${Font}"
         else
-            echo -e "${Red}           swap  ${Font}"
+            echo -e "${Red}Not enough disk space for swap.${Font}"
             return 1
         fi
     fi
     
     echo
-    echo -e "${Green}Swap     ${Font}"
-    echo -e "${Yellow}1.${Font}          swap (${recommended_swap_size}MB)"
-    echo -e "${Yellow}2.${Font}     swap  "
-    echo -e "${Yellow}3.${Font}   swap  "
+    echo -e "${Green}Swap options:${Font}"
+    echo -e "${Yellow}1.${Font} Create recommended swap (${recommended_swap_size}MB)"
+    echo -e "${Yellow}2.${Font} Create custom swap size"
+    echo -e "${Yellow}3.${Font} Skip swap creation"
     echo
     
     local choice
@@ -664,11 +664,11 @@ auto_create_swap() {
                 break
                 ;;
             3)
-                echo -e "${Yellow}  swap   ${Font}"
+                echo -e "${Yellow}Skipping swap creation.${Font}"
                 return 0
                 ;;
             *)
-                echo -e "${Red}         1-3${Font}"
+                echo -e "${Red}Please enter 1-3.${Font}"
                 ;;
         esac
     done
@@ -680,33 +680,33 @@ manual_create_swap() {
     local swap_size
     
     while true; do
-        echo -e "${Green}        swap      MB  ${Font}"
-        echo -e "${Yellow}     512MB - ${max_swap_size}MB${Font}"
-        echo -e "${Yellow}      1-2            ${Font}"
-        read -p "   swap  : " swap_size
+        echo -e "${Green}Custom swap size (MB):${Font}"
+        echo -e "${Yellow}Allowed range: 128MB - ${max_swap_size}MB${Font}"
+        echo -e "${Yellow}Enter a number to continue.${Font}"
+        read -p "   Size (MB): " swap_size
         
         # 验证输入是否为数字
         if [[ $swap_size =~ ^[0-9]+$ ]] && [[ $swap_size -gt 0 ]]; then
             # 检查是否超过最大允许大小
             if [[ $swap_size -gt $max_swap_size ]]; then
-                echo -e "${Red}                   ${max_swap_size}MB${Font}"
+                echo -e "${Red}Max size is ${max_swap_size}MB.${Font}"
                 continue
             fi
             
             # 检查是否太小
             if [[ $swap_size -lt 128 ]]; then
-                echo -e "${Red}swap         128MB${Font}"
+                echo -e "${Red}Swap size too small (min 128MB).${Font}"
                 continue
             fi
             
-            echo -e "${Green}   ${swap_size}MB swap  ${Font}"
+            echo -e "${Green}Selected size: ${swap_size}MB${Font}"
             read -p "      [y/N]: " confirm
             if [[ $confirm =~ ^[Yy]$ ]]; then
                 create_swap_file $swap_size
                 break
             fi
         else
-            echo -e "${Red}           0 ${Font}"
+            echo -e "${Red}Please enter a valid number.${Font}"
         fi
     done
 }
@@ -714,7 +714,7 @@ manual_create_swap() {
 # 创建swap文件的通用函数（优化版）
 create_swap_file() {
     local swap_size=$1
-    echo -e "${Green}    ${swap_size}MB swap  ...${Font}"
+    echo -e "${Green}Creating ${swap_size}MB swap file...${Font}"
     
     # 检查是否有足够的磁盘空间
     local available_space_kb=$(df / | tail -1 | awk '{print $4}')
@@ -722,28 +722,28 @@ create_swap_file() {
     local required_space_mb=$((swap_size + 200))  # 额外200MB缓冲
     
     if [[ $available_space_mb -lt $required_space_mb ]]; then
-        echo -e "${Red}         ${required_space_mb}MB   ${available_space_mb}MB${Font}"
+        echo -e "${Red}Insufficient disk space. Required: ${required_space_mb}MB, available: ${available_space_mb}MB${Font}"
         return 1
     fi
     
     # 删除可能存在的旧swap文件
     if [[ -f "/swapfile" ]]; then
-        echo -e "${Yellow}       swap       ...${Font}"
+        echo -e "${Yellow}Removing existing swapfile...${Font}"
         swapoff /swapfile 2>/dev/null
         rm -f /swapfile
     fi
     
     # 创建swap文件
-    echo -e "${Blue}    swap  ...${Font}"
+    echo -e "${Blue}Allocating swapfile...${Font}"
     if dd if=/dev/zero of=/swapfile bs=1M count=${swap_size} status=progress 2>/dev/null; then
         # 设置正确的权限
         chmod 600 /swapfile
         
         # 设置为swap文件
-        echo -e "${Blue}     swap  ...${Font}"
+        echo -e "${Blue}Formatting swapfile...${Font}"
         if mkswap /swapfile >/dev/null 2>&1; then
             # 启用swap
-            echo -e "${Blue}    swap...${Font}"
+            echo -e "${Blue}Enabling swap...${Font}"
             if swapon /swapfile; then
                 # 添加到fstab实现开机自动挂载
                 if ! grep -q "/swapfile" /etc/fstab; then
@@ -751,7 +751,7 @@ create_swap_file() {
                 fi
                 
                 # 优化swap使用策略
-                echo -e "${Blue}    swap  ...${Font}"
+                echo -e "${Blue}Tuning swap settings...${Font}"
                 
                 # 设置swappiness（建议值10-60，默认60）
                 local swappiness=10
@@ -763,29 +763,29 @@ create_swap_file() {
                 echo "vm.vfs_cache_pressure=${vfs_cache_pressure}" >> /etc/sysctl.conf
                 sysctl vm.vfs_cache_pressure=${vfs_cache_pressure} >/dev/null 2>&1
                 
-                echo -e "${Green}Swap     ${Font}"
-                echo -e "${Green}Swap   ${Font}"
+                echo -e "${Green}Swap status:${Font}"
+                echo -e "${Green}Swap devices:${Font}"
                 cat /proc/swaps
                 echo
-                echo -e "${Green}       ${Font}"
+                echo -e "${Green}Memory:${Font}"
                 free -h
                 echo
-                echo -e "${Blue}Swap     ${Font}"
-                echo -e "${Green}  swappiness: ${swappiness} (  swap                swap)${Font}"
-                echo -e "${Green}  vfs_cache_pressure: ${vfs_cache_pressure} (           inode cache     )${Font}"
+                echo -e "${Blue}Swap tuning:${Font}"
+                echo -e "${Green}  swappiness: ${swappiness} (lower = less swap usage)${Font}"
+                echo -e "${Green}  vfs_cache_pressure: ${vfs_cache_pressure} (inode cache pressure)${Font}"
                 
             else
-                echo -e "${Red}  swap   ${Font}"
+                echo -e "${Red}Failed to enable swap.${Font}"
                 rm -f /swapfile
                 return 1
             fi
         else
-            echo -e "${Red}   swap     ${Font}"
+            echo -e "${Red}Failed to format swapfile.${Font}"
             rm -f /swapfile
             return 1
         fi
     else
-        echo -e "${Red}  swap                   ${Font}"
+        echo -e "${Red}Failed to create swapfile.${Font}"
         return 1
     fi
 }
