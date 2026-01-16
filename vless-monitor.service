@@ -1,0 +1,38 @@
+# VLESS Monitor Service
+# Location: /etc/systemd/system/vless-monitor.service
+# Continuously monitors both VLESS instances and performs auto-failover
+
+[Unit]
+Description=VLESS Blue-Green Health Monitor and Auto-Failover
+Documentation=https://github.com/XTLS/Xray-core
+After=network-online.target vless-instance-a.service vless-instance-b.service
+Wants=network-online.target
+Requires=vless-instance-a.service vless-instance-b.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# Monitor script location
+ExecStart=/usr/local/bin/monitor-vless.sh
+
+# Restart the monitor if it crashes
+Restart=always
+RestartSec=10s
+
+# Resource limits (monitor should be lightweight)
+MemoryMax=128M
+CPUQuota=10%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vless-monitor
+
+# Security (less restrictive since it needs to manage other services)
+NoNewPrivileges=true
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

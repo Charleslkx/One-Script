@@ -5,26 +5,18 @@ Green="\033[32m"
 Font="\033[0m"
 Red="\033[31m" 
 
-LANGUAGE_CHOICE="${ONE_SCRIPT_LANG:-zh}"
+LANGUAGE_CHOICE="en"
 
 lang_text() {
-    local zh="$1"
+    local _zh="$1"
     local en="$2"
-    if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
-        printf "%b" "${en}"
-    else
-        printf "%b" "${zh}"
-    fi
+    printf "%b" "${en}"
 }
 
 lang_echo() {
-    local zh="$1"
+    local _zh="$1"
     local en="$2"
-    if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
-        echo -e "${en}"
-    else
-        echo -e "${zh}"
-    fi
+    echo -e "${en}"
 }
 
 #root权限
