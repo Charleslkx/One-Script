@@ -8,53 +8,15 @@ Red="\033[31m"
 Yellow="\033[33m"
 Blue="\033[34m"
 
-LANGUAGE_CHOICE="zh"
-
 lang_text() {
     local zh="$1"
-    local en="$2"
-    if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
-        printf "%b" "${en}"
-    else
-        printf "%b" "${zh}"
-    fi
+    printf "%b" "${zh}"
 }
 
 lang_echo() {
     local zh="$1"
-    local en="$2"
-    if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
-        echo -e "${en}"
-    else
-        echo -e "${zh}"
-    fi
+    echo -e "${zh}"
 }
-
-select_language() {
-    local preset="${ONE_SCRIPT_LANG:-}"
-    if [[ -z "${preset}" ]]; then
-        echo -e "${Blue}请选择语言 / Select language:${Font}"
-        echo -e "${Yellow}1.${Font} 中文 (默认)"
-        echo -e "${Yellow}2.${Font} English"
-        read -p "输入选择 [1/2]: " preset
-    fi
-
-    case "$(echo "${preset}" | tr '[:upper:]' '[:lower:]')" in
-    2 | en | eng | english)
-        LANGUAGE_CHOICE="en"
-        ;;
-    1 | zh | cn | chinese | "")
-        LANGUAGE_CHOICE="zh"
-        ;;
-    *)
-        LANGUAGE_CHOICE="zh"
-        ;;
-    esac
-
-    export ONE_SCRIPT_LANG="${LANGUAGE_CHOICE}"
-}
-
-select_language
 
 GAI_CONF_FILE="/etc/gai.conf"
 GAI_CONF_BACKUP="/etc/gai.conf.bak"
@@ -869,9 +831,6 @@ execute_script() {
             
             # 使用本仓库的修改版install.sh
             local v2ray_url="${base_url}/install.sh"
-            if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
-                v2ray_url="${base_url}/install_en.sh"
-            fi
             
             if wget -qO "$temp_script" "$v2ray_url" 2>/dev/null; then
                 download_success=true
