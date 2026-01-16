@@ -1007,13 +1007,13 @@ resolve_proxy_binary() {
 
     case "$proxy_type" in
         xray)
-            candidates=(/usr/local/bin/xray /usr/bin/xray /usr/sbin/xray)
+            candidates=(/usr/local/bin/xray /usr/bin/xray /usr/sbin/xray /etc/v2ray-agent/xray/xray)
             ;;
         sing-box)
-            candidates=(/usr/local/bin/sing-box /usr/bin/sing-box /usr/sbin/sing-box)
+            candidates=(/etc/v2ray-agent/sing-box/sing-box /usr/local/bin/sing-box /usr/bin/sing-box /usr/sbin/sing-box)
             ;;
         v2ray)
-            candidates=(/usr/local/bin/v2ray /usr/bin/v2ray /usr/sbin/v2ray)
+            candidates=(/usr/local/bin/v2ray /usr/bin/v2ray /usr/sbin/v2ray /etc/v2ray-agent/v2ray/v2ray)
             ;;
         *)
             candidates=()
