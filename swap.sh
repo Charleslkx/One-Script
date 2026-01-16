@@ -22,7 +22,7 @@ lang_echo() {
 #root权限
 root_need(){
     if [[ $EUID -ne 0 ]]; then
-        echo -e "${Red}Error:This script must be run as root!${Font}"
+        lang_echo "${Red}错误:此脚本必须以 root 身份运行!${Font}" "${Red}Error:This script must be run as root!${Font}"
         exit 1
     fi
 }
@@ -30,7 +30,7 @@ root_need(){
 #检测ovz
 ovz_no(){
     if [[ -d "/proc/vz" ]]; then
-        echo -e "${Red}Your VPS is based on OpenVZ，not supported!${Font}"
+        lang_echo "${Red}您的 VPS 基于 OpenVZ，不支持!${Font}" "${Red}Your VPS is based on OpenVZ，not supported!${Font}"
         exit 1
     fi
 }

@@ -149,32 +149,32 @@ BASE_URL="https://raw.githubusercontent.com/charleslkx/one-script/master"
 
 # 检查网络连接
 check_network() {
-    echo -e "${Blue}        ...${Font}"
+    lang_echo "${Blue}正在检查网络连接...${Font}" "${Blue}Checking network connection...${Font}"
     if ping -c 1 raw.githubusercontent.com >/dev/null 2>&1; then
-        echo -e "${Green}      ${Font}"
+        lang_echo "${Green}网络连接正常${Font}" "${Green}Network is accessible${Font}"
         return 0
     else
-        echo -e "${Red}                 ${Font}"
+        lang_echo "${Red}无法连接到远程仓库，请检查网络连接${Font}" "${Red}Cannot reach remote repository, check network${Font}"
         return 1
     fi
 }
 
 # 运行远程脚本
 run_remote_script() {
-    echo -e "${Blue}             ...${Font}"
-    echo -e "${Green}     ${BASE_URL}/main_en.sh${Font}"
+    lang_echo "${Blue}正在从远程仓库获取脚本...${Font}" "${Blue}Fetching script from remote repository...${Font}"
+    lang_echo "${Green}源地址: ${BASE_URL}/main.sh${Font}" "${Green}Source: ${BASE_URL}/main.sh${Font}"
     echo
     
     # 尝试使用 wget 或 curl 运行远程脚本
     if command -v wget >/dev/null 2>&1; then
-        echo -e "${Blue}   wget     ...${Font}"
-        bash <(wget -qO- "${BASE_URL}/main_en.sh" 2>/dev/null) "$@"
+        lang_echo "${Blue}使用 wget 下载中...${Font}" "${Blue}Using wget to download...${Font}"
+        bash <(wget -qO- "${BASE_URL}/main.sh" 2>/dev/null) "$@"
     elif command -v curl >/dev/null 2>&1; then
-        echo -e "${Blue}   curl     ...${Font}"
-        bash <(curl -fsSL "${BASE_URL}/main_en.sh" 2>/dev/null) "$@"
+        lang_echo "${Blue}使用 curl 下载中...${Font}" "${Blue}Using curl to download...${Font}"
+        bash <(curl -fsSL "${BASE_URL}/main.sh" 2>/dev/null) "$@"
     else
-        echo -e "${Red}       wget   curl   ${Font}"
-        echo -e "${Yellow}    wget   curl    ${Font}"
+        lang_echo "${Red}错误: 系统未安装 wget 或 curl 工具${Font}" "${Red}Error: wget or curl not found${Font}"
+        lang_echo "${Yellow}请先安装 wget 或 curl 后重试${Font}" "${Yellow}Please install wget or curl first${Font}"
         exit 1
     fi
 }
@@ -182,24 +182,24 @@ run_remote_script() {
 # 显示帮助信息
 show_help() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}      One-Script       ${Font}"
+    lang_echo "${Green}      One-Script 快捷命令${Font}" "${Green}      One-Script Quick Command${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
-    echo -e "${Green}   ${Font}"
-    echo -e "  v2ray [  ]"
+    lang_echo "${Green}说明${Font}" "${Green}Description${Font}"
+    lang_echo "  v2ray [快捷命令]" "  v2ray [quick command]"
     echo
-    echo -e "${Green}   ${Font}"
-    echo -e "  ${Yellow}--help, -h${Font}                     "
-    echo -e "  ${Yellow}--version, -v${Font}                 "
-    echo -e "  ${Yellow}--install-command${Font}                 "
-    echo -e "  ${Yellow}--uninstall-command${Font}             "
+    lang_echo "${Green}可用选项${Font}" "${Green}Available Options${Font}"
+    lang_echo "  ${Yellow}--help, -h${Font}                显示帮助信息" "  ${Yellow}--help, -h${Font}                Show help information"
+    lang_echo "  ${Yellow}--version, -v${Font}             显示版本信息" "  ${Yellow}--version, -v${Font}             Show version information"
+    lang_echo "  ${Yellow}--install-command${Font}         安装快捷命令" "  ${Yellow}--install-command${Font}         Install quick command"
+    lang_echo "  ${Yellow}--uninstall-command${Font}       卸载快捷命令" "  ${Yellow}--uninstall-command${Font}       Uninstall quick command"
     echo
-    echo -e "${Green}   ${Font}"
-    echo -e "Please follow the on-screen instructions."
-    echo -e "Please follow the on-screen instructions."
-    echo -e "Please follow the on-screen instructions."
+    lang_echo "${Green}使用说明${Font}" "${Green}Usage${Font}"
+    lang_echo "直接运行脚本会进入交互式菜单。" "Please follow the on-screen instructions."
+    lang_echo "使用快捷命令可更方便地管理服务。" "Use quick commands for easier service management."
+    lang_echo "需要 root 权限才能执行某些操作。" "Root privileges required for some operations."
     echo
-    echo -e "${Green}GitHub   ${Font}https://github.com/charleslkx/one-script"
+    lang_echo "${Green}GitHub 仓库${Font}https://github.com/charleslkx/one-script" "${Green}GitHub Repository${Font}https://github.com/charleslkx/one-script"
     echo -e "${Blue}============================================${Font}"
 }
 
@@ -211,16 +211,16 @@ main() {
             exit 0
             ;;
         "--version"|"-v")
-            echo -e "${Green}One-Script        v1.0${Font}"
+            lang_echo "${Green}One-Script 快捷命令版本 v1.0${Font}" "${Green}One-Script Quick Command v1.0${Font}"
             echo -e "${Green}GitHub: https://github.com/charleslkx/one-script${Font}"
             exit 0
             ;;
         "--install-command")
-            echo -e "${Yellow}              ${Font}"
+            lang_echo "${Yellow}开始安装快捷命令...${Font}" "${Yellow}Installing quick command...${Font}"
             exit 0
             ;;
         "--uninstall-command")
-            echo -e "${Yellow}              ${Font}"
+            lang_echo "${Yellow}开始卸载快捷命令...${Font}" "${Yellow}Uninstalling quick command...${Font}"
             exit 0
             ;;
     esac
@@ -240,24 +240,24 @@ main "$@"'
     # 尝试在 /usr/bin 中创建远程运行命令
     if [[ -d "/usr/bin/" ]]; then
         local bin_path="/usr/bin/${command_name}"
-        echo -e "${Green}       ${bin_path}${Font}"
+        lang_echo "${Green}正在尝试创建快捷命令: ${bin_path}${Font}" "${Green}Attempting to create quick command: ${bin_path}${Font}"
         
         if [[ ! -f "$bin_path" ]]; then
             if echo "$remote_script_content" > "$bin_path" 2>/dev/null && chmod 755 "$bin_path" 2>/dev/null; then
                 vasmaType=true
-                echo -e "${Green}  /usr/bin            ${Font}"
+                lang_echo "${Green}成功安装到 /usr/bin 目录${Font}" "${Green}Successfully installed to /usr/bin${Font}"
             else
-                echo -e "${Yellow}  /usr/bin            ${Font}"
+                lang_echo "${Yellow}无法写入 /usr/bin 目录${Font}" "${Yellow}Cannot write to /usr/bin${Font}"
             fi
         else
-            echo -e "${Yellow}    ${bin_path}    ${Font}"
-            echo -e "${Yellow}        [y/N]:${Font}"
+            lang_echo "${Yellow}命令已存在: ${bin_path}${Font}" "${Yellow}Command already exists: ${bin_path}${Font}"
+            lang_echo "${Yellow}是否覆盖安装? [y/N]:${Font}" "${Yellow}Overwrite installation? [y/N]:${Font}"
             read -p "" reinstall_choice
             if [[ $reinstall_choice =~ ^[Yy]$ ]]; then
                 rm -f "$bin_path"
                 if echo "$remote_script_content" > "$bin_path" 2>/dev/null && chmod 755 "$bin_path" 2>/dev/null; then
                     vasmaType=true
-                    echo -e "${Green}            ${Font}"
+                    lang_echo "${Green}命令已更新安装${Font}" "${Green}Command reinstalled successfully${Font}"
                 fi
             fi
         fi
@@ -266,14 +266,14 @@ main "$@"'
     # 如果 /usr/bin 失败，尝试 /usr/sbin
     if [[ "$vasmaType" == "false" && -d "/usr/sbin/" ]]; then
         local sbin_path="/usr/sbin/${command_name}"
-        echo -e "${Green}    /usr/sbin     ${sbin_path}${Font}"
+        lang_echo "${Green}尝试使用备用目录: /usr/sbin${Font}" "${Green}Trying alternative directory: /usr/sbin${Font}"
         
         if [[ ! -f "$sbin_path" ]]; then
             if echo "$remote_script_content" > "$sbin_path" 2>/dev/null && chmod 755 "$sbin_path" 2>/dev/null; then
                 vasmaType=true
-                echo -e "${Green}  /usr/sbin            ${Font}"
+                lang_echo "${Green}成功安装到 /usr/sbin 目录${Font}" "${Green}Successfully installed to /usr/sbin${Font}"
             else
-                echo -e "${Yellow}  /usr/sbin            ${Font}"
+                lang_echo "${Yellow}无法写入 /usr/sbin 目录${Font}" "${Yellow}Cannot write to /usr/sbin${Font}"
             fi
         fi
     fi
@@ -281,20 +281,20 @@ main "$@"'
     # 如果以上都失败，尝试 /usr/local/bin
     if [[ "$vasmaType" == "false" ]]; then
         local local_bin_path="/usr/local/bin/${command_name}"
-        echo -e "${Green}    /usr/local/bin     ${local_bin_path}${Font}"
+        lang_echo "${Green}尝试最后一个目录: /usr/local/bin${Font}" "${Green}Trying last option: /usr/local/bin${Font}"
         
         # 确保目录存在
         if [[ ! -d "/usr/local/bin" ]]; then
-            echo -e "${Yellow}/usr/local/bin           ...${Font}"
+            lang_echo "${Yellow}/usr/local/bin 目录不存在，正在创建...${Font}" "${Yellow}/usr/local/bin doesn't exist, creating...${Font}"
             mkdir -p /usr/local/bin
         fi
         
         if [[ ! -f "$local_bin_path" ]]; then
             if echo "$remote_script_content" > "$local_bin_path" 2>/dev/null && chmod 755 "$local_bin_path" 2>/dev/null; then
                 vasmaType=true
-                echo -e "${Green}  /usr/local/bin            ${Font}"
+                lang_echo "${Green}成功安装到 /usr/local/bin 目录${Font}" "${Green}Successfully installed to /usr/local/bin${Font}"
             else
-                echo -e "${Red}  /usr/local/bin            ${Font}"
+                lang_echo "${Red}无法写入 /usr/local/bin 目录${Font}" "${Red}Cannot write to /usr/local/bin${Font}"
             fi
         fi
     fi
@@ -302,22 +302,22 @@ main "$@"'
     # 显示安装结果
     if [[ "$vasmaType" == "true" ]]; then
         echo
-        echo -e "${Green}           ${Font}"
-        echo -e "${Yellow}     ${Font}"
-        echo -e "${Blue}  ${command_name}${Font}                #            "
-        echo -e "${Blue}  sudo ${command_name}${Font}           #  root         "
-        echo -e "${Blue}  ${command_name} --help${Font}         #       "
-        echo -e "${Blue}  ${command_name} --version${Font}      #       "
+        lang_echo "${Green}快捷命令安装成功！${Font}" "${Green}Quick command installed successfully!${Font}"
+        lang_echo "${Yellow}现在您可以使用以下命令：${Font}" "${Yellow}You can now use the following commands:${Font}"
+        lang_echo "${Blue}  ${command_name}${Font}                # 运行主菜单" "${Blue}  ${command_name}${Font}                # Run main menu"
+        lang_echo "${Blue}  sudo ${command_name}${Font}           # 以 root 身份运行" "${Blue}  sudo ${command_name}${Font}           # Run as root"
+        lang_echo "${Blue}  ${command_name} --help${Font}         # 显示帮助" "${Blue}  ${command_name} --help${Font}         # Show help"
+        lang_echo "${Blue}  ${command_name} --version${Font}      # 显示版本" "${Blue}  ${command_name} --version${Font}      # Show version"
         echo
-        echo -e "${Green}   ${Font}"
-        echo -e "${Green}            ${Font}"
-        echo -e "${Green}            ${Font}"
-        echo -e "${Green}            ${Font}"
+        lang_echo "${Green}提示：${Font}" "${Green}Tips:${Font}"
+        lang_echo "${Green}快捷命令会自动从 GitHub 获取最新版本${Font}" "${Green}Quick command automatically fetches latest version from GitHub${Font}"
+        lang_echo "${Green}无需手动更新本地脚本${Font}" "${Green}No manual local script updates needed${Font}"
+        lang_echo "${Green}您的配置文件和服务不受影响${Font}" "${Green}Your config files and services are unaffected${Font}"
         echo
-        echo -e "${Yellow}              GitHub${Font}"
+        lang_echo "${Yellow}有任何问题请访问 GitHub 仓库${Font}" "${Yellow}For any issues, visit our GitHub repository${Font}"
     else
-        echo -e "${Red}           ${Font}"
-        echo -e "${Yellow}          ${Font}"
+        lang_echo "${Red}快捷命令安装失败${Font}" "${Red}Quick command installation failed${Font}"
+        lang_echo "${Yellow}请检查是否有 root 权限${Font}" "${Yellow}Please check if you have root privileges${Font}"
     fi
 }
 
@@ -326,49 +326,49 @@ uninstall_quick_command() {
     local command_name="v2ray"
     local removed=false
     
-    echo -e "${Yellow}        ...${Font}"
+    lang_echo "${Yellow}正在搜索并删除快捷命令...${Font}" "${Yellow}Searching and removing quick command...${Font}"
     
     # 检查并删除 /usr/bin 中的命令
     if [[ -f "/usr/bin/${command_name}" ]]; then
         if rm -f "/usr/bin/${command_name}"; then
-            echo -e "${Green}   /usr/bin     '${command_name}'${Font}"
+            lang_echo "${Green}已从 /usr/bin 删除 '${command_name}'${Font}" "${Green}Removed '${command_name}' from /usr/bin${Font}"
             removed=true
         else
-            echo -e "${Red}  /usr/bin     '${command_name}'   ${Font}"
+            lang_echo "${Red}无法从 /usr/bin 删除 '${command_name}'${Font}" "${Red}Cannot remove '${command_name}' from /usr/bin${Font}"
         fi
     fi
     
     # 检查并删除 /usr/sbin 中的命令
     if [[ -f "/usr/sbin/${command_name}" ]]; then
         if rm -f "/usr/sbin/${command_name}"; then
-            echo -e "${Green}   /usr/sbin     '${command_name}'${Font}"
+            lang_echo "${Green}已从 /usr/sbin 删除 '${command_name}'${Font}" "${Green}Removed '${command_name}' from /usr/sbin${Font}"
             removed=true
         else
-            echo -e "${Red}  /usr/sbin     '${command_name}'   ${Font}"
+            lang_echo "${Red}无法从 /usr/sbin 删除 '${command_name}'${Font}" "${Red}Cannot remove '${command_name}' from /usr/sbin${Font}"
         fi
     fi
     
     # 检查并删除 /usr/local/bin 中的命令
     if [[ -f "/usr/local/bin/${command_name}" ]]; then
         if rm -f "/usr/local/bin/${command_name}"; then
-            echo -e "${Green}   /usr/local/bin     '${command_name}'${Font}"
+            lang_echo "${Green}已从 /usr/local/bin 删除 '${command_name}'${Font}" "${Green}Removed '${command_name}' from /usr/local/bin${Font}"
             removed=true
         else
-            echo -e "${Red}  /usr/local/bin     '${command_name}'   ${Font}"
+            lang_echo "${Red}无法从 /usr/local/bin 删除 '${command_name}'${Font}" "${Red}Cannot remove '${command_name}' from /usr/local/bin${Font}"
         fi
     fi
     
     if [[ "$removed" == "true" ]]; then
-        echo -e "${Green}     '${command_name}'      ${Font}"
+        lang_echo "${Green}快捷命令 '${command_name}' 已成功卸载${Font}" "${Green}Quick command '${command_name}' successfully uninstalled${Font}"
     else
-        echo -e "${Yellow}     '${command_name}'         ${Font}"
+        lang_echo "${Yellow}未找到快捷命令 '${command_name}' 或已被卸载${Font}" "${Yellow}Quick command '${command_name}' not found or already uninstalled${Font}"
     fi
 }
 
 # 检查root权限
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        echo -e "${Red}          root      ${Font}"
+        lang_echo "${Red}错误: 此脚本需要 root 权限运行${Font}" "${Red}Error: This script must be run as root${Font}"
         exit 1
     fi
 }
@@ -376,14 +376,14 @@ check_root() {
 # 检查OpenVZ
 check_ovz() {
     if [[ -d "/proc/vz" ]]; then
-        echo -e "${Red}     VPS  OpenVZ      swap ${Font}"
+        lang_echo "${Red}您的 VPS 基于 OpenVZ，不支持 swap 操作${Font}" "${Red}Your VPS is based on OpenVZ, swap not supported${Font}"
         exit 1
     fi
 }
 
 # 系统检测和环境初始化
 check_system_environment() {
-    echo -e "${Blue}        ...${Font}"
+    lang_echo "${Blue}正在检查系统环境...${Font}" "${Blue}Checking system environment...${Font}"
     
     # 设置语言环境
     export LANG=en_US.UTF-8
@@ -811,10 +811,10 @@ show_script_menu() {
     echo
     lang_echo "${Green}请选择要运行的脚本：${Font}" "${Green}Select the script to run:${Font}"
     echo
-    lang_echo "${Yellow}1.${Font} V2Ray 安装脚本 ${Blue}(本仓库修改版install.sh)${Font}" "${Yellow}1.${Font} V2Ray installer ${Blue}(modified install_en.sh in this repo)${Font}"
+    lang_echo "${Yellow}1.${Font} V2Ray 安装脚本 ${Blue}(本仓库修改版install.sh)${Font}" "${Yellow}1.${Font} V2Ray installer ${Blue}(modified install.sh in this repo)${Font}"
     lang_echo "${Yellow}2.${Font} V2Ray 原版安装脚本 ${Blue}(mack-a官方原版)${Font}" "${Yellow}2.${Font} V2Ray original installer ${Blue}(mack-a official)${Font}"
     lang_echo "${Yellow}3.${Font} Swap 管理脚本 ${Blue}(虚拟内存管理)${Font}" "${Yellow}3.${Font} Swap manager ${Blue}(virtual memory)${Font}"
-    lang_echo "${Yellow}4.${Font} 更新 main.sh 脚本 ${Blue}(检查脚本更新)${Font}" "${Yellow}4.${Font} Update main_en.sh ${Blue}(check for updates)${Font}"
+    lang_echo "${Yellow}4.${Font} 更新 main.sh 脚本 ${Blue}(检查脚本更新)${Font}" "${Yellow}4.${Font} Update main.sh ${Blue}(check for updates)${Font}"
     lang_echo "${Yellow}5.${Font} 命令管理 ${Blue}(安装/卸载v2ray快捷命令)${Font}" "${Yellow}5.${Font} Command manager ${Blue}(install/uninstall quick command)${Font}"
     lang_echo "${Yellow}6.${Font} 系统工具 ${Blue}(系统优化和诊断)${Font}" "${Yellow}6.${Font} System tools ${Blue}(tuning & diagnostics)${Font}"
     lang_echo "${Yellow}7.${Font} 快速切换节点IPv4/IPv6优先级" "${Yellow}7.${Font} Quick IPv4/IPv6 preference switch"
@@ -835,16 +835,16 @@ execute_script() {
     case $choice in
         1)
             lang_echo "${Green}正在启动 V2Ray 安装脚本...${Font}" "${Green}Launching V2Ray installer...${Font}"
-            lang_echo "${Yellow}正在从远程仓库获取 install.sh (修改版本)...${Font}" "${Yellow}Fetching install_en.sh (modified) from repository...${Font}"
+            lang_echo "${Yellow}正在从远程仓库获取 install.sh (修改版本)...${Font}" "${Yellow}Fetching install.sh (modified) from repository...${Font}"
             
             # 先尝试下载脚本到临时文件
             local temp_script="/tmp/v2ray_temp.sh"
             local download_success=false
             
             # 使用本仓库的修改版install.sh
-            local install_script_name="install_en.sh"
+            local install_script_name="install.sh"
             if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
-                install_script_name="install_en.sh"
+                install_script_name="install.sh"
             fi
             local v2ray_url="${base_url}/${install_script_name}"
             
@@ -904,20 +904,20 @@ execute_script() {
             ;;
         3)
             lang_echo "${Green}正在启动 Swap 管理脚本...${Font}" "${Green}Launching swap manager...${Font}"
-            lang_echo "${Yellow}正在从远程仓库获取 swap.sh...${Font}" "${Yellow}Fetching swap_en.sh from repository...${Font}"
-            local swap_script_name="swap_en.sh"
+            lang_echo "${Yellow}正在从远程仓库获取 swap.sh...${Font}" "${Yellow}Fetching swap.sh from repository...${Font}"
+            local swap_script_name="swap.sh"
             if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
-                swap_script_name="swap_en.sh"
+                swap_script_name="swap.sh"
             fi
             if bash <(wget -qO- "${base_url}/${swap_script_name}" 2>/dev/null || curl -fsSL "${base_url}/${swap_script_name}" 2>/dev/null); then
                 lang_echo "${Green}脚本执行完成${Font}" "${Green}Script finished${Font}"
             else
-                lang_echo "${Red}错误：无法从远程仓库获取 swap.sh 脚本！${Font}" "${Red}Error: unable to download swap_en.sh!${Font}"
+                lang_echo "${Red}错误：无法从远程仓库获取 swap.sh 脚本！${Font}" "${Red}Error: unable to download swap.sh!${Font}"
                 lang_echo "${Yellow}请检查网络连接或稍后重试${Font}" "${Yellow}Check your network connection or try again later${Font}"
             fi
             ;;
         4)
-            lang_echo "${Green}正在更新 main.sh 脚本...${Font}" "${Green}Updating main_en.sh...${Font}"
+            lang_echo "${Green}正在更新 main.sh 脚本...${Font}" "${Green}Updating main.sh...${Font}"
             update_main_script
             ;;
         5)
@@ -934,16 +934,16 @@ execute_script() {
         8)
             lang_echo "${Green}正在启动内核安装脚本...${Font}" "${Green}Launching kernel installation script...${Font}"
             local script_dir="$(dirname "$(readlink -f "$0")")"
-            local local_script="${script_dir}/install_kernel_en.sh"
+            local local_script="${script_dir}/install_kernel.sh"
             
             if [[ -f "$local_script" ]]; then
                 bash "$local_script"
             else
-                lang_echo "${Yellow}正在从远程仓库获取 install_kernel.sh...${Font}" "${Yellow}Fetching install_kernel_en.sh from repository...${Font}"
-                local temp_script="/tmp/install_kernel_en.sh"
-                local kernel_script_name="install_kernel_en.sh"
+                lang_echo "${Yellow}正在从远程仓库获取 install_kernel.sh...${Font}" "${Yellow}Fetching install_kernel.sh from repository...${Font}"
+                local temp_script="/tmp/install_kernel.sh"
+                local kernel_script_name="install_kernel.sh"
                 if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
-                    kernel_script_name="install_kernel_en.sh"
+                    kernel_script_name="install_kernel.sh"
                 fi
                 local kernel_url="${base_url}/${kernel_script_name}"
                 
@@ -951,7 +951,7 @@ execute_script() {
                     bash "$temp_script"
                     rm -f "$temp_script"
                 else
-                    lang_echo "${Red}错误：无法从远程仓库获取 install_kernel.sh 脚本！${Font}" "${Red}Error: unable to download install_kernel_en.sh!${Font}"
+                    lang_echo "${Red}错误：无法从远程仓库获取 install_kernel.sh 脚本！${Font}" "${Red}Error: unable to download install_kernel.sh!${Font}"
                     lang_echo "${Yellow}请检查网络连接或稍后重试${Font}" "${Yellow}Check your network connection or try again later${Font}"
                 fi
             fi
@@ -2065,27 +2065,27 @@ show_help() {
 
 # 更新 main.sh 脚本
 update_main_script() {
-    echo -e "${Blue}     main_en.sh     ...${Font}"
+    lang_echo "${Blue}正在检查 main.sh 更新...${Font}" "${Blue}Checking for main.sh updates...${Font}"
     
     local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local script_path="$0"
-    local temp_script="/tmp/main_en_new.sh"
+    local temp_script="/tmp/main_new.sh"
     
     # 获取当前脚本版本信息
-    echo -e "${Green}       ${script_path}${Font}"
+    lang_echo "${Green}当前脚本路径: ${script_path}${Font}" "${Green}Current script: ${script_path}${Font}"
     echo
     
     # 显示更新选项
-    echo -e "${Green}     ${Font}"
-    echo -e "${Yellow}1.${Font}           "
-    echo -e "${Yellow}2.${Font}         "
-    echo -e "${Yellow}3.${Font}         "
-    echo -e "${Yellow}4.${Font}      "
+    lang_echo "${Green}更新选项:${Font}" "${Green}Update options:${Font}"
+    lang_echo "${Yellow}1.${Font} 检查并更新（推荐）" "${Yellow}1.${Font} Check and update (recommended)"
+    lang_echo "${Yellow}2.${Font} 强制更新" "${Yellow}2.${Font} Force update"
+    lang_echo "${Yellow}3.${Font} 查看版本信息" "${Yellow}3.${Font} Show version info"
+    lang_echo "${Yellow}4.${Font} 取消" "${Yellow}4.${Font} Cancel"
     echo
     
     local choice
     while true; do
-        read -p "        [1-4]: " choice
+        read -p "$(lang_text "请选择 [1-4]: " "Choose [1-4]: ")" choice
         case $choice in
             1)
                 check_and_update
@@ -2100,11 +2100,11 @@ update_main_script() {
                 break
                 ;;
             4)
-                echo -e "${Yellow}     ${Font}"
+                lang_echo "${Yellow}已取消更新${Font}" "${Yellow}Update cancelled${Font}"
                 return 0
                 ;;
             *)
-                echo -e "${Red}         1-4${Font}"
+                lang_echo "${Red}无效选择，请输入 1-4${Font}" "${Red}Invalid choice, enter 1-4${Font}"
                 ;;
         esac
     done
@@ -2112,43 +2112,43 @@ update_main_script() {
 
 # 检查并更新脚本
 check_and_update() {
-    echo -e "${Blue}        ...${Font}"
+    lang_echo "${Blue}正在检查更新...${Font}" "${Blue}Checking for updates...${Font}"
     
     local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local script_path="$0"
-    local temp_script="/tmp/main_en_new.sh"
+    local temp_script="/tmp/main_new.sh"
     
     # 下载最新版本
-    if wget -qO "$temp_script" "${base_url}/main_en.sh" 2>/dev/null || curl -fsSL "${base_url}/main_en.sh" -o "$temp_script" 2>/dev/null; then
-        echo -e "${Green}        ${Font}"
+    if wget -qO "$temp_script" "${base_url}/main.sh" 2>/dev/null || curl -fsSL "${base_url}/main.sh" -o "$temp_script" 2>/dev/null; then
+        lang_echo "${Green}下载成功${Font}" "${Green}Download successful${Font}"
         
         # 比较文件
         if ! diff -q "$script_path" "$temp_script" >/dev/null 2>&1; then
-            echo -e "${Yellow}           ...${Font}"
+            lang_echo "${Yellow}发现新版本，正在更新...${Font}" "${Yellow}New version found, updating...${Font}"
             perform_update "$script_path" "$temp_script"
         else
-            echo -e "${Green}             ${Font}"
+            lang_echo "${Green}已经是最新版本${Font}" "${Green}Already up to date${Font}"
             rm -f "$temp_script"
         fi
     else
-        echo -e "${Red}                ${Font}"
+        lang_echo "${Red}下载失败，请检查网络连接${Font}" "${Red}Download failed, check network${Font}"
     fi
 }
 
 # 强制更新脚本
 force_update() {
-    echo -e "${Yellow}        ...${Font}"
+    lang_echo "${Yellow}正在强制更新...${Font}" "${Yellow}Forcing update...${Font}"
     
     local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local script_path="$0"
-    local temp_script="/tmp/main_en_new.sh"
+    local temp_script="/tmp/main_new.sh"
     
     # 下载最新版本
-    if wget -qO "$temp_script" "${base_url}/main_en.sh" 2>/dev/null || curl -fsSL "${base_url}/main_en.sh" -o "$temp_script" 2>/dev/null; then
-        echo -e "${Green}        ${Font}"
+    if wget -qO "$temp_script" "${base_url}/main.sh" 2>/dev/null || curl -fsSL "${base_url}/main.sh" -o "$temp_script" 2>/dev/null; then
+        lang_echo "${Green}下载成功${Font}" "${Green}Download successful${Font}"
         perform_update "$script_path" "$temp_script"
     else
-        echo -e "${Red}                ${Font}"
+        lang_echo "${Red}下载失败，请检查网络连接${Font}" "${Red}Download failed, check network${Font}"
     fi
 }
 
