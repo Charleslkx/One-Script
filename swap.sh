@@ -8,15 +8,23 @@ Red="\033[31m"
 LANGUAGE_CHOICE="en"
 
 lang_text() {
-    local _zh="$1"
+    local zh="$1"
     local en="$2"
-    printf "%b" "${en}"
+    if [[ "${LANGUAGE_CHOICE}" == "zh" ]]; then
+        printf "%b" "${zh}"
+    else
+        printf "%b" "${en}"
+    fi
 }
 
 lang_echo() {
-    local _zh="$1"
+    local zh="$1"
     local en="$2"
-    echo -e "${en}"
+    if [[ "${LANGUAGE_CHOICE}" == "zh" ]]; then
+        echo -e "${zh}"
+    else
+        echo -e "${en}"
+    fi
 }
 
 #root权限
