@@ -38,7 +38,7 @@ root_need(){
 #检测ovz
 ovz_no(){
     if [[ -d "/proc/vz" ]]; then
-        lang_echo "${Red}您的 VPS 基于 OpenVZ，不支持!${Font}" "${Red}Your VPS is based on OpenVZ，not supported!${Font}"
+        lang_echo "${Red}您的 VPS 基于 OpenVZ，不支持!${Font}" "${Red}Your VPS is based on OpenVZ, not supported!${Font}"
         exit 1
     fi
 }
@@ -88,11 +88,11 @@ main(){
 root_need
 ovz_no
 clear
-echo -e "———————————————————————————————————————"
+echo -e "----------------------------------------"
 lang_echo "${Green}Linux VPS一键添加/删除swap脚本${Font}" "${Green}Linux VPS swap add/remove script${Font}"
 lang_echo "${Green}1、添加swap${Font}" "${Green}1) Add swap${Font}"
 lang_echo "${Green}2、删除swap${Font}" "${Green}2) Delete swap${Font}"
-echo -e "———————————————————————————————————————"
+echo -e "----------------------------------------"
 read -p "$(lang_text "请输入数字 [1-2]:" "Enter choice [1-2]: ")" num
 case "$num" in
     1)
