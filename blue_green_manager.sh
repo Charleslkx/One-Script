@@ -46,6 +46,26 @@ if ! is_valid_port "$EXTERNAL_PORT"; then
     EXTERNAL_PORT=443
 fi
 
+detect_proxy_type_by_config() {
+    if [[ -f "/etc/v2ray-agent/sing-box/conf/config_a.json" || -f "/etc/v2ray-agent/sing-box/conf/config.json" ]]; then
+        echo "sing-box"
+    elif [[ -f "/etc/v2ray-agent/xray/conf/config_a.json" || -f "/etc/v2ray-agent/xray/conf/config.json" ]]; then
+        echo "xray"
+    elif [[ -f "/etc/v2ray-agent/v2ray/conf/config_a.json" || -f "/etc/v2ray-agent/v2ray/conf/config.json" ]]; then
+        echo "v2ray"
+    else
+        echo ""
+    fi
+}
+
+ensure_log_dir() {
+    local proxy_type
+    proxy_type=$(detect_proxy_type_by_config)
+    if [[ -n "$proxy_type" ]]; then
+        install -d -m 755 "/var/log/${proxy_type}"
+    fi
+}
+
 # 日志函数
 log_info() {
     echo -e "${Green}[INFO]${Font} $1"
@@ -290,6 +310,9 @@ init_deployment() {
     echo -e "${Green}    初始化双实例蓝绿部署${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
+
+    # 确保日志目录存在，避免 systemd namespace 失败
+    ensure_log_dir
     
     # 启动实例 A
     log_info "启动实例 A..."

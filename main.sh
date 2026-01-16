@@ -995,6 +995,41 @@ is_valid_port() {
     return 0
 }
 
+resolve_proxy_binary() {
+    local proxy_type=$1
+    local bin_path=$2
+    local candidates=()
+
+    if [[ -n "$bin_path" && -x "$bin_path" ]]; then
+        echo "$bin_path"
+        return 0
+    fi
+
+    case "$proxy_type" in
+        xray)
+            candidates=(/usr/local/bin/xray /usr/bin/xray /usr/sbin/xray)
+            ;;
+        sing-box)
+            candidates=(/usr/local/bin/sing-box /usr/bin/sing-box /usr/sbin/sing-box)
+            ;;
+        v2ray)
+            candidates=(/usr/local/bin/v2ray /usr/bin/v2ray /usr/sbin/v2ray)
+            ;;
+        *)
+            candidates=()
+            ;;
+    esac
+
+    for c in "${candidates[@]}"; do
+        if [[ -x "$c" ]]; then
+            echo "$c"
+            return 0
+        fi
+    done
+
+    echo ""
+}
+
 # 检测代理软件类型和配置路径
 detect_proxy_software() {
     local proxy_type=""
@@ -1079,6 +1114,19 @@ setup_blue_green_deployment() {
         lang_echo "${Red}错误：未检测到支持的代理软件 (xray/sing-box/v2ray)${Font}" "${Red}Error: No supported proxy software found${Font}"
         lang_echo "${Yellow}请先安装代理软件后再配置蓝绿部署${Font}" "${Yellow}Please install proxy software first${Font}"
         return 1
+    fi
+
+    # 确保二进制路径可用
+    bin_path=$(resolve_proxy_binary "$proxy_type" "$bin_path")
+    if [[ -z "$bin_path" ]]; then
+        lang_echo "${Yellow}未检测到可执行文件，请手动输入二进制路径${Font}" "${Yellow}Binary not found, please enter the binary path${Font}"
+        while true; do
+            read -p "$(lang_text "请输入完整二进制路径: " "Enter full binary path: ")" bin_path
+            if [[ -n "$bin_path" && -x "$bin_path" ]]; then
+                break
+            fi
+            lang_echo "${Red}路径无效或不可执行，请重新输入${Font}" "${Red}Invalid or non-executable path, try again${Font}"
+        done
     fi
     
     lang_echo "${Green}  检测到: ${proxy_type}${Font}" "${Green}  Detected: ${proxy_type}${Font}"
