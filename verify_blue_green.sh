@@ -8,13 +8,6 @@ Yellow="\033[33m"
 Blue="\033[34m"
 Font="\033[0m"
 
-PORTS_CONF="/etc/v2ray-agent/blue_green_ports.conf"
-EXTERNAL_PORT=443
-if [[ -f "$PORTS_CONF" ]]; then
-    # shellcheck disable=SC1090
-    source "$PORTS_CONF"
-fi
-
 echo -e "${Blue}============================================${Font}"
 echo -e "${Green}    蓝绿部署配置验证${Font}"
 echo -e "${Blue}============================================${Font}"
@@ -120,8 +113,8 @@ check_item "端口 10081 监听" \
     "实例 B 未监听"
 
 # 5. 检查 iptables 规则
-check_item "iptables 转发规则 (dpt:${EXTERNAL_PORT})" \
-    "iptables -t nat -L PREROUTING -n 2>/dev/null | grep -q \"dpt:${EXTERNAL_PORT}\"" \
+check_item "iptables 转发规则" \
+    "iptables -t nat -L PREROUTING -n 2>/dev/null | grep -q 'dpt:443'" \
     "已配置" \
     "未配置"
 
