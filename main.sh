@@ -2524,22 +2524,662 @@ EOF
     
     # Step 6: Install systemd service files
     lang_echo "${Yellow}[6/9]${Font} Installing systemd services..." "${Yellow}[6/9]${Font} Installing systemd services..."
-    for service in vless-instance-a.service vless-instance-b.service vless-monitor.service; do
-        if [[ -f "$script_dir/$service" ]]; then
-            cp "$script_dir/$service" /etc/systemd/system/
-            chmod 644 /etc/systemd/system/$service
-        fi
-    done
+    cat > /etc/systemd/system/vless-instance-a.service <<'EOF'
+# VLESS Instance A - Blue-Green Deployment
+# Location: /etc/systemd/system/vless-instance-a.service
+# This service runs on port 10080 and can be active or standby
+
+[Unit]
+Description=VLESS Reality Instance A (Port 10080)
+Documentation=https://github.com/XTLS/Xray-core
+After=network-online.target nss-lookup.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vless
+Group=vless
+
+# Binary and config paths (adjust to your installation)
+ExecStart=/usr/local/bin/xray run -c /etc/vless/config-a.json
+
+# Restart policy - critical for high availability
+Restart=on-failure
+RestartSec=5s
+StartLimitBurst=5
+StartLimitIntervalSec=60s
+
+# Resource Limits - prevent one instance from consuming all resources
+# Memory: Hard limit 512MB, soft warning at 400MB
+MemoryMax=512M
+MemoryHigh=400M
+MemoryAccounting=yes
+
+# CPU: Weight-based priority (default is 100, we use 200 for higher priority)
+CPUWeight=200
+CPUAccounting=yes
+
+# Nice value: -20 to 19, lower = higher priority (-5 is elevated)
+Nice=-5
+
+# File descriptor limit - important for high connection counts
+LimitNOFILE=65535
+
+# Process limits
+LimitNPROC=512
+
+# Core dumps disabled for security
+LimitCORE=0
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/log/vless
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vless-instance-a
+
+# Environment
+Environment="XRAY_LOCATION_ASSET=/usr/local/share/xray"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    cat > /etc/systemd/system/vless-instance-b.service <<'EOF'
+# VLESS Instance B - Blue-Green Deployment
+# Location: /etc/systemd/system/vless-instance-b.service
+# This service runs on port 10081 and can be active or standby
+
+[Unit]
+Description=VLESS Reality Instance B (Port 10081)
+Documentation=https://github.com/XTLS/Xray-core
+After=network-online.target nss-lookup.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vless
+Group=vless
+
+# Binary and config paths (adjust to your installation)
+ExecStart=/usr/local/bin/xray run -c /etc/vless/config-b.json
+
+# Restart policy - critical for high availability
+Restart=on-failure
+RestartSec=5s
+StartLimitBurst=5
+StartLimitIntervalSec=60s
+
+# Resource Limits - prevent one instance from consuming all resources
+# Memory: Hard limit 512MB, soft warning at 400MB
+MemoryMax=512M
+MemoryHigh=400M
+MemoryAccounting=yes
+
+# CPU: Weight-based priority (default is 100, we use 200 for higher priority)
+CPUWeight=200
+CPUAccounting=yes
+
+# Nice value: -20 to 19, lower = higher priority (-5 is elevated)
+Nice=-5
+
+# File descriptor limit - important for high connection counts
+LimitNOFILE=65535
+
+# Process limits
+LimitNPROC=512
+
+# Core dumps disabled for security
+LimitCORE=0
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/log/vless
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vless-instance-b
+
+# Environment
+Environment="XRAY_LOCATION_ASSET=/usr/local/share/xray"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    cat > /etc/systemd/system/vless-monitor.service <<'EOF'
+# VLESS Monitor Service
+# Location: /etc/systemd/system/vless-monitor.service
+# Continuously monitors both VLESS instances and performs auto-failover
+
+[Unit]
+Description=VLESS Blue-Green Health Monitor and Auto-Failover
+Documentation=https://github.com/XTLS/Xray-core
+After=network-online.target vless-instance-a.service vless-instance-b.service
+Wants=network-online.target
+Requires=vless-instance-a.service vless-instance-b.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# Monitor script location
+ExecStart=/usr/local/bin/monitor-vless.sh
+
+# Restart the monitor if it crashes
+Restart=always
+RestartSec=10s
+
+# Resource limits (monitor should be lightweight)
+MemoryMax=128M
+CPUQuota=10%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vless-monitor
+
+# Security (less restrictive since it needs to manage other services)
+NoNewPrivileges=true
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    chmod 644 /etc/systemd/system/vless-instance-a.service \
+        /etc/systemd/system/vless-instance-b.service \
+        /etc/systemd/system/vless-monitor.service
     lang_echo "${Green}✓ Systemd services installed${Font}" "${Green}✓ Systemd services installed${Font}"
     
     # Step 7: Install scripts
     lang_echo "${Yellow}[7/9]${Font} Installing management scripts..." "${Yellow}[7/9]${Font} Installing management scripts..."
-    for script in switch-traffic.sh monitor-vless.sh; do
-        if [[ -f "$script_dir/$script" ]]; then
-            cp "$script_dir/$script" /usr/local/bin/
-            chmod 755 /usr/local/bin/$script
+    cat > /usr/local/bin/switch-traffic.sh <<'EOF'
+#!/bin/bash
+# Traffic switching utility for VLESS blue-green deployment
+# Supports both nftables and iptables
+# Usage: sudo bash switch-traffic.sh [a|b]
+
+set -e
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+print_info() {
+    echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+print_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+print_step() {
+    echo -e "${BLUE}[STEP]${NC} $1"
+}
+
+# Check root
+if [[ $EUID -ne 0 ]]; then
+   print_error "This script must be run as root (use sudo)"
+   exit 1
+fi
+
+# Determine which firewall system is in use
+detect_firewall() {
+    if command -v nft &> /dev/null && systemctl is-active --quiet nftables 2>/dev/null; then
+        echo "nftables"
+    elif command -v iptables &> /dev/null; then
+        echo "iptables"
+    else
+        echo "none"
+    fi
+}
+
+# Switch using nftables
+switch_nftables() {
+    local target=$1
+    local port=""
+    
+    if [ "$target" = "a" ]; then
+        port="10080"
+        print_step "Switching to Instance A (port 10080) via nftables..."
+    elif [ "$target" = "b" ]; then
+        port="10081"
+        print_step "Switching to Instance B (port 10081) via nftables..."
+    else
+        print_error "Invalid target: $target"
+        exit 1
+    fi
+    
+    # Flush the vless chain
+    print_info "Clearing existing redirect rules..."
+    nft flush chain nat prerouting_vless 2>/dev/null || {
+        print_warn "Chain doesn't exist, creating it..."
+        nft add chain nat prerouting_vless
+    }
+    
+    # Add new rule
+    print_info "Adding redirect rule: 443 -> $port"
+    nft add rule nat prerouting_vless tcp dport 443 counter dnat to :$port
+    
+    # Persist changes
+    print_info "Persisting configuration..."
+    nft list ruleset > /etc/nftables.conf
+    
+    print_info "✓ Traffic switched to Instance ${target^^} (port $port)"
+}
+
+# Switch using iptables
+switch_iptables() {
+    local target=$1
+    local port=""
+    
+    if [ "$target" = "a" ]; then
+        port="10080"
+        print_step "Switching to Instance A (port 10080) via iptables..."
+    elif [ "$target" = "b" ]; then
+        port="10081"
+        print_step "Switching to Instance B (port 10081) via iptables..."
+    else
+        print_error "Invalid target: $target"
+        exit 1
+    fi
+    
+    # Remove existing rules
+    print_info "Clearing existing redirect rules..."
+    iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 10080 2>/dev/null || true
+    iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 10081 2>/dev/null || true
+    
+    # Add new rule
+    print_info "Adding redirect rule: 443 -> $port"
+    iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port $port
+    
+    # Persist changes
+    print_info "Persisting configuration..."
+    if command -v netfilter-persistent &> /dev/null; then
+        netfilter-persistent save
+    else
+        print_warn "netfilter-persistent not found, rules may not persist after reboot"
+    fi
+    
+    print_info "✓ Traffic switched to Instance ${target^^} (port $port)"
+}
+
+# Show current status
+show_status() {
+    local fw=$(detect_firewall)
+    
+    echo ""
+    print_info "========================================="
+    print_info "Current Routing Status"
+    print_info "========================================="
+    
+    if [ "$fw" = "nftables" ]; then
+        print_info "Firewall: nftables"
+        echo ""
+        nft list chain nat prerouting_vless 2>/dev/null || print_warn "Chain not found"
+        
+        if nft list ruleset | grep -q "dnat to :10080"; then
+            print_info "✓ Active: Instance A (port 10080)"
+        elif nft list ruleset | grep -q "dnat to :10081"; then
+            print_info "✓ Active: Instance B (port 10081)"
+        else
+            print_warn "No active redirect found"
         fi
-    done
+    elif [ "$fw" = "iptables" ]; then
+        print_info "Firewall: iptables"
+        echo ""
+        iptables -t nat -L PREROUTING -n -v | grep -E "dpt:443|Chain PREROUTING" || true
+        
+        if iptables -t nat -L PREROUTING -n | grep -q "redir ports 10080"; then
+            print_info "✓ Active: Instance A (port 10080)"
+        elif iptables -t nat -L PREROUTING -n | grep -q "redir ports 10081"; then
+            print_info "✓ Active: Instance B (port 10081)"
+        else
+            print_warn "No active redirect found"
+        fi
+    else
+        print_error "No firewall system detected"
+    fi
+    
+    echo ""
+    print_info "Service Status:"
+    systemctl is-active vless-instance-a.service &>/dev/null && \
+        echo -e "  Instance A: ${GREEN}active${NC}" || echo -e "  Instance A: ${RED}inactive${NC}"
+    systemctl is-active vless-instance-b.service &>/dev/null && \
+        echo -e "  Instance B: ${GREEN}active${NC}" || echo -e "  Instance B: ${RED}inactive${NC}"
+    
+    echo ""
+    print_info "Port Status:"
+    ss -tlnp | grep -q ":10080" && echo -e "  Port 10080: ${GREEN}listening${NC}" || echo -e "  Port 10080: ${RED}not listening${NC}"
+    ss -tlnp | grep -q ":10081" && echo -e "  Port 10081: ${GREEN}listening${NC}" || echo -e "  Port 10081: ${RED}not listening${NC}"
+    echo ""
+}
+
+# Validate target instance is running
+validate_instance() {
+    local target=$1
+    local port=""
+    local service=""
+    
+    if [ "$target" = "a" ]; then
+        port="10080"
+        service="vless-instance-a.service"
+    else
+        port="10081"
+        service="vless-instance-b.service"
+    fi
+    
+    # Check if service is active
+    if ! systemctl is-active --quiet "$service"; then
+        print_warn "Warning: $service is not active"
+        print_warn "Starting service..."
+        systemctl start "$service"
+        sleep 2
+    fi
+    
+    # Check if port is listening
+    if ! ss -tlnp | grep -q ":$port"; then
+        print_error "Instance ${target^^} port $port is not listening"
+        print_error "Please check the service: sudo systemctl status $service"
+        exit 1
+    fi
+    
+    print_info "✓ Instance ${target^^} is healthy and ready"
+}
+
+# Main logic
+FIREWALL=$(detect_firewall)
+
+if [ "$FIREWALL" = "none" ]; then
+    print_error "No firewall system detected (nftables or iptables required)"
+    exit 1
+fi
+
+case "${1:-}" in
+    a|A)
+        print_info "Target: Instance A"
+        validate_instance "a"
+        
+        if [ "$FIREWALL" = "nftables" ]; then
+            switch_nftables "a"
+        else
+            switch_iptables "a"
+        fi
+        
+        show_status
+        ;;
+    b|B)
+        print_info "Target: Instance B"
+        validate_instance "b"
+        
+        if [ "$FIREWALL" = "nftables" ]; then
+            switch_nftables "b"
+        else
+            switch_iptables "b"
+        fi
+        
+        show_status
+        ;;
+    status)
+        show_status
+        ;;
+    *)
+        echo "VLESS Traffic Switching Utility"
+        echo ""
+        echo "Usage: $0 [target]"
+        echo ""
+        echo "Targets:"
+        echo "  a        - Switch to Instance A (port 10080)"
+        echo "  b        - Switch to Instance B (port 10081)"
+        echo "  status   - Show current routing status"
+        echo ""
+        echo "Example:"
+        echo "  sudo $0 a"
+        echo "  sudo $0 b"
+        echo "  sudo $0 status"
+        echo ""
+        echo "Detected firewall: $FIREWALL"
+        exit 1
+        ;;
+esac
+
+exit 0
+EOF
+
+    cat > /usr/local/bin/monitor-vless.sh <<'EOF'
+#!/bin/bash
+# Health monitoring and auto-failover script for VLESS blue-green deployment
+# This script continuously monitors both instances and automatically switches traffic if needed
+# Logs to syslog for integration with monitoring systems
+
+# Configuration
+CHECK_INTERVAL=30          # Check every 30 seconds
+FAILURE_THRESHOLD=3        # Require 3 consecutive failures before failover
+CONNECTION_TIMEOUT=3       # Timeout for port checks (seconds)
+LOG_TAG="vless-monitor"
+
+# State file to track failures
+STATE_DIR="/var/run/vless-monitor"
+FAILURE_COUNT_FILE="$STATE_DIR/failure_count"
+ACTIVE_INSTANCE_FILE="$STATE_DIR/active_instance"
+
+# Create state directory
+mkdir -p "$STATE_DIR"
+
+# Initialize state files if they don't exist
+[ ! -f "$FAILURE_COUNT_FILE" ] && echo "0" > "$FAILURE_COUNT_FILE"
+[ ! -f "$ACTIVE_INSTANCE_FILE" ] && echo "a" > "$ACTIVE_INSTANCE_FILE"
+
+# Logging function
+log() {
+    local level=$1
+    shift
+    local message="$@"
+    logger -t "$LOG_TAG" -p "daemon.$level" "$message"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $message"
+}
+
+# Get current active instance from firewall rules
+get_active_instance() {
+    # Try nftables first
+    if command -v nft &> /dev/null && systemctl is-active --quiet nftables 2>/dev/null; then
+        if nft list ruleset 2>/dev/null | grep -q "dnat to :10080"; then
+            echo "a"
+            return
+        elif nft list ruleset 2>/dev/null | grep -q "dnat to :10081"; then
+            echo "b"
+            return
+        fi
+    fi
+    
+    # Try iptables
+    if command -v iptables &> /dev/null; then
+        if iptables -t nat -L PREROUTING -n 2>/dev/null | grep -q "redir ports 10080"; then
+            echo "a"
+            return
+        elif iptables -t nat -L PREROUTING -n 2>/dev/null | grep -q "redir ports 10081"; then
+            echo "b"
+            return
+        fi
+    fi
+    
+    # Unknown state
+    echo "unknown"
+}
+
+# Check if a specific instance is healthy
+check_instance_health() {
+    local instance=$1
+    local port=""
+    local service=""
+    
+    if [ "$instance" = "a" ]; then
+        port="10080"
+        service="vless-instance-a.service"
+    elif [ "$instance" = "b" ]; then
+        port="10081"
+        service="vless-instance-b.service"
+    else
+        return 1
+    fi
+    
+    local healthy=true
+    
+    # Check 1: Service is active
+    if ! systemctl is-active --quiet "$service"; then
+        log "warning" "Instance $instance: service $service is not active"
+        healthy=false
+    fi
+    
+    # Check 2: Port is listening
+    if ! timeout "$CONNECTION_TIMEOUT" nc -z localhost "$port" 2>/dev/null; then
+        log "warning" "Instance $instance: port $port is not responding"
+        healthy=false
+    fi
+    
+    # Check 3: Memory limit not hit (check for OOM kills in recent logs)
+    if journalctl -u "$service" --since "1 minute ago" 2>/dev/null | grep -q "memory.max"; then
+        log "error" "Instance $instance: memory limit hit (potential OOM)"
+        healthy=false
+    fi
+    
+    # Check 4: Log explosion detection (> 1000 lines in last 5 minutes)
+    local log_count=$(journalctl -u "$service" --since "5 minutes ago" 2>/dev/null | wc -l)
+    if [ "$log_count" -gt 1000 ]; then
+        log "warning" "Instance $instance: log explosion detected ($log_count lines in 5 minutes)"
+        # Note: This is a warning, not a failure - might be legitimate traffic spike
+    fi
+    
+    # Check 5: Process exists and is responsive
+    if ! systemctl show "$service" -p MainPID | grep -q "MainPID=[1-9]"; then
+        log "error" "Instance $instance: no main process found"
+        healthy=false
+    fi
+    
+    if [ "$healthy" = true ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Perform failover to standby instance
+perform_failover() {
+    local from_instance=$1
+    local to_instance=$2
+    
+    log "alert" "FAILOVER INITIATED: Switching from Instance $from_instance to Instance $to_instance"
+    
+    # Verify target instance is healthy before switching
+    if ! check_instance_health "$to_instance"; then
+        log "critical" "FAILOVER ABORTED: Target instance $to_instance is also unhealthy!"
+        log "critical" "BOTH INSTANCES DOWN - Manual intervention required!"
+        return 1
+    fi
+    
+    # Perform the switch
+    log "info" "Executing traffic switch to Instance $to_instance..."
+    
+    if ! /usr/local/bin/switch-traffic.sh "$to_instance" >> /var/log/vless-monitor.log 2>&1; then
+        log "critical" "FAILOVER FAILED: Unable to switch traffic!"
+        return 1
+    fi
+    
+    # Update state
+    echo "$to_instance" > "$ACTIVE_INSTANCE_FILE"
+    echo "0" > "$FAILURE_COUNT_FILE"
+    
+    log "alert" "FAILOVER COMPLETE: Traffic now routed to Instance $to_instance"
+    
+    # Try to restart the failed instance
+    local from_service=""
+    if [ "$from_instance" = "a" ]; then
+        from_service="vless-instance-a.service"
+    else
+        from_service="vless-instance-b.service"
+    fi
+    
+    log "info" "Attempting to restart failed instance: $from_service"
+    systemctl restart "$from_service" || log "error" "Failed to restart $from_service"
+    
+    return 0
+}
+
+# Main monitoring loop
+log "info" "VLESS Monitor started - checking every ${CHECK_INTERVAL}s"
+log "info" "Failure threshold: $FAILURE_THRESHOLD consecutive failures"
+
+while true; do
+    # Determine current active instance
+    ACTIVE=$(get_active_instance)
+    
+    if [ "$ACTIVE" = "unknown" ]; then
+        log "error" "Cannot determine active instance - skipping this check"
+        sleep "$CHECK_INTERVAL"
+        continue
+    fi
+    
+    # Determine standby instance
+    if [ "$ACTIVE" = "a" ]; then
+        STANDBY="b"
+    else
+        STANDBY="a"
+    fi
+    
+    # Check active instance health
+    if check_instance_health "$ACTIVE"; then
+        # Active instance is healthy - reset failure counter
+        CURRENT_FAILURES=$(cat "$FAILURE_COUNT_FILE")
+        if [ "$CURRENT_FAILURES" -gt 0 ]; then
+            log "info" "Instance $ACTIVE recovered - resetting failure counter"
+            echo "0" > "$FAILURE_COUNT_FILE"
+        fi
+    else
+        # Active instance is unhealthy - increment failure counter
+        CURRENT_FAILURES=$(cat "$FAILURE_COUNT_FILE")
+        CURRENT_FAILURES=$((CURRENT_FAILURES + 1))
+        echo "$CURRENT_FAILURES" > "$FAILURE_COUNT_FILE"
+        
+        log "warning" "Instance $ACTIVE health check failed ($CURRENT_FAILURES/$FAILURE_THRESHOLD)"
+        
+        # Check if we've hit the threshold
+        if [ "$CURRENT_FAILURES" -ge "$FAILURE_THRESHOLD" ]; then
+            log "error" "Instance $ACTIVE has failed $FAILURE_THRESHOLD consecutive checks"
+            perform_failover "$ACTIVE" "$STANDBY"
+        fi
+    fi
+    
+    # Also check standby instance (for informational purposes)
+    if check_instance_health "$STANDBY"; then
+        log "debug" "Standby Instance $STANDBY is healthy and ready"
+    else
+        log "warning" "Standby Instance $STANDBY is unhealthy - failover may not be possible"
+    fi
+    
+    # Wait before next check
+    sleep "$CHECK_INTERVAL"
+done
+EOF
+
+    chmod 755 /usr/local/bin/switch-traffic.sh /usr/local/bin/monitor-vless.sh
     lang_echo "${Green}✓ Management scripts installed${Font}" "${Green}✓ Management scripts installed${Font}"
     
     # Step 8: Setup firewall
