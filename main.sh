@@ -975,6 +975,26 @@ execute_script() {
 # 蓝绿部署相关函数
 # ============================================
 
+# 检查端口是否可用
+is_port_available() {
+    local port=$1
+    if ss -tln 2>/dev/null | grep -q ":${port} " || netstat -tln 2>/dev/null | grep -q ":${port} "; then
+        return 1
+    fi
+    return 0
+}
+
+is_valid_port() {
+    local port=$1
+    if [[ ! "$port" =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
+    if ((port < 1 || port > 65535)); then
+        return 1
+    fi
+    return 0
+}
+
 # 检测代理软件类型和配置路径
 detect_proxy_software() {
     local proxy_type=""
@@ -1082,6 +1102,33 @@ setup_blue_green_deployment() {
     
     # 备份原配置并创建双实例配置
     lang_echo "${Yellow}[3/7]${Font} $(lang_text "创建双实例配置..." "Creating dual-instance configs...")"
+
+    # 选择实例端口
+    local port_a=10080
+    local port_b=10081
+
+    if ! is_port_available "$port_a" || ! is_port_available "$port_b"; then
+        lang_echo "${Yellow}检测到默认端口被占用，请手动设置端口${Font}" "${Yellow}Default ports are in use, please set custom ports${Font}"
+        while true; do
+            read -p "$(lang_text "请输入实例 A 端口 [10080]: " "Enter instance A port [10080]: ")" port_a
+            port_a=${port_a:-10080}
+            read -p "$(lang_text "请输入实例 B 端口 [10081]: " "Enter instance B port [10081]: ")" port_b
+            port_b=${port_b:-10081}
+
+            if ! is_valid_port "$port_a" || ! is_valid_port "$port_b"; then
+                lang_echo "${Red}端口无效，请输入 1-65535 的数字${Font}" "${Red}Invalid port, use 1-65535${Font}"
+                continue
+            fi
+            if [[ "$port_a" == "$port_b" ]]; then
+                lang_echo "${Red}A/B 端口不能相同${Font}" "${Red}Ports for A/B must be different${Font}"
+                continue
+            fi
+            if is_port_available "$port_a" && is_port_available "$port_b"; then
+                break
+            fi
+            lang_echo "${Red}端口被占用，请重新输入${Font}" "${Red}Ports in use, please try again${Font}"
+        done
+    fi
     
     # 备份原配置
     if [[ ! -f "${original_config}.backup" ]]; then
@@ -1099,23 +1146,36 @@ setup_blue_green_deployment() {
     if [[ "$proxy_type" == "xray" || "$proxy_type" == "v2ray" ]]; then
         # 对于 xray/v2ray，修改端口
         if command -v jq >/dev/null 2>&1; then
-            jq ".inbounds[0].port = 10080" "${original_config}" > "${config_dir}/config_a.json"
-            jq ".inbounds[0].port = 10081" "${original_config}" > "${config_dir}/config_b.json"
+            jq ".inbounds[0].port = ${port_a}" "${original_config}" > "${config_dir}/config_a.json"
+            jq ".inbounds[0].port = ${port_b}" "${original_config}" > "${config_dir}/config_b.json"
         else
             # 简单复制（用户需要手动修改端口）
             cp "${original_config}" "${config_dir}/config_a.json"
             cp "${original_config}" "${config_dir}/config_b.json"
-            lang_echo "${Yellow}  警告：未安装 jq，请手动修改端口为 10080 和 10081${Font}" "${Yellow}  Warning: jq not installed, please manually change ports to 10080 and 10081${Font}"
+            lang_echo "${Yellow}  警告：未安装 jq，请手动修改端口为 ${port_a} 和 ${port_b}${Font}" "${Yellow}  Warning: jq not installed, please manually change ports to ${port_a} and ${port_b}${Font}"
         fi
     else
         # sing-box 配置
-        cp "${original_config}" "${config_dir}/config_a.json"
-        cp "${original_config}" "${config_dir}/config_b.json"
+        if command -v jq >/dev/null 2>&1; then
+            jq ".inbounds[0].listen_port = ${port_a}" "${original_config}" > "${config_dir}/config_a.json"
+            jq ".inbounds[0].listen_port = ${port_b}" "${original_config}" > "${config_dir}/config_b.json"
+        else
+            cp "${original_config}" "${config_dir}/config_a.json"
+            cp "${original_config}" "${config_dir}/config_b.json"
+            lang_echo "${Yellow}  警告：未安装 jq，请手动修改端口为 ${port_a} 和 ${port_b}${Font}" "${Yellow}  Warning: jq not installed, please manually change ports to ${port_a} and ${port_b}${Font}"
+        fi
     fi
     
-    lang_echo "${Green}  配置 A: ${config_dir}/config_a.json (端口 10080)${Font}" "${Green}  Config A: ${config_dir}/config_a.json (port 10080)${Font}"
-    lang_echo "${Green}  配置 B: ${config_dir}/config_b.json (端口 10081)${Font}" "${Green}  Config B: ${config_dir}/config_b.json (port 10081)${Font}"
+    lang_echo "${Green}  配置 A: ${config_dir}/config_a.json (端口 ${port_a})${Font}" "${Green}  Config A: ${config_dir}/config_a.json (port ${port_a})${Font}"
+    lang_echo "${Green}  配置 B: ${config_dir}/config_b.json (端口 ${port_b})${Font}" "${Green}  Config B: ${config_dir}/config_b.json (port ${port_b})${Font}"
     echo
+
+    # 写入端口配置供管理脚本使用
+    cat > /etc/v2ray-agent/blue_green_ports.conf << EOF
+PORT_A=${port_a}
+PORT_B=${port_b}
+EXTERNAL_PORT=443
+EOF
     
     # 创建 systemd 服务文件
     lang_echo "${Yellow}[4/7]${Font} $(lang_text "创建 systemd 服务..." "Creating systemd services...")"

@@ -18,6 +18,34 @@ SERVICE_NAME_B="proxy-b"
 HEALTH_CHECK_RETRIES=5
 HEALTH_CHECK_INTERVAL=2
 
+is_valid_port() {
+    local port=$1
+    if [[ ! "$port" =~ ^[0-9]+$ ]]; then
+        return 1
+    fi
+    if ((port < 1 || port > 65535)); then
+        return 1
+    fi
+    return 0
+}
+
+# 读取自定义端口配置（如有）
+PORTS_CONF="/etc/v2ray-agent/blue_green_ports.conf"
+if [[ -f "$PORTS_CONF" ]]; then
+    # shellcheck disable=SC1090
+    source "$PORTS_CONF"
+fi
+
+if ! is_valid_port "$PORT_A"; then
+    PORT_A=10080
+fi
+if ! is_valid_port "$PORT_B"; then
+    PORT_B=10081
+fi
+if ! is_valid_port "$EXTERNAL_PORT"; then
+    EXTERNAL_PORT=443
+fi
+
 # 日志函数
 log_info() {
     echo -e "${Green}[INFO]${Font} $1"
@@ -29,6 +57,12 @@ log_warn() {
 
 log_error() {
     echo -e "${Red}[ERROR]${Font} $1"
+}
+
+log_service_logs_hint() {
+    local service=$1
+    log_info "日志查看: journalctl -u ${service} -e --no-pager"
+    log_info "状态查看: systemctl status ${service} --no-pager"
 }
 
 # 检查是否为 root
@@ -264,6 +298,7 @@ init_deployment() {
     
     if ! health_check $PORT_A; then
         log_error "实例 A 启动失败"
+        log_service_logs_hint "$SERVICE_NAME_A"
         return 1
     fi
     
@@ -278,6 +313,7 @@ init_deployment() {
     
     if ! health_check $PORT_B; then
         log_warn "实例 B 启动失败，但不影响服务"
+        log_service_logs_hint "$SERVICE_NAME_B"
     fi
     
     echo
