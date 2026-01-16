@@ -5,32 +5,32 @@ Green="\033[32m"
 Font="\033[0m"
 Red="\033[31m" 
 
-LANGUAGE_CHOICE="en"
+LANGUAGE_CHOICE="${ONE_SCRIPT_LANG:-zh}"
 
 lang_text() {
     local zh="$1"
     local en="$2"
-    if [[ "${LANGUAGE_CHOICE}" == "zh" ]]; then
-        printf "%b" "${zh}"
-    else
+    if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
         printf "%b" "${en}"
+    else
+        printf "%b" "${zh}"
     fi
 }
 
 lang_echo() {
     local zh="$1"
     local en="$2"
-    if [[ "${LANGUAGE_CHOICE}" == "zh" ]]; then
-        echo -e "${zh}"
-    else
+    if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
         echo -e "${en}"
+    else
+        echo -e "${zh}"
     fi
 }
 
 #root权限
 root_need(){
     if [[ $EUID -ne 0 ]]; then
-        lang_echo "${Red}错误:此脚本必须以 root 身份运行!${Font}" "${Red}Error:This script must be run as root!${Font}"
+        echo -e "${Red}Error:This script must be run as root!${Font}"
         exit 1
     fi
 }
@@ -38,7 +38,7 @@ root_need(){
 #检测ovz
 ovz_no(){
     if [[ -d "/proc/vz" ]]; then
-        lang_echo "${Red}您的 VPS 基于 OpenVZ，不支持!${Font}" "${Red}Your VPS is based on OpenVZ, not supported!${Font}"
+        echo -e "${Red}Your VPS is based on OpenVZ，not supported!${Font}"
         exit 1
     fi
 }
@@ -88,11 +88,11 @@ main(){
 root_need
 ovz_no
 clear
-echo -e "----------------------------------------"
+echo -e "———————————————————————————————————————"
 lang_echo "${Green}Linux VPS一键添加/删除swap脚本${Font}" "${Green}Linux VPS swap add/remove script${Font}"
 lang_echo "${Green}1、添加swap${Font}" "${Green}1) Add swap${Font}"
 lang_echo "${Green}2、删除swap${Font}" "${Green}2) Delete swap${Font}"
-echo -e "----------------------------------------"
+echo -e "———————————————————————————————————————"
 read -p "$(lang_text "请输入数字 [1-2]:" "Enter choice [1-2]: ")" num
 case "$num" in
     1)

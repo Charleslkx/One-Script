@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-Script main entry script - manage swap and provide script menu.
+#One-Script 主启动脚本 - 自动管理虚拟内存并提供脚本选择
 
 # 颜色定义
 Green="\033[32m"
@@ -8,22 +8,49 @@ Red="\033[31m"
 Yellow="\033[33m"
 Blue="\033[34m"
 
-LANGUAGE_CHOICE="en"
+LANGUAGE_CHOICE="zh"
 
 lang_text() {
-    local _zh="$1"
+    local zh="$1"
     local en="$2"
-    printf "%b" "${en}"
+    if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
+        printf "%b" "${en}"
+    else
+        printf "%b" "${zh}"
+    fi
 }
 
 lang_echo() {
-    local _zh="$1"
+    local zh="$1"
     local en="$2"
-    echo -e "${en}"
+    if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
+        echo -e "${en}"
+    else
+        echo -e "${zh}"
+    fi
 }
 
 select_language() {
-    LANGUAGE_CHOICE="en"
+    local preset="${ONE_SCRIPT_LANG:-}"
+    if [[ -z "${preset}" ]]; then
+        echo -e "${Blue}请选择语言 / Select language:${Font}"
+        echo -e "${Yellow}1.${Font} 中文 (默认)"
+        echo -e "${Yellow}2.${Font} English"
+        read -p "输入选择 [1/2]: " preset
+    fi
+
+    case "$(echo "${preset}" | tr '[:upper:]' '[:lower:]')" in
+    2 | en | eng | english)
+        LANGUAGE_CHOICE="en"
+        ;;
+    1 | zh | cn | chinese | "")
+        LANGUAGE_CHOICE="zh"
+        ;;
+    *)
+        LANGUAGE_CHOICE="zh"
+        ;;
+    esac
+
     export ONE_SCRIPT_LANG="${LANGUAGE_CHOICE}"
 }
 
@@ -121,15 +148,15 @@ quick_switch_ip_priority() {
 
 # 安装简易命令（远程运行版本）
 install_quick_command() {
-    echo -e "${Blue}        ...${Font}"
+    echo -e "${Blue}正在安装简易命令...${Font}"
     
     local command_name="v2ray"
     local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local vasmaType=false
     
     # 显示当前环境信息
-    echo -e "${Green}     $(whoami)${Font}"
-    echo -e "${Green}         ${Font}"
+    echo -e "${Green}当前用户：$(whoami)${Font}"
+    echo -e "${Green}安装模式：远程运行${Font}"
     echo
     
     # 创建远程运行脚本内容
@@ -149,32 +176,32 @@ BASE_URL="https://raw.githubusercontent.com/charleslkx/one-script/master"
 
 # 检查网络连接
 check_network() {
-    lang_echo "${Blue}正在检查网络连接...${Font}" "${Blue}Checking network connection...${Font}"
+    echo -e "${Blue}正在检查网络连接...${Font}"
     if ping -c 1 raw.githubusercontent.com >/dev/null 2>&1; then
-        lang_echo "${Green}网络连接正常${Font}" "${Green}Network is accessible${Font}"
+        echo -e "${Green}网络连接正常${Font}"
         return 0
     else
-        lang_echo "${Red}无法连接到远程仓库，请检查网络连接${Font}" "${Red}Cannot reach remote repository, check network${Font}"
+        echo -e "${Red}无法连接到远程仓库，请检查网络连接${Font}"
         return 1
     fi
 }
 
 # 运行远程脚本
 run_remote_script() {
-    lang_echo "${Blue}正在从远程仓库获取脚本...${Font}" "${Blue}Fetching script from remote repository...${Font}"
-    lang_echo "${Green}源地址: ${BASE_URL}/main.sh${Font}" "${Green}Source: ${BASE_URL}/main.sh${Font}"
+    echo -e "${Blue}正在从远程仓库获取最新版本...${Font}"
+    echo -e "${Green}仓库地址：${BASE_URL}/main.sh${Font}"
     echo
     
     # 尝试使用 wget 或 curl 运行远程脚本
     if command -v wget >/dev/null 2>&1; then
-        lang_echo "${Blue}使用 wget 下载中...${Font}" "${Blue}Using wget to download...${Font}"
+        echo -e "${Blue}使用 wget 获取脚本...${Font}"
         bash <(wget -qO- "${BASE_URL}/main.sh" 2>/dev/null) "$@"
     elif command -v curl >/dev/null 2>&1; then
-        lang_echo "${Blue}使用 curl 下载中...${Font}" "${Blue}Using curl to download...${Font}"
+        echo -e "${Blue}使用 curl 获取脚本...${Font}"
         bash <(curl -fsSL "${BASE_URL}/main.sh" 2>/dev/null) "$@"
     else
-        lang_echo "${Red}错误: 系统未安装 wget 或 curl 工具${Font}" "${Red}Error: wget or curl not found${Font}"
-        lang_echo "${Yellow}请先安装 wget 或 curl 后重试${Font}" "${Yellow}Please install wget or curl first${Font}"
+        echo -e "${Red}错误：未找到 wget 或 curl 工具${Font}"
+        echo -e "${Yellow}请安装 wget 或 curl 后重试${Font}"
         exit 1
     fi
 }
@@ -182,24 +209,24 @@ run_remote_script() {
 # 显示帮助信息
 show_help() {
     echo -e "${Blue}============================================${Font}"
-    lang_echo "${Green}      One-Script 快捷命令${Font}" "${Green}      One-Script Quick Command${Font}"
+    echo -e "${Green}      One-Script 远程运行命令${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
-    lang_echo "${Green}说明${Font}" "${Green}Description${Font}"
-    lang_echo "  v2ray [快捷命令]" "  v2ray [quick command]"
+    echo -e "${Green}用法：${Font}"
+    echo -e "  v2ray [选项]"
     echo
-    lang_echo "${Green}可用选项${Font}" "${Green}Available Options${Font}"
-    lang_echo "  ${Yellow}--help, -h${Font}                显示帮助信息" "  ${Yellow}--help, -h${Font}                Show help information"
-    lang_echo "  ${Yellow}--version, -v${Font}             显示版本信息" "  ${Yellow}--version, -v${Font}             Show version information"
-    lang_echo "  ${Yellow}--install-command${Font}         安装快捷命令" "  ${Yellow}--install-command${Font}         Install quick command"
-    lang_echo "  ${Yellow}--uninstall-command${Font}       卸载快捷命令" "  ${Yellow}--uninstall-command${Font}       Uninstall quick command"
+    echo -e "${Green}选项：${Font}"
+    echo -e "  ${Yellow}--help, -h${Font}              显示此帮助信息"
+    echo -e "  ${Yellow}--version, -v${Font}           显示版本信息"
+    echo -e "  ${Yellow}--install-command${Font}       重新安装远程运行命令"
+    echo -e "  ${Yellow}--uninstall-command${Font}     卸载远程运行命令"
     echo
-    lang_echo "${Green}使用说明${Font}" "${Green}Usage${Font}"
-    lang_echo "直接运行脚本会进入交互式菜单。" "Please follow the on-screen instructions."
-    lang_echo "使用快捷命令可更方便地管理服务。" "Use quick commands for easier service management."
-    lang_echo "需要 root 权限才能执行某些操作。" "Root privileges required for some operations."
+    echo -e "${Green}特性：${Font}"
+    echo -e "  • 始终运行最新版本脚本"
+    echo -e "  • 无需本地存储脚本文件"
+    echo -e "  • 自动网络连接检查"
     echo
-    lang_echo "${Green}GitHub 仓库${Font}https://github.com/charleslkx/one-script" "${Green}GitHub Repository${Font}https://github.com/charleslkx/one-script"
+    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/one-script"
     echo -e "${Blue}============================================${Font}"
 }
 
@@ -211,16 +238,16 @@ main() {
             exit 0
             ;;
         "--version"|"-v")
-            lang_echo "${Green}One-Script 快捷命令版本 v1.0${Font}" "${Green}One-Script Quick Command v1.0${Font}"
+            echo -e "${Green}One-Script 远程运行命令 v1.0${Font}"
             echo -e "${Green}GitHub: https://github.com/charleslkx/one-script${Font}"
             exit 0
             ;;
         "--install-command")
-            lang_echo "${Yellow}开始安装快捷命令...${Font}" "${Yellow}Installing quick command...${Font}"
+            echo -e "${Yellow}请使用本地脚本的安装命令功能${Font}"
             exit 0
             ;;
         "--uninstall-command")
-            lang_echo "${Yellow}开始卸载快捷命令...${Font}" "${Yellow}Uninstalling quick command...${Font}"
+            echo -e "${Yellow}请使用本地脚本的卸载命令功能${Font}"
             exit 0
             ;;
     esac
@@ -240,24 +267,24 @@ main "$@"'
     # 尝试在 /usr/bin 中创建远程运行命令
     if [[ -d "/usr/bin/" ]]; then
         local bin_path="/usr/bin/${command_name}"
-        lang_echo "${Green}正在尝试创建快捷命令: ${bin_path}${Font}" "${Green}Attempting to create quick command: ${bin_path}${Font}"
+        echo -e "${Green}目标安装路径：${bin_path}${Font}"
         
         if [[ ! -f "$bin_path" ]]; then
             if echo "$remote_script_content" > "$bin_path" 2>/dev/null && chmod 755 "$bin_path" 2>/dev/null; then
                 vasmaType=true
-                lang_echo "${Green}成功安装到 /usr/bin 目录${Font}" "${Green}Successfully installed to /usr/bin${Font}"
+                echo -e "${Green}在 /usr/bin 中创建远程运行命令成功${Font}"
             else
-                lang_echo "${Yellow}无法写入 /usr/bin 目录${Font}" "${Yellow}Cannot write to /usr/bin${Font}"
+                echo -e "${Yellow}在 /usr/bin 中创建远程运行命令失败${Font}"
             fi
         else
-            lang_echo "${Yellow}命令已存在: ${bin_path}${Font}" "${Yellow}Command already exists: ${bin_path}${Font}"
-            lang_echo "${Yellow}是否覆盖安装? [y/N]:${Font}" "${Yellow}Overwrite installation? [y/N]:${Font}"
+            echo -e "${Yellow}检测到 ${bin_path} 已存在${Font}"
+            echo -e "${Yellow}是否要重新安装？[y/N]:${Font}"
             read -p "" reinstall_choice
             if [[ $reinstall_choice =~ ^[Yy]$ ]]; then
                 rm -f "$bin_path"
                 if echo "$remote_script_content" > "$bin_path" 2>/dev/null && chmod 755 "$bin_path" 2>/dev/null; then
                     vasmaType=true
-                    lang_echo "${Green}命令已更新安装${Font}" "${Green}Command reinstalled successfully${Font}"
+                    echo -e "${Green}重新安装远程运行命令成功${Font}"
                 fi
             fi
         fi
@@ -266,14 +293,14 @@ main "$@"'
     # 如果 /usr/bin 失败，尝试 /usr/sbin
     if [[ "$vasmaType" == "false" && -d "/usr/sbin/" ]]; then
         local sbin_path="/usr/sbin/${command_name}"
-        lang_echo "${Green}尝试使用备用目录: /usr/sbin${Font}" "${Green}Trying alternative directory: /usr/sbin${Font}"
+        echo -e "${Green}尝试在 /usr/sbin 中安装：${sbin_path}${Font}"
         
         if [[ ! -f "$sbin_path" ]]; then
             if echo "$remote_script_content" > "$sbin_path" 2>/dev/null && chmod 755 "$sbin_path" 2>/dev/null; then
                 vasmaType=true
-                lang_echo "${Green}成功安装到 /usr/sbin 目录${Font}" "${Green}Successfully installed to /usr/sbin${Font}"
+                echo -e "${Green}在 /usr/sbin 中创建远程运行命令成功${Font}"
             else
-                lang_echo "${Yellow}无法写入 /usr/sbin 目录${Font}" "${Yellow}Cannot write to /usr/sbin${Font}"
+                echo -e "${Yellow}在 /usr/sbin 中创建远程运行命令失败${Font}"
             fi
         fi
     fi
@@ -281,20 +308,20 @@ main "$@"'
     # 如果以上都失败，尝试 /usr/local/bin
     if [[ "$vasmaType" == "false" ]]; then
         local local_bin_path="/usr/local/bin/${command_name}"
-        lang_echo "${Green}尝试最后一个目录: /usr/local/bin${Font}" "${Green}Trying last option: /usr/local/bin${Font}"
+        echo -e "${Green}尝试在 /usr/local/bin 中安装：${local_bin_path}${Font}"
         
         # 确保目录存在
         if [[ ! -d "/usr/local/bin" ]]; then
-            lang_echo "${Yellow}/usr/local/bin 目录不存在，正在创建...${Font}" "${Yellow}/usr/local/bin doesn't exist, creating...${Font}"
+            echo -e "${Yellow}/usr/local/bin 目录不存在，正在创建...${Font}"
             mkdir -p /usr/local/bin
         fi
         
         if [[ ! -f "$local_bin_path" ]]; then
             if echo "$remote_script_content" > "$local_bin_path" 2>/dev/null && chmod 755 "$local_bin_path" 2>/dev/null; then
                 vasmaType=true
-                lang_echo "${Green}成功安装到 /usr/local/bin 目录${Font}" "${Green}Successfully installed to /usr/local/bin${Font}"
+                echo -e "${Green}在 /usr/local/bin 中创建远程运行命令成功${Font}"
             else
-                lang_echo "${Red}无法写入 /usr/local/bin 目录${Font}" "${Red}Cannot write to /usr/local/bin${Font}"
+                echo -e "${Red}在 /usr/local/bin 中创建远程运行命令失败${Font}"
             fi
         fi
     fi
@@ -302,22 +329,22 @@ main "$@"'
     # 显示安装结果
     if [[ "$vasmaType" == "true" ]]; then
         echo
-        lang_echo "${Green}快捷命令安装成功！${Font}" "${Green}Quick command installed successfully!${Font}"
-        lang_echo "${Yellow}现在您可以使用以下命令：${Font}" "${Yellow}You can now use the following commands:${Font}"
-        lang_echo "${Blue}  ${command_name}${Font}                # 运行主菜单" "${Blue}  ${command_name}${Font}                # Run main menu"
-        lang_echo "${Blue}  sudo ${command_name}${Font}           # 以 root 身份运行" "${Blue}  sudo ${command_name}${Font}           # Run as root"
-        lang_echo "${Blue}  ${command_name} --help${Font}         # 显示帮助" "${Blue}  ${command_name} --help${Font}         # Show help"
-        lang_echo "${Blue}  ${command_name} --version${Font}      # 显示版本" "${Blue}  ${command_name} --version${Font}      # Show version"
+        echo -e "${Green}远程运行命令创建成功！${Font}"
+        echo -e "${Yellow}使用方法：${Font}"
+        echo -e "${Blue}  ${command_name}${Font}                # 从远程启动最新版本脚本"
+        echo -e "${Blue}  sudo ${command_name}${Font}           # 以root权限从远程启动脚本"
+        echo -e "${Blue}  ${command_name} --help${Font}         # 查看帮助信息"
+        echo -e "${Blue}  ${command_name} --version${Font}      # 查看版本信息"
         echo
-        lang_echo "${Green}提示：${Font}" "${Green}Tips:${Font}"
-        lang_echo "${Green}快捷命令会自动从 GitHub 获取最新版本${Font}" "${Green}Quick command automatically fetches latest version from GitHub${Font}"
-        lang_echo "${Green}无需手动更新本地脚本${Font}" "${Green}No manual local script updates needed${Font}"
-        lang_echo "${Green}您的配置文件和服务不受影响${Font}" "${Green}Your config files and services are unaffected${Font}"
+        echo -e "${Green}特性：${Font}"
+        echo -e "${Green}  • 始终运行最新版本${Font}"
+        echo -e "${Green}  • 无需本地存储脚本${Font}"
+        echo -e "${Green}  • 自动检查网络连接${Font}"
         echo
-        lang_echo "${Yellow}有任何问题请访问 GitHub 仓库${Font}" "${Yellow}For any issues, visit our GitHub repository${Font}"
+        echo -e "${Yellow}注意：运行时需要网络连接到 GitHub${Font}"
     else
-        lang_echo "${Red}快捷命令安装失败${Font}" "${Red}Quick command installation failed${Font}"
-        lang_echo "${Yellow}请检查是否有 root 权限${Font}" "${Yellow}Please check if you have root privileges${Font}"
+        echo -e "${Red}远程运行命令创建失败！${Font}"
+        echo -e "${Yellow}请检查权限或手动创建${Font}"
     fi
 }
 
@@ -326,49 +353,49 @@ uninstall_quick_command() {
     local command_name="v2ray"
     local removed=false
     
-    lang_echo "${Yellow}正在搜索并删除快捷命令...${Font}" "${Yellow}Searching and removing quick command...${Font}"
+    echo -e "${Yellow}正在卸载简易命令...${Font}"
     
     # 检查并删除 /usr/bin 中的命令
     if [[ -f "/usr/bin/${command_name}" ]]; then
         if rm -f "/usr/bin/${command_name}"; then
-            lang_echo "${Green}已从 /usr/bin 删除 '${command_name}'${Font}" "${Green}Removed '${command_name}' from /usr/bin${Font}"
+            echo -e "${Green}已从 /usr/bin 中移除 '${command_name}'${Font}"
             removed=true
         else
-            lang_echo "${Red}无法从 /usr/bin 删除 '${command_name}'${Font}" "${Red}Cannot remove '${command_name}' from /usr/bin${Font}"
+            echo -e "${Red}从 /usr/bin 中移除 '${command_name}' 失败${Font}"
         fi
     fi
     
     # 检查并删除 /usr/sbin 中的命令
     if [[ -f "/usr/sbin/${command_name}" ]]; then
         if rm -f "/usr/sbin/${command_name}"; then
-            lang_echo "${Green}已从 /usr/sbin 删除 '${command_name}'${Font}" "${Green}Removed '${command_name}' from /usr/sbin${Font}"
+            echo -e "${Green}已从 /usr/sbin 中移除 '${command_name}'${Font}"
             removed=true
         else
-            lang_echo "${Red}无法从 /usr/sbin 删除 '${command_name}'${Font}" "${Red}Cannot remove '${command_name}' from /usr/sbin${Font}"
+            echo -e "${Red}从 /usr/sbin 中移除 '${command_name}' 失败${Font}"
         fi
     fi
     
     # 检查并删除 /usr/local/bin 中的命令
     if [[ -f "/usr/local/bin/${command_name}" ]]; then
         if rm -f "/usr/local/bin/${command_name}"; then
-            lang_echo "${Green}已从 /usr/local/bin 删除 '${command_name}'${Font}" "${Green}Removed '${command_name}' from /usr/local/bin${Font}"
+            echo -e "${Green}已从 /usr/local/bin 中移除 '${command_name}'${Font}"
             removed=true
         else
-            lang_echo "${Red}无法从 /usr/local/bin 删除 '${command_name}'${Font}" "${Red}Cannot remove '${command_name}' from /usr/local/bin${Font}"
+            echo -e "${Red}从 /usr/local/bin 中移除 '${command_name}' 失败${Font}"
         fi
     fi
     
     if [[ "$removed" == "true" ]]; then
-        lang_echo "${Green}快捷命令 '${command_name}' 已成功卸载${Font}" "${Green}Quick command '${command_name}' successfully uninstalled${Font}"
+        echo -e "${Green}简易命令 '${command_name}' 卸载成功！${Font}"
     else
-        lang_echo "${Yellow}未找到快捷命令 '${command_name}' 或已被卸载${Font}" "${Yellow}Quick command '${command_name}' not found or already uninstalled${Font}"
+        echo -e "${Yellow}简易命令 '${command_name}' 未安装或已被移除${Font}"
     fi
 }
 
 # 检查root权限
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        lang_echo "${Red}错误: 此脚本需要 root 权限运行${Font}" "${Red}Error: This script must be run as root${Font}"
+        echo -e "${Red}错误：此脚本必须以 root 权限运行！${Font}"
         exit 1
     fi
 }
@@ -376,14 +403,14 @@ check_root() {
 # 检查OpenVZ
 check_ovz() {
     if [[ -d "/proc/vz" ]]; then
-        lang_echo "${Red}您的 VPS 基于 OpenVZ，不支持 swap 操作${Font}" "${Red}Your VPS is based on OpenVZ, swap not supported${Font}"
+        echo -e "${Red}错误：您的VPS基于OpenVZ，不支持创建swap！${Font}"
         exit 1
     fi
 }
 
 # 系统检测和环境初始化
 check_system_environment() {
-    lang_echo "${Blue}正在检查系统环境...${Font}" "${Blue}Checking system environment...${Font}"
+    echo -e "${Blue}正在检测系统环境...${Font}"
     
     # 设置语言环境
     export LANG=en_US.UTF-8
@@ -432,56 +459,56 @@ check_system_environment() {
         removeType='apt -y autoremove'
         
         if grep </etc/issue -q -i "16."; then
-            echo -e "${Red}Ubuntu 16 is not supported.${Font}"
+            echo -e "${Red}Ubuntu 16版本不建议使用此脚本，建议升级系统${Font}"
             exit 0
         fi
     fi
     
     if [[ -z ${release} ]]; then
-        echo -e "${Red}Unsupported system.${Font}"
-        echo -e "${Yellow}Issue: $(cat /etc/issue)${Font}"
-        echo -e "${Yellow}Kernel: $(cat /proc/version)${Font}"
+        echo -e "${Red}本脚本不支持此系统，请将下方日志反馈给开发者${Font}"
+        echo -e "${Yellow}$(cat /etc/issue)${Font}"
+        echo -e "${Yellow}$(cat /proc/version)${Font}"
         exit 0
     fi
     
-    echo -e "${Green}Release: ${release}${Font}"
-    echo -e "${Green}Package install: ${installType}${Font}"
+    echo -e "${Green}检测到系统：${release}${Font}"
+    echo -e "${Green}包管理器：${installType}${Font}"
 }
 
 # 检查CPU架构
 check_cpu_vendor() {
-    echo -e "${Blue}Checking CPU architecture...${Font}"
+    echo -e "${Blue}正在检测CPU架构...${Font}"
     
     if [[ -n $(which uname) ]]; then
         if [[ "$(uname)" == "Linux" ]]; then
             case "$(uname -m)" in
             'amd64' | 'x86_64')
                 cpuVendor="amd64"
-                echo -e "${Green}CPU: x86_64/amd64${Font}"
+                echo -e "${Green}CPU架构：x86_64/amd64${Font}"
                 ;;
             'armv8' | 'aarch64')
                 cpuVendor="arm64"
-                echo -e "${Green}CPU: arm64${Font}"
+                echo -e "${Green}CPU架构：arm64${Font}"
                 ;;
             'armv7' | 'armv7l')
                 cpuVendor="arm"
-                echo -e "${Green}CPU: arm${Font}"
+                echo -e "${Green}CPU架构：arm${Font}"
                 ;;
             *)
                 cpuVendor="amd64"
-                echo -e "${Yellow}Unknown CPU arch, defaulting to amd64${Font}"
+                echo -e "${Yellow}未知架构，默认使用 amd64${Font}"
                 ;;
             esac
         fi
     else
         cpuVendor="amd64"
-        echo -e "${Yellow}Cannot detect CPU arch, defaulting to amd64${Font}"
+        echo -e "${Yellow}无法检测架构，默认使用 amd64${Font}"
     fi
 }
 
 # 安装基础工具包
 install_basic_tools() {
-    echo -e "${Blue}Installing base tools...${Font}"
+    echo -e "${Blue}正在安装基础工具包...${Font}"
     
     # 修复ubuntu个别系统问题
     if [[ "${release}" == "ubuntu" ]]; then
@@ -493,7 +520,7 @@ install_basic_tools() {
         pgrep -f apt | xargs kill -9 >/dev/null 2>&1
     fi
     
-    echo -e "${Green} -> Updating package index${Font}"
+    echo -e "${Green} ---> 更新软件包列表${Font}"
     ${upgrade} >/dev/null 2>&1
     
     if [[ "${release}" == "centos" ]]; then
@@ -506,7 +533,7 @@ install_basic_tools() {
     
     for tool in "${tools[@]}"; do
         if ! command -v "$tool" >/dev/null 2>&1; then
-            echo -e "${Green} -> Installing $tool${Font}"
+            echo -e "${Green} ---> 安装 $tool${Font}"
             ${installType} "$tool" >/dev/null 2>&1
         fi
     done
@@ -514,52 +541,52 @@ install_basic_tools() {
     # 安装系统特定的工具
     if [[ "${release}" == "centos" ]]; then
         if ! command -v dig >/dev/null 2>&1; then
-            echo -e "${Green} -> Installing bind-utils (dig)${Font}"
+            echo -e "${Green} ---> 安装 bind-utils (dig)${Font}"
             ${installType} bind-utils >/dev/null 2>&1
         fi
     elif [[ "${release}" == "ubuntu" ]] || [[ "${release}" == "debian" ]]; then
         if ! command -v dig >/dev/null 2>&1; then
-            echo -e "${Green} -> Installing dnsutils (dig)${Font}"
+            echo -e "${Green} ---> 安装 dnsutils (dig)${Font}"
             ${installType} dnsutils >/dev/null 2>&1
         fi
         
         if ! command -v cron >/dev/null 2>&1; then
-            echo -e "${Green} -> Installing cron${Font}"
+            echo -e "${Green} ---> 安装 cron${Font}"
             ${installType} cron >/dev/null 2>&1
         fi
     elif [[ "${release}" == "alpine" ]]; then
         if ! command -v dig >/dev/null 2>&1; then
-            echo -e "${Green} -> Installing bind-tools (dig)${Font}"
+            echo -e "${Green} ---> 安装 bind-tools (dig)${Font}"
             ${installType} bind-tools >/dev/null 2>&1
         fi
     fi
     
-    echo -e "${Green}Base tools ready${Font}"
+    echo -e "${Green}基础工具包安装完成${Font}"
 }
 
 # 检查网络连接
 check_network_connectivity() {
-    echo -e "${Blue}Checking network connectivity...${Font}"
+    echo -e "${Blue}正在检查网络连接...${Font}"
     
     # 检查IPv4连接
     if ping -c 1 -W 3 8.8.8.8 >/dev/null 2>&1; then
-        echo -e "${Green}IPv4: OK${Font}"
+        echo -e "${Green}IPv4 网络连接正常${Font}"
     else
-        echo -e "${Yellow}IPv4: FAIL${Font}"
+        echo -e "${Yellow}IPv4 网络连接异常${Font}"
     fi
     
     # 检查域名解析
     if ping -c 1 -W 3 github.com >/dev/null 2>&1; then
-        echo -e "${Green}DNS: OK${Font}"
+        echo -e "${Green}域名解析正常${Font}"
     else
-        echo -e "${Yellow}DNS: FAIL${Font}"
+        echo -e "${Yellow}域名解析可能存在问题${Font}"
     fi
     
     # 检查GitHub连接性
     if curl -s --connect-timeout 10 https://api.github.com >/dev/null 2>&1; then
-        echo -e "${Green}GitHub API: OK${Font}"
+        echo -e "${Green}GitHub 连接正常${Font}"
     else
-        echo -e "${Yellow}GitHub API: FAIL${Font}"
+        echo -e "${Yellow}GitHub 连接可能存在问题，建议检查网络环境${Font}"
     fi
 }
 
@@ -567,9 +594,9 @@ check_network_connectivity() {
 check_selinux() {
     if [[ "${release}" == "centos" ]] && [[ -f "/etc/selinux/config" ]]; then
         if ! grep -q "SELINUX=disabled" "/etc/selinux/config"; then
-            echo -e "${Yellow}SELinux is enabled.${Font}"
-            echo -e "${Yellow}Set SELINUX=disabled in /etc/selinux/config.${Font}"
-            echo -e "${Blue}/etc/selinux/config: SELINUX=enforcing -> SELINUX=disabled${Font}"
+            echo -e "${Yellow}检测到SELinux已启用${Font}"
+            echo -e "${Yellow}建议关闭SELinux以避免潜在问题${Font}"
+            echo -e "${Blue}您可以编辑 /etc/selinux/config 文件，将 SELINUX=enforcing 改为 SELINUX=disabled${Font}"
         fi
     fi
 }
@@ -583,18 +610,18 @@ get_memory_size() {
 
 # 自动创建swap（优化版）
 auto_create_swap() {
-    echo -e "${Blue}Checking swap status...${Font}"
+    echo -e "${Blue}正在检查系统内存和swap状态...${Font}"
     
     local memory_mb=$(get_memory_size)
-    echo -e "${Green}Memory: ${memory_mb}MB${Font}"
+    echo -e "${Green}当前系统内存：${memory_mb}MB${Font}"
     
     # 检查是否已存在swap文件
     if [[ -f "/swapfile" ]] || grep -q "swapfile" /etc/fstab 2>/dev/null; then
-        echo -e "${Yellow}Swapfile already exists.${Font}"
+        echo -e "${Yellow}检测到已存在swap文件，跳过创建。${Font}"
         
         # 显示当前swap状态
         if [[ -f "/proc/swaps" ]]; then
-            echo -e "${Green}Current swap devices:${Font}"
+            echo -e "${Green}当前swap状态：${Font}"
             cat /proc/swaps
         fi
         return 0
@@ -603,7 +630,7 @@ auto_create_swap() {
     # 检查是否有其他swap分区
     local existing_swap=$(swapon --show 2>/dev/null | wc -l)
     if [[ $existing_swap -gt 1 ]]; then
-        echo -e "${Yellow}Existing swap devices detected:${Font}"
+        echo -e "${Yellow}检测到已有其他swap分区，跳过创建swap文件${Font}"
         swapon --show 2>/dev/null
         return 0
     fi
@@ -611,7 +638,7 @@ auto_create_swap() {
     # 检查磁盘可用空间
     local available_space_kb=$(df / | tail -1 | awk '{print $4}')
     local available_space_mb=$((available_space_kb / 1024))
-    echo -e "${Green}Disk available: ${available_space_mb}MB${Font}"
+    echo -e "${Green}根分区可用空间：${available_space_mb}MB${Font}"
     
     # 根据内存大小决定推荐的swap大小
     local recommended_swap_size
@@ -619,39 +646,39 @@ auto_create_swap() {
     
     if [[ $memory_mb -lt 512 ]]; then
         recommended_swap_size=1024  # 1GB
-        echo -e "${Yellow}Recommended swap: 1GB (RAM < 512MB)${Font}"
+        echo -e "${Yellow}建议：内存小于512MB，推荐创建1GB的swap${Font}"
     elif [[ $memory_mb -lt 1024 ]]; then
         recommended_swap_size=2048  # 2GB
-        echo -e "${Yellow}Recommended swap: 2GB (RAM < 1GB)${Font}"
+        echo -e "${Yellow}建议：内存小于1GB，推荐创建2GB的swap${Font}"
     elif [[ $memory_mb -lt 2048 ]]; then
         recommended_swap_size=2048  # 2GB
-        echo -e "${Yellow}Recommended swap: 2GB (RAM < 2GB)${Font}"
+        echo -e "${Yellow}建议：内存小于2GB，推荐创建2GB的swap${Font}"
     else
         recommended_swap_size=1024  # 1GB
-        echo -e "${Yellow}Recommended swap: 1GB${Font}"
+        echo -e "${Yellow}建议：内存充足，推荐创建1GB的swap${Font}"
     fi
     
     # 检查推荐大小是否超过可用空间
     if [[ $recommended_swap_size -gt $max_swap_size ]]; then
         if [[ $max_swap_size -gt 512 ]]; then
             recommended_swap_size=$max_swap_size
-            echo -e "${Yellow}Adjusted swap size: ${recommended_swap_size}MB (disk limit)${Font}"
+            echo -e "${Yellow}根据可用磁盘空间调整swap大小为：${recommended_swap_size}MB${Font}"
         else
-            echo -e "${Red}Not enough disk space for swap.${Font}"
+            echo -e "${Red}磁盘空间不足，无法创建swap文件${Font}"
             return 1
         fi
     fi
     
     echo
-    echo -e "${Green}Swap options:${Font}"
-    echo -e "${Yellow}1.${Font} Create recommended swap (${recommended_swap_size}MB)"
-    echo -e "${Yellow}2.${Font} Create custom swap size"
-    echo -e "${Yellow}3.${Font} Skip swap creation"
+    echo -e "${Green}Swap创建选项：${Font}"
+    echo -e "${Yellow}1.${Font} 自动创建推荐大小的swap (${recommended_swap_size}MB)"
+    echo -e "${Yellow}2.${Font} 手动指定swap大小"
+    echo -e "${Yellow}3.${Font} 跳过swap创建"
     echo
     
     local choice
     while true; do
-        read -p "    [1-3]: " choice
+        read -p "请选择 [1-3]: " choice
         case $choice in
             1)
                 # 自动创建推荐大小
@@ -664,11 +691,11 @@ auto_create_swap() {
                 break
                 ;;
             3)
-                echo -e "${Yellow}Skipping swap creation.${Font}"
+                echo -e "${Yellow}跳过swap创建。${Font}"
                 return 0
                 ;;
             *)
-                echo -e "${Red}Please enter 1-3.${Font}"
+                echo -e "${Red}无效选择，请输入 1-3${Font}"
                 ;;
         esac
     done
@@ -680,33 +707,33 @@ manual_create_swap() {
     local swap_size
     
     while true; do
-        echo -e "${Green}Custom swap size (MB):${Font}"
-        echo -e "${Yellow}Allowed range: 128MB - ${max_swap_size}MB${Font}"
-        echo -e "${Yellow}Enter a number to continue.${Font}"
-        read -p "   Size (MB): " swap_size
+        echo -e "${Green}请输入需要创建的swap大小（单位：MB）：${Font}"
+        echo -e "${Yellow}建议范围：512MB - ${max_swap_size}MB${Font}"
+        echo -e "${Yellow}推荐：内存的1-2倍，但不超过可用磁盘空间${Font}"
+        read -p "请输入swap大小: " swap_size
         
         # 验证输入是否为数字
         if [[ $swap_size =~ ^[0-9]+$ ]] && [[ $swap_size -gt 0 ]]; then
             # 检查是否超过最大允许大小
             if [[ $swap_size -gt $max_swap_size ]]; then
-                echo -e "${Red}Max size is ${max_swap_size}MB.${Font}"
+                echo -e "${Red}输入的大小超过可用磁盘空间，最大允许：${max_swap_size}MB${Font}"
                 continue
             fi
             
             # 检查是否太小
             if [[ $swap_size -lt 128 ]]; then
-                echo -e "${Red}Swap size too small (min 128MB).${Font}"
+                echo -e "${Red}swap大小太小，建议至少128MB${Font}"
                 continue
             fi
             
-            echo -e "${Green}Selected size: ${swap_size}MB${Font}"
-            read -p "      [y/N]: " confirm
+            echo -e "${Green}将创建${swap_size}MB的swap文件${Font}"
+            read -p "确认创建吗？[y/N]: " confirm
             if [[ $confirm =~ ^[Yy]$ ]]; then
                 create_swap_file $swap_size
                 break
             fi
         else
-            echo -e "${Red}Please enter a valid number.${Font}"
+            echo -e "${Red}请输入有效的数字（大于0）${Font}"
         fi
     done
 }
@@ -714,7 +741,7 @@ manual_create_swap() {
 # 创建swap文件的通用函数（优化版）
 create_swap_file() {
     local swap_size=$1
-    echo -e "${Green}Creating ${swap_size}MB swap file...${Font}"
+    echo -e "${Green}正在创建${swap_size}MB的swap文件...${Font}"
     
     # 检查是否有足够的磁盘空间
     local available_space_kb=$(df / | tail -1 | awk '{print $4}')
@@ -722,28 +749,28 @@ create_swap_file() {
     local required_space_mb=$((swap_size + 200))  # 额外200MB缓冲
     
     if [[ $available_space_mb -lt $required_space_mb ]]; then
-        echo -e "${Red}Insufficient disk space. Required: ${required_space_mb}MB, available: ${available_space_mb}MB${Font}"
+        echo -e "${Red}磁盘空间不足！需要${required_space_mb}MB，可用${available_space_mb}MB${Font}"
         return 1
     fi
     
     # 删除可能存在的旧swap文件
     if [[ -f "/swapfile" ]]; then
-        echo -e "${Yellow}Removing existing swapfile...${Font}"
+        echo -e "${Yellow}检测到已存在的swap文件，正在删除...${Font}"
         swapoff /swapfile 2>/dev/null
         rm -f /swapfile
     fi
     
     # 创建swap文件
-    echo -e "${Blue}Allocating swapfile...${Font}"
+    echo -e "${Blue}正在创建swap文件...${Font}"
     if dd if=/dev/zero of=/swapfile bs=1M count=${swap_size} status=progress 2>/dev/null; then
         # 设置正确的权限
         chmod 600 /swapfile
         
         # 设置为swap文件
-        echo -e "${Blue}Formatting swapfile...${Font}"
+        echo -e "${Blue}正在格式化swap文件...${Font}"
         if mkswap /swapfile >/dev/null 2>&1; then
             # 启用swap
-            echo -e "${Blue}Enabling swap...${Font}"
+            echo -e "${Blue}正在启用swap...${Font}"
             if swapon /swapfile; then
                 # 添加到fstab实现开机自动挂载
                 if ! grep -q "/swapfile" /etc/fstab; then
@@ -751,7 +778,7 @@ create_swap_file() {
                 fi
                 
                 # 优化swap使用策略
-                echo -e "${Blue}Tuning swap settings...${Font}"
+                echo -e "${Blue}正在优化swap参数...${Font}"
                 
                 # 设置swappiness（建议值10-60，默认60）
                 local swappiness=10
@@ -763,29 +790,29 @@ create_swap_file() {
                 echo "vm.vfs_cache_pressure=${vfs_cache_pressure}" >> /etc/sysctl.conf
                 sysctl vm.vfs_cache_pressure=${vfs_cache_pressure} >/dev/null 2>&1
                 
-                echo -e "${Green}Swap status:${Font}"
-                echo -e "${Green}Swap devices:${Font}"
+                echo -e "${Green}Swap创建成功！${Font}"
+                echo -e "${Green}Swap信息：${Font}"
                 cat /proc/swaps
                 echo
-                echo -e "${Green}Memory:${Font}"
+                echo -e "${Green}系统内存信息：${Font}"
                 free -h
                 echo
-                echo -e "${Blue}Swap tuning:${Font}"
-                echo -e "${Green}  swappiness: ${swappiness} (lower = less swap usage)${Font}"
-                echo -e "${Green}  vfs_cache_pressure: ${vfs_cache_pressure} (inode cache pressure)${Font}"
+                echo -e "${Blue}Swap优化参数：${Font}"
+                echo -e "${Green}  swappiness: ${swappiness} (控制swap使用积极性，数值越小越不容易使用swap)${Font}"
+                echo -e "${Green}  vfs_cache_pressure: ${vfs_cache_pressure} (控制内核回收用于目录和inode cache内存的倾向)${Font}"
                 
             else
-                echo -e "${Red}Failed to enable swap.${Font}"
+                echo -e "${Red}启用swap失败！${Font}"
                 rm -f /swapfile
                 return 1
             fi
         else
-            echo -e "${Red}Failed to format swapfile.${Font}"
+            echo -e "${Red}格式化swap文件失败！${Font}"
             rm -f /swapfile
             return 1
         fi
     else
-        echo -e "${Red}Failed to create swapfile.${Font}"
+        echo -e "${Red}创建swap文件失败！可能是磁盘空间不足或权限问题${Font}"
         return 1
     fi
 }
@@ -820,9 +847,7 @@ show_script_menu() {
     lang_echo "${Yellow}7.${Font} 快速切换节点IPv4/IPv6优先级" "${Yellow}7.${Font} Quick IPv4/IPv6 preference switch"
     lang_echo "${Yellow}8.${Font} 内核安装脚本 (BBR/BBR Plus)" "${Yellow}8.${Font} Kernel installer (BBR/BBR Plus)"
     lang_echo "${Yellow}9.${Font} 查询核心配置路径" "${Yellow}9.${Font} Show core config paths"
-    lang_echo "${Yellow}10.${Font} 管理定时重启 ${Blue}(添加/删除cron任务)${Font}" "${Yellow}10.${Font} Manage auto-reboot ${Blue}(add/remove cron job)${Font}"
-    lang_echo "${Yellow}11.${Font} VLESS 蓝绿部署 ${Blue}(高可用监控切流)${Font}" "${Yellow}11.${Font} VLESS Blue-Green ${Blue}(HA monitoring & failover)${Font}"
-    lang_echo "${Yellow}12.${Font} 退出" "${Yellow}12.${Font} Exit"
+    lang_echo "${Yellow}10.${Font} 退出" "${Yellow}10.${Font} Exit"
     echo
     echo -e "${Blue}============================================${Font}"
 }
@@ -842,11 +867,7 @@ execute_script() {
             local download_success=false
             
             # 使用本仓库的修改版install.sh
-            local install_script_name="install.sh"
-            if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
-                install_script_name="install.sh"
-            fi
-            local v2ray_url="${base_url}/${install_script_name}"
+            local v2ray_url="${base_url}/install.sh"
             if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
                 v2ray_url="${base_url}/install_en.sh"
             fi
@@ -865,8 +886,8 @@ execute_script() {
                 bash "$temp_script"
                 lang_echo "${Green}V2Ray 脚本执行完成${Font}" "${Green}V2Ray install script finished${Font}"
                 rm -f "$temp_script"
-                # 询问用户是否添加定时重启任务
-                ask_crontab_reboot
+                # 添加定时重启任务
+                add_crontab_reboot
             else
                 lang_echo "${Red}错误：无法从远程仓库获取 V2Ray 安装脚本！${Font}" "${Red}Error: unable to download V2Ray installer!${Font}"
                 lang_echo "${Yellow}请检查网络连接或稍后重试${Font}" "${Yellow}Check your network connection or try again later${Font}"
@@ -908,11 +929,7 @@ execute_script() {
         3)
             lang_echo "${Green}正在启动 Swap 管理脚本...${Font}" "${Green}Launching swap manager...${Font}"
             lang_echo "${Yellow}正在从远程仓库获取 swap.sh...${Font}" "${Yellow}Fetching swap.sh from repository...${Font}"
-            local swap_script_name="swap.sh"
-            if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
-                swap_script_name="swap.sh"
-            fi
-            if bash <(wget -qO- "${base_url}/${swap_script_name}" 2>/dev/null || curl -fsSL "${base_url}/${swap_script_name}" 2>/dev/null); then
+            if bash <(wget -qO- "${base_url}/swap.sh" 2>/dev/null || curl -fsSL "${base_url}/swap.sh" 2>/dev/null); then
                 lang_echo "${Green}脚本执行完成${Font}" "${Green}Script finished${Font}"
             else
                 lang_echo "${Red}错误：无法从远程仓库获取 swap.sh 脚本！${Font}" "${Red}Error: unable to download swap.sh!${Font}"
@@ -944,11 +961,7 @@ execute_script() {
             else
                 lang_echo "${Yellow}正在从远程仓库获取 install_kernel.sh...${Font}" "${Yellow}Fetching install_kernel.sh from repository...${Font}"
                 local temp_script="/tmp/install_kernel.sh"
-                local kernel_script_name="install_kernel.sh"
-                if [[ "${LANGUAGE_CHOICE}" == "en" ]]; then
-                    kernel_script_name="install_kernel.sh"
-                fi
-                local kernel_url="${base_url}/${kernel_script_name}"
+                local kernel_url="${base_url}/install_kernel.sh"
                 
                 if wget -qO "$temp_script" "$kernel_url" 2>/dev/null || curl -fsSL "$kernel_url" -o "$temp_script" 2>/dev/null; then
                     bash "$temp_script"
@@ -963,66 +976,27 @@ execute_script() {
             show_config_paths
             ;;
         10)
-            manage_crontab_menu
-            ;;
-        11)
-            lang_echo "${Green}进入 VLESS 蓝绿部署管理...${Font}" "${Green}Opening VLESS Blue-Green management...${Font}"
-            vless_bluegreen_menu
-            ;;
-        12)
             lang_echo "${Green}感谢使用，再见！${Font}" "${Green}Thanks for using, bye!${Font}"
             exit 0
             ;;
         *)
-            lang_echo "${Red}无效选择，请输入 1-12${Font}" "${Red}Invalid choice, please enter 1-12${Font}"
+            lang_echo "${Red}无效选择，请输入 1-10${Font}" "${Red}Invalid choice, please enter 1-10${Font}"
             sleep 2
             main_menu
             ;;
     esac
 }
 
-# 询问用户是否添加定时重启任务
-ask_crontab_reboot() {
-    echo
-    echo -e "${Blue}============================================${Font}"
-    lang_echo "${Green}是否需要添加每日定时重启任务？${Font}" "${Green}Add daily auto-reboot schedule?${Font}"
-    echo -e "${Blue}============================================${Font}"
+# 添加定时重启任务
+add_crontab_reboot() {
+    echo -e "${Blue}正在配置系统定时重启任务...${Font}"
     
     # 检查是否已存在重启任务
     if crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-        lang_echo "${Yellow}注意：系统已存在定时重启任务${Font}" "${Yellow}Note: Auto-reboot task already exists${Font}"
-        echo
-        lang_echo "${Green}1. 保持现有设置${Font}" "${Green}1. Keep current setting${Font}"
-        lang_echo "${Green}2. 移除定时重启${Font}" "${Green}2. Remove auto-reboot${Font}"
-        echo
-        read -p "$(lang_text '请选择 [1-2，默认1]: ' 'Choose [1-2, default 1]: ')" reboot_choice
-        reboot_choice=${reboot_choice:-1}
-        
-        if [[ "$reboot_choice" == "2" ]]; then
-            remove_crontab_reboot
-        else
-            lang_echo "${Green}保持现有定时重启设置${Font}" "${Green}Keeping existing auto-reboot setting${Font}"
-        fi
-    else
-        lang_echo "${Yellow}定时重启可以帮助保持系统稳定性（每天凌晨5点）${Font}" "${Yellow}Auto-reboot helps maintain system stability (5:00 AM daily)${Font}"
-        echo
-        lang_echo "${Green}1. 添加定时重启（推荐）${Font}" "${Green}1. Add auto-reboot (recommended)${Font}"
-        lang_echo "${Green}2. 暂不添加${Font}" "${Green}2. Skip for now${Font}"
-        echo
-        read -p "$(lang_text '请选择 [1-2，默认2]: ' 'Choose [1-2, default 2]: ')" reboot_choice
-        reboot_choice=${reboot_choice:-2}
-        
-        if [[ "$reboot_choice" == "1" ]]; then
-            add_crontab_reboot
-        else
-            lang_echo "${Green}已跳过定时重启设置${Font}" "${Green}Skipped auto-reboot setup${Font}"
-        fi
+        echo -e "${Yellow}检测到已存在定时重启任务，跳过添加。${Font}"
+        return 0
     fi
-    echo
-}
-
-# 添加定时重启任务
-add_crontab_reboot() {
+    
     # 备份当前的crontab
     crontab -l 2>/dev/null > /tmp/current_crontab || touch /tmp/current_crontab
     
@@ -1031,113 +1005,27 @@ add_crontab_reboot() {
     
     # 应用新的crontab
     if crontab /tmp/current_crontab; then
-        lang_echo "${Green}✓ 已成功添加定时重启任务${Font}" "${Green}✓ Auto-reboot task added successfully${Font}"
-        lang_echo "${Green}  计划时间：每天凌晨 5:00${Font}" "${Green}  Scheduled time: 5:00 AM daily${Font}"
+        echo -e "${Green}定时重启任务添加成功！${Font}"
+        echo -e "${Green}系统将在每日凌晨5:00自动重启${Font}"
         rm -f /tmp/current_crontab
     else
-        lang_echo "${Red}✗ 添加定时重启失败${Font}" "${Red}✗ Failed to add auto-reboot${Font}"
+        echo -e "${Red}定时重启任务添加失败！${Font}"
         rm -f /tmp/current_crontab
     fi
-}
-
-# 移除定时重启任务
-remove_crontab_reboot() {
-    # 备份当前的crontab
-    crontab -l 2>/dev/null > /tmp/current_crontab || touch /tmp/current_crontab
     
-    # 移除重启任务
-    sed -i '/\/sbin\/reboot/d' /tmp/current_crontab
-    
-    # 应用新的crontab
-    if crontab /tmp/current_crontab; then
-        lang_echo "${Green}✓ 已成功移除定时重启任务${Font}" "${Green}✓ Auto-reboot task removed successfully${Font}"
-        rm -f /tmp/current_crontab
-    else
-        lang_echo "${Red}✗ 移除定时重启失败${Font}" "${Red}✗ Failed to remove auto-reboot${Font}"
-        rm -f /tmp/current_crontab
-    fi
-}
-
-# Cron定时重启管理菜单
-manage_crontab_menu() {
-    while true; do
-        echo
-        echo -e "${Blue}============================================${Font}"
-        lang_echo "${Green}     定时重启管理${Font}" "${Green}     Auto-Reboot Management${Font}"
-        echo -e "${Blue}============================================${Font}"
-        echo
-        
-        # 检查当前状态
-        if crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-            lang_echo "${Green}当前状态：${Font}${Yellow}已启用定时重启${Font}" "${Green}Status:${Font} ${Yellow}Auto-reboot enabled${Font}"
-            lang_echo "${Yellow}  计划时间：每天凌晨 5:00${Font}" "${Yellow}  Schedule: 5:00 AM daily${Font}"
-        else
-            lang_echo "${Green}当前状态：${Font}${Red}未启用定时重启${Font}" "${Green}Status:${Font} ${Red}Auto-reboot disabled${Font}"
-        fi
-        
-        echo
-        lang_echo "${Green}可用操作：${Font}" "${Green}Available actions:${Font}"
-        echo
-        lang_echo "${Yellow}1.${Font} 添加定时重启任务" "${Yellow}1.${Font} Add auto-reboot task"
-        lang_echo "${Yellow}2.${Font} 移除定时重启任务" "${Yellow}2.${Font} Remove auto-reboot task"
-        lang_echo "${Yellow}3.${Font} 查看所有cron任务" "${Yellow}3.${Font} View all cron tasks"
-        lang_echo "${Yellow}4.${Font} 返回主菜单" "${Yellow}4.${Font} Back to main menu"
-        echo
-        echo -e "${Blue}============================================${Font}"
-        
-        read -p "$(lang_text '请选择 [1-4]: ' 'Choose [1-4]: ')" cron_choice
-        
-        case "$cron_choice" in
-            1)
-                echo
-                if crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-                    lang_echo "${Yellow}定时重启任务已存在，无需重复添加${Font}" "${Yellow}Auto-reboot task already exists${Font}"
-                else
-                    add_crontab_reboot
-                fi
-                sleep 2
-                ;;
-            2)
-                echo
-                if crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-                    remove_crontab_reboot
-                else
-                    lang_echo "${Yellow}未找到定时重启任务${Font}" "${Yellow}Auto-reboot task not found${Font}"
-                fi
-                sleep 2
-                ;;
-            3)
-                echo
-                echo -e "${Blue}============================================${Font}"
-                lang_echo "${Green}当前所有cron任务：${Font}" "${Green}All current cron tasks:${Font}"
-                echo -e "${Blue}============================================${Font}"
-                if crontab -l 2>/dev/null | grep -v "^#" | grep -v "^$"; then
-                    lang_echo "${Green}任务列表如上${Font}" "${Green}Tasks listed above${Font}"
-                else
-                    lang_echo "${Yellow}未设置任何cron任务${Font}" "${Yellow}No cron tasks configured${Font}"
-                fi
-                echo
-                read -p "$(lang_text '按回车键继续...' 'Press Enter to continue...')"
-                ;;
-            4)
-                return
-                ;;
-            *)
-                lang_echo "${Red}无效选择，请输入 1-4${Font}" "${Red}Invalid choice, please enter 1-4${Font}"
-                sleep 2
-                ;;
-        esac
-    done
+    echo -e "${Blue}当前定时任务：${Font}"
+    crontab -l 2>/dev/null | grep -v "^#" | grep -v "^$" || echo -e "${Yellow}暂无定时任务${Font}"
+    echo
 }
 
 # 主菜单
 main_menu() {
     while true; do
         show_script_menu
-        read -p "$(lang_text "请输入您的选择 [1-12]: " "Choose an option [1-12]: ")" choice
+        read -p "$(lang_text "请输入您的选择 [1-10]: " "Choose an option [1-10]: ")" choice
         execute_script "$choice"
         echo
-        if [[ "$choice" != "11" ]]; then
+        if [[ "$choice" != "10" ]]; then
             read -p "$(lang_text "脚本执行完毕，按回车键返回主菜单..." "Script finished. Press Enter to return to the main menu...")"
         fi
     done
@@ -1200,7 +1088,7 @@ show_config_paths() {
 # 初始化函数（优化版）
 initialize() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}      One-Script      ${Font}"
+    echo -e "${Green}      One-Script 环境初始化${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
@@ -1222,7 +1110,7 @@ initialize() {
     # 自动创建swap
     auto_create_swap
     
-    echo -e "${Green}        ${Font}"
+    echo -e "${Green}环境初始化完成！${Font}"
     sleep 2
 }
 
@@ -1346,11 +1234,11 @@ system_tools_menu() {
                 break
                 ;;
             10)
-                echo -e "${Yellow}     ${Font}"
+                echo -e "${Yellow}返回主菜单${Font}"
                 return 0
                 ;;
             *)
-                echo -e "${Red}         1-10${Font}"
+                echo -e "${Red}无效选择，请输入 1-10${Font}"
                 ;;
         esac
     done
@@ -1360,49 +1248,49 @@ system_tools_menu() {
 show_system_info() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}                 ${Font}"
+    echo -e "${Green}           详细系统信息${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
     # 基本系统信息
-    echo -e "${Green}       ${Font}"
-    echo -e "${Yellow}      $(hostname)${Font}"
-    echo -e "${Yellow}     $(uname -o) $(uname -m)${Font}"
-    echo -e "${Yellow}     $(uname -r)${Font}"
-    echo -e "${Yellow}       $(uptime -p 2>/dev/null || uptime)${Font}"
+    echo -e "${Green}基本系统信息：${Font}"
+    echo -e "${Yellow}  主机名：$(hostname)${Font}"
+    echo -e "${Yellow}  系统：$(uname -o) $(uname -m)${Font}"
+    echo -e "${Yellow}  内核：$(uname -r)${Font}"
+    echo -e "${Yellow}  运行时间：$(uptime -p 2>/dev/null || uptime)${Font}"
     
     if [[ -f "/etc/os-release" ]]; then
         source /etc/os-release
-        echo -e "${Yellow}      ${NAME} ${VERSION}${Font}"
+        echo -e "${Yellow}  发行版：${NAME} ${VERSION}${Font}"
     fi
     echo
     
     # CPU信息
-    echo -e "${Green}CPU   ${Font}"
+    echo -e "${Green}CPU信息：${Font}"
     if [[ -f "/proc/cpuinfo" ]]; then
         local cpu_model=$(grep "model name" /proc/cpuinfo | head -n1 | cut -d: -f2 | sed 's/^ *//')
         local cpu_cores=$(grep -c "^processor" /proc/cpuinfo)
-        echo -e "${Yellow}  CPU   ${cpu_model}${Font}"
-        echo -e "${Yellow}  CPU    ${cpu_cores}${Font}"
+        echo -e "${Yellow}  CPU型号：${cpu_model}${Font}"
+        echo -e "${Yellow}  CPU核心数：${cpu_cores}${Font}"
     fi
     echo
     
     # 内存信息
-    echo -e "${Green}     ${Font}"
+    echo -e "${Green}内存信息：${Font}"
     if command -v free >/dev/null 2>&1; then
         free -h
     fi
     echo
     
     # 磁盘信息
-    echo -e "${Green}       ${Font}"
+    echo -e "${Green}磁盘使用情况：${Font}"
     if command -v df >/dev/null 2>&1; then
         df -h
     fi
     echo
     
     # 网络接口信息
-    echo -e "${Green}     ${Font}"
+    echo -e "${Green}网络接口：${Font}"
     if command -v ip >/dev/null 2>&1; then
         ip addr show | grep -E "(inet|inet6)" | grep -v "127.0.0.1" | grep -v "::1"
     elif command -v ifconfig >/dev/null 2>&1; then
@@ -1411,13 +1299,13 @@ show_system_info() {
     echo
     
     # 负载信息
-    echo -e "${Green}     ${Font}"
+    echo -e "${Green}系统负载：${Font}"
     if [[ -f "/proc/loadavg" ]]; then
-        echo -e "${Yellow}        $(cat /proc/loadavg)${Font}"
+        echo -e "${Yellow}  负载平均值：$(cat /proc/loadavg)${Font}"
     fi
     echo
     
-    read -p "            ..."
+    read -p "按回车键返回系统工具菜单..."
     system_tools_menu
 }
 
@@ -1425,83 +1313,83 @@ show_system_info() {
 network_diagnostic_tools() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}                 ${Font}"
+    echo -e "${Green}           网络诊断工具${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
-    echo -e "${Green}       ${Font}"
-    echo -e "${Yellow}1.${Font}       "
-    echo -e "${Yellow}2.${Font} DNS    "
-    echo -e "${Yellow}3.${Font}        "
-    echo -e "${Yellow}4.${Font}       "
-    echo -e "${Yellow}5.${Font}     "
-    echo -e "${Yellow}6.${Font}       "
+    echo -e "${Green}网络诊断选项：${Font}"
+    echo -e "${Yellow}1.${Font} 网络连接测试"
+    echo -e "${Yellow}2.${Font} DNS解析测试"
+    echo -e "${Yellow}3.${Font} 端口连通性测试"
+    echo -e "${Yellow}4.${Font} 网络速度测试"
+    echo -e "${Yellow}5.${Font} 路由追踪"
+    echo -e "${Yellow}6.${Font} 返回系统工具"
     echo
     
     local choice
     while true; do
-        read -p "        [1-6]: " choice
+        read -p "请选择诊断项目 [1-6]: " choice
         case $choice in
             1)
-                echo -e "${Blue}        ...${Font}"
-                echo -e "${Green}       ${Font}"
-                ping -c 4 baidu.com 2>/dev/null && echo -e "${Green}        ${Font}" || echo -e "${Red}        ${Font}"
-                echo -e "${Green}       ${Font}"
-                ping -c 4 google.com 2>/dev/null && echo -e "${Green}        ${Font}" || echo -e "${Red}        ${Font}"
-                ping -c 4 github.com 2>/dev/null && echo -e "${Green}  GitHub    ${Font}" || echo -e "${Red}  GitHub    ${Font}"
+                echo -e "${Blue}正在测试网络连接...${Font}"
+                echo -e "${Green}测试国内连接：${Font}"
+                ping -c 4 baidu.com 2>/dev/null && echo -e "${Green}  百度连接正常${Font}" || echo -e "${Red}  百度连接失败${Font}"
+                echo -e "${Green}测试国外连接：${Font}"
+                ping -c 4 google.com 2>/dev/null && echo -e "${Green}  谷歌连接正常${Font}" || echo -e "${Red}  谷歌连接失败${Font}"
+                ping -c 4 github.com 2>/dev/null && echo -e "${Green}  GitHub连接正常${Font}" || echo -e "${Red}  GitHub连接失败${Font}"
                 break
                 ;;
             2)
-                echo -e "${Blue}    DNS  ...${Font}"
+                echo -e "${Blue}正在测试DNS解析...${Font}"
                 if command -v dig >/dev/null 2>&1; then
-                    echo -e "${Green}  dig  DNS   ${Font}"
+                    echo -e "${Green}使用dig测试DNS解析：${Font}"
                     dig @8.8.8.8 google.com +short
                     dig @1.1.1.1 cloudflare.com +short
                 elif command -v nslookup >/dev/null 2>&1; then
-                    echo -e "${Green}  nslookup  DNS   ${Font}"
+                    echo -e "${Green}使用nslookup测试DNS解析：${Font}"
                     nslookup google.com 8.8.8.8
                 fi
                 break
                 ;;
             3)
-                echo -e "${Blue}       ${Font}"
-                read -p "           IP: " host
-                read -p "         : " port
+                echo -e "${Blue}端口连通性测试${Font}"
+                read -p "请输入要测试的主机名或IP: " host
+                read -p "请输入要测试的端口: " port
                 if command -v nc >/dev/null 2>&1; then
                     nc -zv "$host" "$port" 2>&1
                 elif command -v telnet >/dev/null 2>&1; then
                     timeout 5 telnet "$host" "$port"
                 else
-                    echo -e "${Red}   nc telnet  ${Font}"
+                    echo -e "${Red}未找到nc或telnet工具${Font}"
                 fi
                 break
                 ;;
             4)
-                echo -e "${Blue}           speedtest-cli ${Font}"
+                echo -e "${Blue}网络速度测试（需要安装speedtest-cli）${Font}"
                 if command -v speedtest-cli >/dev/null 2>&1; then
                     speedtest-cli
                 else
-                    echo -e "${Yellow}      speedtest-cli...${Font}"
+                    echo -e "${Yellow}正在尝试安装speedtest-cli...${Font}"
                     if command -v apt >/dev/null 2>&1; then
                         apt update && apt install -y speedtest-cli
                     elif command -v yum >/dev/null 2>&1; then
                         yum install -y speedtest-cli
                     else
-                        echo -e "${Red}      speedtest-cli${Font}"
+                        echo -e "${Red}无法自动安装speedtest-cli${Font}"
                     fi
                 fi
                 break
                 ;;
             5)
-                echo -e "${Blue}    ${Font}"
-                read -p "           IP (  : google.com): " target
+                echo -e "${Blue}路由追踪${Font}"
+                read -p "请输入要追踪的主机名或IP (默认: google.com): " target
                 target=${target:-google.com}
                 if command -v traceroute >/dev/null 2>&1; then
                     traceroute "$target"
                 elif command -v tracepath >/dev/null 2>&1; then
                     tracepath "$target"
                 else
-                    echo -e "${Red}   traceroute tracepath  ${Font}"
+                    echo -e "${Red}未找到traceroute或tracepath工具${Font}"
                 fi
                 break
                 ;;
@@ -1510,13 +1398,13 @@ network_diagnostic_tools() {
                 return
                 ;;
             *)
-                echo -e "${Red}         1-6${Font}"
+                echo -e "${Red}无效选择，请输入 1-6${Font}"
                 ;;
         esac
     done
     
     echo
-    read -p "            ..."
+    read -p "按回车键返回网络诊断菜单..."
     network_diagnostic_tools
 }
 
@@ -1524,62 +1412,62 @@ network_diagnostic_tools() {
 performance_monitoring() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}                ${Font}"
+    echo -e "${Green}         性能监控和优化${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
-    echo -e "${Green}           ${Font}"
+    echo -e "${Green}当前系统资源使用情况：${Font}"
     
     # CPU使用率
     if command -v top >/dev/null 2>&1; then
-        echo -e "${Yellow}CPU        ${Font}"
+        echo -e "${Yellow}CPU使用率（实时）：${Font}"
         top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print "CPU使用率: " 100-$1 "%"}'
     fi
     
     # 内存使用
-    echo -e "${Yellow}       ${Font}"
+    echo -e "${Yellow}内存使用情况：${Font}"
     free -h
     echo
     
     # 磁盘I/O
-    echo -e "${Yellow}       ${Font}"
+    echo -e "${Yellow}磁盘使用情况：${Font}"
     df -h
     echo
     
     # 进程信息
-    echo -e "${Yellow}          CPU  ${Font}"
+    echo -e "${Yellow}占用资源最多的进程（CPU）：${Font}"
     ps aux --sort=-%cpu | head -6
     echo
     
-    echo -e "${Yellow}              ${Font}"
+    echo -e "${Yellow}占用资源最多的进程（内存）：${Font}"
     ps aux --sort=-%mem | head -6
     echo
     
     # 系统优化建议
-    echo -e "${Green}       ${Font}"
-    echo -e "${Yellow}1.${Font}       "
-    echo -e "${Yellow}2.${Font}   Swap  "
-    echo -e "${Yellow}3.${Font}       "
+    echo -e "${Green}系统优化选项：${Font}"
+    echo -e "${Yellow}1.${Font} 清理系统缓存"
+    echo -e "${Yellow}2.${Font} 优化Swap设置"
+    echo -e "${Yellow}3.${Font} 返回系统工具"
     
     local choice
-    read -p "        [1-3]: " choice
+    read -p "请选择优化项目 [1-3]: " choice
     case $choice in
         1)
-            echo -e "${Blue}        ...${Font}"
+            echo -e "${Blue}正在清理系统缓存...${Font}"
             sync
             echo 3 > /proc/sys/vm/drop_caches
-            echo -e "${Green}        ${Font}"
+            echo -e "${Green}系统缓存清理完成${Font}"
             ;;
         2)
-            echo -e "${Blue}  Swap   ${Font}"
-            cat /proc/sys/vm/swappiness 2>/dev/null || echo "    swappiness  "
-            read -p "     swappiness  (1-100,   10-60): " swappiness
+            echo -e "${Blue}当前Swap设置：${Font}"
+            cat /proc/sys/vm/swappiness 2>/dev/null || echo "无法读取swappiness设置"
+            read -p "请输入新的swappiness值 (1-100, 推荐10-60): " swappiness
             if [[ $swappiness =~ ^[0-9]+$ ]] && [[ $swappiness -ge 1 ]] && [[ $swappiness -le 100 ]]; then
                 echo "vm.swappiness=$swappiness" >> /etc/sysctl.conf
                 sysctl vm.swappiness=$swappiness
-                echo -e "${Green}Swap     ${Font}"
+                echo -e "${Green}Swap设置已更新${Font}"
             else
-                echo -e "${Red}   swappiness ${Font}"
+                echo -e "${Red}无效的swappiness值${Font}"
             fi
             ;;
         3)
@@ -1589,7 +1477,7 @@ performance_monitoring() {
     esac
     
     echo
-    read -p "            ..."
+    read -p "按回车键返回系统工具菜单..."
     system_tools_menu
 }
 
@@ -1597,7 +1485,7 @@ performance_monitoring() {
 firewall_management() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}                ${Font}"
+    echo -e "${Green}           防火墙管理${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
@@ -1605,29 +1493,29 @@ firewall_management() {
     local firewall_type=""
     if command -v ufw >/dev/null 2>&1; then
         firewall_type="ufw"
-        echo -e "${Green}    UFW    ${Font}"
+        echo -e "${Green}检测到 UFW 防火墙${Font}"
         ufw status
     elif command -v firewall-cmd >/dev/null 2>&1; then
         firewall_type="firewalld"
-        echo -e "${Green}    Firewalld    ${Font}"
+        echo -e "${Green}检测到 Firewalld 防火墙${Font}"
         firewall-cmd --state 2>/dev/null && firewall-cmd --list-all 2>/dev/null
     elif command -v iptables >/dev/null 2>&1; then
         firewall_type="iptables"
-        echo -e "${Green}    IPTables${Font}"
+        echo -e "${Green}检测到 IPTables${Font}"
         iptables -L INPUT -n --line-numbers | head -10
     else
-        echo -e "${Yellow}            ${Font}"
+        echo -e "${Yellow}未检测到常见的防火墙工具${Font}"
     fi
     
     echo
-    echo -e "${Green}        ${Font}"
-    echo -e "${Yellow}1.${Font}        "
-    echo -e "${Yellow}2.${Font}     "
-    echo -e "${Yellow}3.${Font}     "
-    echo -e "${Yellow}4.${Font}       "
+    echo -e "${Green}防火墙管理选项：${Font}"
+    echo -e "${Yellow}1.${Font} 查看防火墙状态"
+    echo -e "${Yellow}2.${Font} 开放端口"
+    echo -e "${Yellow}3.${Font} 关闭端口"
+    echo -e "${Yellow}4.${Font} 返回系统工具"
     
     local choice
-    read -p "      [1-4]: " choice
+    read -p "请选择操作 [1-4]: " choice
     case $choice in
         1)
             case $firewall_type in
@@ -1641,12 +1529,12 @@ firewall_management() {
                     iptables -L -n --line-numbers
                     ;;
                 *)
-                    echo -e "${Red}         ${Font}"
+                    echo -e "${Red}无法识别防火墙类型${Font}"
                     ;;
             esac
             ;;
         2)
-            read -p "         : " port
+            read -p "请输入要开放的端口: " port
             case $firewall_type in
                 "ufw")
                     ufw allow "$port"
@@ -1660,21 +1548,21 @@ firewall_management() {
                     # 自动保存iptables规则
                     if command -v netfilter-persistent >/dev/null 2>&1; then
                         netfilter-persistent save
-                        echo -e "${Green}iptables       ${Font}"
+                        echo -e "${Green}iptables规则已自动保存${Font}"
                     elif [[ -f /etc/iptables/rules.v4 ]] && command -v iptables-save >/dev/null 2>&1; then
                         iptables-save > /etc/iptables/rules.v4
-                        echo -e "${Green}iptables       /etc/iptables/rules.v4${Font}"
+                        echo -e "${Green}iptables规则已保存到 /etc/iptables/rules.v4${Font}"
                     else
-                        echo -e "${Yellow}   iptables        ${Font}"
+                        echo -e "${Yellow}注意：iptables规则需要手动保存${Font}"
                     fi
                     ;;
                 *)
-                    echo -e "${Red}         ${Font}"
+                    echo -e "${Red}无法识别防火墙类型${Font}"
                     ;;
             esac
             ;;
         3)
-            read -p "         : " port
+            read -p "请输入要关闭的端口: " port
             case $firewall_type in
                 "ufw")
                     ufw deny "$port"
@@ -1685,29 +1573,29 @@ firewall_management() {
                     ;;
                 "iptables")
                     # 显示现有规则供用户参考
-                    echo -e "${Blue}  iptables INPUT   ${Font}"
+                    echo -e "${Blue}当前iptables INPUT规则：${Font}"
                     iptables -L INPUT -n --line-numbers | grep "$port"
                     echo
-                    echo -e "${Yellow}                ${Font}"
-                    echo -e "${Blue}iptables -D INPUT <    >${Font}"
-                    echo -e "${Yellow}     ${Font}"
+                    echo -e "${Yellow}请手动使用以下命令删除对应规则：${Font}"
+                    echo -e "${Blue}iptables -D INPUT <规则编号>${Font}"
+                    echo -e "${Yellow}或者使用：${Font}"
                     echo -e "${Blue}iptables -D INPUT -p tcp --dport $port -j ACCEPT${Font}"
                     echo
-                    read -p "            $port  ACCEPT   [y/N]: " auto_remove
+                    read -p "是否要自动尝试删除端口 $port 的ACCEPT规则？[y/N]: " auto_remove
                     if [[ $auto_remove =~ ^[Yy]$ ]]; then
                         iptables -D INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null
                         if command -v netfilter-persistent >/dev/null 2>&1; then
                             netfilter-persistent save
-                            echo -e "${Green}iptables       ${Font}"
+                            echo -e "${Green}iptables规则已自动保存${Font}"
                         elif [[ -f /etc/iptables/rules.v4 ]] && command -v iptables-save >/dev/null 2>&1; then
                             iptables-save > /etc/iptables/rules.v4
-                            echo -e "${Green}iptables       /etc/iptables/rules.v4${Font}"
+                            echo -e "${Green}iptables规则已保存到 /etc/iptables/rules.v4${Font}"
                         fi
-                        echo -e "${Green}   $port         ${Font}"
+                        echo -e "${Green}端口 $port 的规则已尝试删除${Font}"
                     fi
                     ;;
                 *)
-                    echo -e "${Red}         ${Font}"
+                    echo -e "${Red}无法识别防火墙类型${Font}"
                     ;;
             esac
             ;;
@@ -1718,7 +1606,7 @@ firewall_management() {
     esac
     
     echo
-    read -p "           ..."
+    read -p "按回车键返回防火墙管理..."
     firewall_management
 }
 
@@ -1726,11 +1614,11 @@ firewall_management() {
 service_management() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}               ${Font}"
+    echo -e "${Green}           服务管理${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
-    echo -e "${Green}       ${Font}"
+    echo -e "${Green}常见服务状态：${Font}"
     
     # 检查常见服务
     local services=("nginx" "apache2" "ssh" "sshd" "docker" "mysql" "mariadb")
@@ -1739,42 +1627,42 @@ service_management() {
         if systemctl list-unit-files | grep -q "^$service.service"; then
             local status=$(systemctl is-active "$service" 2>/dev/null)
             if [[ "$status" == "active" ]]; then
-                echo -e "${Green}  $service:    ${Font}"
+                echo -e "${Green}  $service: 运行中${Font}"
             else
-                echo -e "${Yellow}  $service:    ${Font}"
+                echo -e "${Yellow}  $service: 未运行${Font}"
             fi
         fi
     done
     
     echo
-    echo -e "${Green}       ${Font}"
-    echo -e "${Yellow}1.${Font}         "
-    echo -e "${Yellow}2.${Font}     "
-    echo -e "${Yellow}3.${Font}     "
-    echo -e "${Yellow}4.${Font}     "
-    echo -e "${Yellow}5.${Font}       "
-    echo -e "${Yellow}6.${Font}       "
+    echo -e "${Green}服务管理选项：${Font}"
+    echo -e "${Yellow}1.${Font} 查看所有服务状态"
+    echo -e "${Yellow}2.${Font} 启动服务"
+    echo -e "${Yellow}3.${Font} 停止服务"
+    echo -e "${Yellow}4.${Font} 重启服务"
+    echo -e "${Yellow}5.${Font} 查看服务日志"
+    echo -e "${Yellow}6.${Font} 返回系统工具"
     
     local choice
-    read -p "      [1-6]: " choice
+    read -p "请选择操作 [1-6]: " choice
     case $choice in
         1)
             systemctl list-unit-files --type=service | grep enabled | head -20
             ;;
         2)
-            read -p "          : " service_name
-            systemctl start "$service_name" && echo -e "${Green}      ${Font}" || echo -e "${Red}      ${Font}"
+            read -p "请输入要启动的服务名: " service_name
+            systemctl start "$service_name" && echo -e "${Green}服务启动成功${Font}" || echo -e "${Red}服务启动失败${Font}"
             ;;
         3)
-            read -p "          : " service_name
-            systemctl stop "$service_name" && echo -e "${Green}      ${Font}" || echo -e "${Red}      ${Font}"
+            read -p "请输入要停止的服务名: " service_name
+            systemctl stop "$service_name" && echo -e "${Green}服务停止成功${Font}" || echo -e "${Red}服务停止失败${Font}"
             ;;
         4)
-            read -p "          : " service_name
-            systemctl restart "$service_name" && echo -e "${Green}      ${Font}" || echo -e "${Red}      ${Font}"
+            read -p "请输入要重启的服务名: " service_name
+            systemctl restart "$service_name" && echo -e "${Green}服务重启成功${Font}" || echo -e "${Red}服务重启失败${Font}"
             ;;
         5)
-            read -p "            : " service_name
+            read -p "请输入要查看日志的服务名: " service_name
             journalctl -u "$service_name" -n 50 --no-pager
             ;;
         6)
@@ -1784,7 +1672,7 @@ service_management() {
     esac
     
     echo
-    read -p "          ..."
+    read -p "按回车键返回服务管理..."
     service_management
 }
 
@@ -1792,57 +1680,57 @@ service_management() {
 disk_cleanup() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}                 ${Font}"
+    echo -e "${Green}           磁盘空间清理${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
-    echo -e "${Green}         ${Font}"
+    echo -e "${Green}当前磁盘使用情况：${Font}"
     df -h
     echo
     
-    echo -e "${Green}     ${Font}"
-    echo -e "${Yellow}1.${Font}   APT   (Debian/Ubuntu)"
-    echo -e "${Yellow}2.${Font}   YUM   (CentOS/RHEL)"
-    echo -e "${Yellow}3.${Font}       "
-    echo -e "${Yellow}4.${Font}       "
-    echo -e "${Yellow}5.${Font}      "
-    echo -e "${Yellow}6.${Font}       "
+    echo -e "${Green}清理选项：${Font}"
+    echo -e "${Yellow}1.${Font} 清理APT缓存 (Debian/Ubuntu)"
+    echo -e "${Yellow}2.${Font} 清理YUM缓存 (CentOS/RHEL)"
+    echo -e "${Yellow}3.${Font} 清理临时文件"
+    echo -e "${Yellow}4.${Font} 清理日志文件"
+    echo -e "${Yellow}5.${Font} 查找大文件"
+    echo -e "${Yellow}6.${Font} 返回系统工具"
     
     local choice
-    read -p "        [1-6]: " choice
+    read -p "请选择清理项目 [1-6]: " choice
     case $choice in
         1)
             if command -v apt >/dev/null 2>&1; then
-                echo -e "${Blue}    APT  ...${Font}"
+                echo -e "${Blue}正在清理APT缓存...${Font}"
                 apt clean && apt autoremove -y && apt autoclean
-                echo -e "${Green}APT      ${Font}"
+                echo -e "${Green}APT缓存清理完成${Font}"
             else
-                echo -e "${Red}     APT    ${Font}"
+                echo -e "${Red}系统不支持APT包管理器${Font}"
             fi
             ;;
         2)
             if command -v yum >/dev/null 2>&1; then
-                echo -e "${Blue}    YUM  ...${Font}"
+                echo -e "${Blue}正在清理YUM缓存...${Font}"
                 yum clean all
-                echo -e "${Green}YUM      ${Font}"
+                echo -e "${Green}YUM缓存清理完成${Font}"
             else
-                echo -e "${Red}     YUM    ${Font}"
+                echo -e "${Red}系统不支持YUM包管理器${Font}"
             fi
             ;;
         3)
-            echo -e "${Blue}        ...${Font}"
+            echo -e "${Blue}正在清理临时文件...${Font}"
             rm -rf /tmp/* 2>/dev/null
             rm -rf /var/tmp/* 2>/dev/null
-            echo -e "${Green}        ${Font}"
+            echo -e "${Green}临时文件清理完成${Font}"
             ;;
         4)
-            echo -e "${Blue}        ...${Font}"
+            echo -e "${Blue}正在清理日志文件...${Font}"
             journalctl --vacuum-time=7d 2>/dev/null
             find /var/log -name "*.log" -type f -mtime +7 -delete 2>/dev/null
-            echo -e "${Green}        ${Font}"
+            echo -e "${Green}日志文件清理完成${Font}"
             ;;
         5)
-            echo -e "${Blue}    100MB   ...${Font}"
+            echo -e "${Blue}查找大于100MB的文件...${Font}"
             find / -type f -size +100M -exec ls -lh {} \; 2>/dev/null | head -10
             ;;
         6)
@@ -1852,10 +1740,10 @@ disk_cleanup() {
     esac
     
     echo
-    echo -e "${Green}          ${Font}"
+    echo -e "${Green}清理后磁盘使用情况：${Font}"
     df -h
     echo
-    read -p "          ..."
+    read -p "按回车键返回磁盘清理..."
     disk_cleanup
 }
 
@@ -1863,61 +1751,61 @@ disk_cleanup() {
 view_system_logs() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}                 ${Font}"
+    echo -e "${Green}           系统日志查看${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
-    echo -e "${Green}       ${Font}"
-    echo -e "${Yellow}1.${Font}        (syslog)"
-    echo -e "${Yellow}2.${Font}        (dmesg)"
-    echo -e "${Yellow}3.${Font}        (auth.log)"
-    echo -e "${Yellow}4.${Font}        (boot.log)"
-    echo -e "${Yellow}5.${Font}   journalctl  "
-    echo -e "${Yellow}6.${Font}       "
+    echo -e "${Green}日志查看选项：${Font}"
+    echo -e "${Yellow}1.${Font} 查看系统日志 (syslog)"
+    echo -e "${Yellow}2.${Font} 查看内核日志 (dmesg)"
+    echo -e "${Yellow}3.${Font} 查看认证日志 (auth.log)"
+    echo -e "${Yellow}4.${Font} 查看启动日志 (boot.log)"
+    echo -e "${Yellow}5.${Font} 查看journalctl日志"
+    echo -e "${Yellow}6.${Font} 返回系统工具"
     
     local choice
-    read -p "          [1-6]: " choice
+    read -p "请选择要查看的日志 [1-6]: " choice
     case $choice in
         1)
             if [[ -f "/var/log/syslog" ]]; then
-                echo -e "${Blue}  50      ${Font}"
+                echo -e "${Blue}最近50行系统日志：${Font}"
                 tail -50 /var/log/syslog
             elif [[ -f "/var/log/messages" ]]; then
-                echo -e "${Blue}  50      ${Font}"
+                echo -e "${Blue}最近50行系统日志：${Font}"
                 tail -50 /var/log/messages
             else
-                echo -e "${Red}         ${Font}"
+                echo -e "${Red}未找到系统日志文件${Font}"
             fi
             ;;
         2)
-            echo -e "${Blue}     ${Font}"
+            echo -e "${Blue}内核日志：${Font}"
             dmesg | tail -50
             ;;
         3)
             if [[ -f "/var/log/auth.log" ]]; then
-                echo -e "${Blue}  50      ${Font}"
+                echo -e "${Blue}最近50行认证日志：${Font}"
                 tail -50 /var/log/auth.log
             elif [[ -f "/var/log/secure" ]]; then
-                echo -e "${Blue}  50      ${Font}"
+                echo -e "${Blue}最近50行认证日志：${Font}"
                 tail -50 /var/log/secure
             else
-                echo -e "${Red}         ${Font}"
+                echo -e "${Red}未找到认证日志文件${Font}"
             fi
             ;;
         4)
             if [[ -f "/var/log/boot.log" ]]; then
-                echo -e "${Blue}     ${Font}"
+                echo -e "${Blue}启动日志：${Font}"
                 cat /var/log/boot.log
             else
-                echo -e "${Red}         ${Font}"
+                echo -e "${Red}未找到启动日志文件${Font}"
             fi
             ;;
         5)
             if command -v journalctl >/dev/null 2>&1; then
-                echo -e "${Blue}  50 journalctl   ${Font}"
+                echo -e "${Blue}最近50条journalctl日志：${Font}"
                 journalctl -n 50 --no-pager
             else
-                echo -e "${Red}     journalctl${Font}"
+                echo -e "${Red}系统不支持journalctl${Font}"
             fi
             ;;
         6)
@@ -1927,7 +1815,7 @@ view_system_logs() {
     esac
     
     echo
-    read -p "          ..."
+    read -p "按回车键返回日志查看..."
     view_system_logs
 }
 
@@ -1935,60 +1823,60 @@ view_system_logs() {
 time_sync_setup() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}                 ${Font}"
+    echo -e "${Green}           时间同步设置${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
-    echo -e "${Green}       ${Font}"
-    echo -e "${Yellow}       $(date)${Font}"
-    echo -e "${Yellow}     $(timedatectl show --property=Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null || echo "unknown")${Font}"
+    echo -e "${Green}当前系统时间：${Font}"
+    echo -e "${Yellow}  系统时间：$(date)${Font}"
+    echo -e "${Yellow}  时区：$(timedatectl show --property=Timezone --value 2>/dev/null || cat /etc/timezone 2>/dev/null || echo "未知")${Font}"
     echo
     
     if command -v timedatectl >/dev/null 2>&1; then
-        echo -e "${Green}       ${Font}"
+        echo -e "${Green}时间同步状态：${Font}"
         timedatectl status
         echo
     fi
     
-    echo -e "${Green}       ${Font}"
-    echo -e "${Yellow}1.${Font}     "
-    echo -e "${Yellow}2.${Font}   NTP    "
-    echo -e "${Yellow}3.${Font}       "
-    echo -e "${Yellow}4.${Font}       "
+    echo -e "${Green}时间管理选项：${Font}"
+    echo -e "${Yellow}1.${Font} 设置时区"
+    echo -e "${Yellow}2.${Font} 启用NTP时间同步"
+    echo -e "${Yellow}3.${Font} 手动同步时间"
+    echo -e "${Yellow}4.${Font} 返回系统工具"
     
     local choice
-    read -p "      [1-4]: " choice
+    read -p "请选择操作 [1-4]: " choice
     case $choice in
         1)
-            echo -e "${Blue}     ${Font}"
-            echo -e "${Yellow}  Asia/Shanghai (    )${Font}"
-            echo -e "${Yellow}  UTC (     )${Font}"
-            echo -e "${Yellow}  America/New_York (    )${Font}"
-            echo -e "${Yellow}  Europe/London (    )${Font}"
-            read -p "      (  : Asia/Shanghai): " timezone
+            echo -e "${Blue}常用时区：${Font}"
+            echo -e "${Yellow}  Asia/Shanghai (北京时间)${Font}"
+            echo -e "${Yellow}  UTC (协调世界时)${Font}"
+            echo -e "${Yellow}  America/New_York (纽约时间)${Font}"
+            echo -e "${Yellow}  Europe/London (伦敦时间)${Font}"
+            read -p "请输入时区 (例如: Asia/Shanghai): " timezone
             if command -v timedatectl >/dev/null 2>&1; then
-                timedatectl set-timezone "$timezone" && echo -e "${Green}      ${Font}" || echo -e "${Red}      ${Font}"
+                timedatectl set-timezone "$timezone" && echo -e "${Green}时区设置成功${Font}" || echo -e "${Red}时区设置失败${Font}"
             else
-                echo "$timezone" > /etc/timezone && echo -e "${Green}      ${Font}" || echo -e "${Red}      ${Font}"
+                echo "$timezone" > /etc/timezone && echo -e "${Green}时区设置成功${Font}" || echo -e "${Red}时区设置失败${Font}"
             fi
             ;;
         2)
             if command -v timedatectl >/dev/null 2>&1; then
-                timedatectl set-ntp true && echo -e "${Green}NTP       ${Font}" || echo -e "${Red}NTP        ${Font}"
+                timedatectl set-ntp true && echo -e "${Green}NTP时间同步已启用${Font}" || echo -e "${Red}NTP时间同步启用失败${Font}"
             elif command -v ntpdate >/dev/null 2>&1; then
-                ntpdate -s pool.ntp.org && echo -e "${Green}      ${Font}" || echo -e "${Red}      ${Font}"
+                ntpdate -s pool.ntp.org && echo -e "${Green}时间同步完成${Font}" || echo -e "${Red}时间同步失败${Font}"
             else
-                echo -e "${Red}     NTP    ${Font}"
+                echo -e "${Red}系统不支持NTP时间同步${Font}"
             fi
             ;;
         3)
             if command -v ntpdate >/dev/null 2>&1; then
-                echo -e "${Blue}        ...${Font}"
-                ntpdate pool.ntp.org && echo -e "${Green}      ${Font}" || echo -e "${Red}      ${Font}"
+                echo -e "${Blue}正在手动同步时间...${Font}"
+                ntpdate pool.ntp.org && echo -e "${Green}时间同步完成${Font}" || echo -e "${Red}时间同步失败${Font}"
             elif command -v chrony >/dev/null 2>&1; then
                 chrony sources -v
             else
-                echo -e "${Red}         ${Font}"
+                echo -e "${Red}未找到时间同步工具${Font}"
             fi
             ;;
         4)
@@ -1998,7 +1886,7 @@ time_sync_setup() {
     esac
     
     echo
-    read -p "            ..."
+    read -p "按回车键返回时间同步设置..."
     time_sync_setup
 }
 
@@ -2036,59 +1924,59 @@ main() {
 # 显示帮助信息
 show_help() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}      One-Script       ${Font}"
+    echo -e "${Green}      One-Script 脚本帮助信息${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
-    echo -e "${Green}   ${Font}"
-    echo -e "  $(basename "$0") [  ]"
+    echo -e "${Green}用法：${Font}"
+    echo -e "  $(basename "$0") [选项]"
     echo
-    echo -e "${Green}   ${Font}"
-    echo -e "  ${Yellow}--help, -h${Font}                     "
-    echo -e "  ${Yellow}--version, -v${Font}                 "
-    echo -e "  ${Yellow}--install-command${Font}              (v2ray)"
-    echo -e "  ${Yellow}--uninstall-command${Font}           "
+    echo -e "${Green}选项：${Font}"
+    echo -e "  ${Yellow}--help, -h${Font}              显示此帮助信息"
+    echo -e "  ${Yellow}--version, -v${Font}           显示版本信息"
+    echo -e "  ${Yellow}--install-command${Font}       安装简易命令 (v2ray)"
+    echo -e "  ${Yellow}--uninstall-command${Font}     卸载简易命令"
     echo
-    echo -e "${Green}     ${Font}"
-    echo -e "         '${Yellow}v2ray${Font}'       "
-    echo -e "       ${Yellow}sudo v2ray${Font}"
-    echo -e "     ${Yellow}              ${Font}"
+    echo -e "${Green}简易命令：${Font}"
+    echo -e "  安装后可通过 '${Yellow}v2ray${Font}' 命令启动脚本"
+    echo -e "  使用方法：${Yellow}sudo v2ray${Font}"
+    echo -e "  模式：${Yellow}远程运行（始终获取最新版本）${Font}"
     echo
-    echo -e "${Green}     ${Font}"
-    echo -e "       Swap     "
-    echo -e "Please follow the on-screen instructions."
-    echo -e "    V2Ray       "
-    echo -e "Please follow the on-screen instructions."
-    echo -e "Please follow the on-screen instructions."
-    echo -e "       iptables     "
-    echo -e "Please follow the on-screen instructions."
+    echo -e "${Green}功能特性：${Font}"
+    echo -e "  • 智能 Swap 内存管理"
+    echo -e "  • 远程脚本获取执行"
+    echo -e "  • V2Ray 定时重启配置"
+    echo -e "  • 脚本自动更新功能"
+    echo -e "  • 远程运行命令安装"
+    echo -e "  • 智能 iptables 规则管理"
+    echo -e "  • 始终运行最新版本"
     echo
-    echo -e "${Green}GitHub   ${Font}https://github.com/charleslkx/one-script"
+    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/one-script"
     echo -e "${Blue}============================================${Font}"
 }
 
 # 更新 main.sh 脚本
 update_main_script() {
-    lang_echo "${Blue}正在检查 main.sh 更新...${Font}" "${Blue}Checking for main.sh updates...${Font}"
+    echo -e "${Blue}正在检查 main.sh 脚本更新...${Font}"
     
     local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local script_path="$0"
     local temp_script="/tmp/main_new.sh"
     
     # 获取当前脚本版本信息
-    lang_echo "${Green}当前脚本路径: ${script_path}${Font}" "${Green}Current script: ${script_path}${Font}"
+    echo -e "${Green}当前脚本路径：${script_path}${Font}"
     echo
     
     # 显示更新选项
-    lang_echo "${Green}更新选项:${Font}" "${Green}Update options:${Font}"
-    lang_echo "${Yellow}1.${Font} 检查并更新（推荐）" "${Yellow}1.${Font} Check and update (recommended)"
-    lang_echo "${Yellow}2.${Font} 强制更新" "${Yellow}2.${Font} Force update"
-    lang_echo "${Yellow}3.${Font} 查看版本信息" "${Yellow}3.${Font} Show version info"
-    lang_echo "${Yellow}4.${Font} 取消" "${Yellow}4.${Font} Cancel"
+    echo -e "${Green}更新选项：${Font}"
+    echo -e "${Yellow}1.${Font} 检查并更新到最新版本"
+    echo -e "${Yellow}2.${Font} 强制重新下载脚本"
+    echo -e "${Yellow}3.${Font} 查看当前版本信息"
+    echo -e "${Yellow}4.${Font} 返回主菜单"
     echo
     
     local choice
     while true; do
-        read -p "$(lang_text "请选择 [1-4]: " "Choose [1-4]: ")" choice
+        read -p "请选择更新选项 [1-4]: " choice
         case $choice in
             1)
                 check_and_update
@@ -2103,11 +1991,11 @@ update_main_script() {
                 break
                 ;;
             4)
-                lang_echo "${Yellow}已取消更新${Font}" "${Yellow}Update cancelled${Font}"
+                echo -e "${Yellow}返回主菜单${Font}"
                 return 0
                 ;;
             *)
-                lang_echo "${Red}无效选择，请输入 1-4${Font}" "${Red}Invalid choice, enter 1-4${Font}"
+                echo -e "${Red}无效选择，请输入 1-4${Font}"
                 ;;
         esac
     done
@@ -2115,7 +2003,7 @@ update_main_script() {
 
 # 检查并更新脚本
 check_and_update() {
-    lang_echo "${Blue}正在检查更新...${Font}" "${Blue}Checking for updates...${Font}"
+    echo -e "${Blue}正在检查远程版本...${Font}"
     
     local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local script_path="$0"
@@ -2123,24 +2011,24 @@ check_and_update() {
     
     # 下载最新版本
     if wget -qO "$temp_script" "${base_url}/main.sh" 2>/dev/null || curl -fsSL "${base_url}/main.sh" -o "$temp_script" 2>/dev/null; then
-        lang_echo "${Green}下载成功${Font}" "${Green}Download successful${Font}"
+        echo -e "${Green}最新版本下载成功${Font}"
         
         # 比较文件
         if ! diff -q "$script_path" "$temp_script" >/dev/null 2>&1; then
-            lang_echo "${Yellow}发现新版本，正在更新...${Font}" "${Yellow}New version found, updating...${Font}"
+            echo -e "${Yellow}检测到新版本，准备更新...${Font}"
             perform_update "$script_path" "$temp_script"
         else
-            lang_echo "${Green}已经是最新版本${Font}" "${Green}Already up to date${Font}"
+            echo -e "${Green}当前已是最新版本，无需更新${Font}"
             rm -f "$temp_script"
         fi
     else
-        lang_echo "${Red}下载失败，请检查网络连接${Font}" "${Red}Download failed, check network${Font}"
+        echo -e "${Red}无法下载最新版本，请检查网络连接${Font}"
     fi
 }
 
 # 强制更新脚本
 force_update() {
-    lang_echo "${Yellow}正在强制更新...${Font}" "${Yellow}Forcing update...${Font}"
+    echo -e "${Yellow}正在强制更新脚本...${Font}"
     
     local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
     local script_path="$0"
@@ -2148,10 +2036,10 @@ force_update() {
     
     # 下载最新版本
     if wget -qO "$temp_script" "${base_url}/main.sh" 2>/dev/null || curl -fsSL "${base_url}/main.sh" -o "$temp_script" 2>/dev/null; then
-        lang_echo "${Green}下载成功${Font}" "${Green}Download successful${Font}"
+        echo -e "${Green}最新版本下载成功${Font}"
         perform_update "$script_path" "$temp_script"
     else
-        lang_echo "${Red}下载失败，请检查网络连接${Font}" "${Red}Download failed, check network${Font}"
+        echo -e "${Red}无法下载最新版本，请检查网络连接${Font}"
     fi
 }
 
@@ -2161,20 +2049,20 @@ perform_update() {
     local temp_script="$2"
     
     # 直接更新脚本
-    echo -e "${Blue}      ...${Font}"
+    echo -e "${Blue}正在更新脚本...${Font}"
     if cp "$temp_script" "$script_path" && chmod +x "$script_path"; then
-        echo -e "${Green}       ${Font}"
+        echo -e "${Green}脚本更新成功！${Font}"
         rm -f "$temp_script"
         
-        echo -e "${Yellow}                   ${Font}"
-        echo -e "${Blue}           [y/N]:${Font}"
+        echo -e "${Yellow}更新完成，建议重新启动脚本以使用新版本${Font}"
+        echo -e "${Blue}是否现在重新启动脚本？[y/N]:${Font}"
         read -p "" restart_choice
         if [[ $restart_choice =~ ^[Yy]$ ]]; then
-            echo -e "${Green}        ...${Font}"
+            echo -e "${Green}正在重新启动脚本...${Font}"
             exec "$script_path"
         fi
     else
-        echo -e "${Red}       ${Font}"
+        echo -e "${Red}脚本更新失败！${Font}"
         rm -f "$temp_script"
     fi
 }
@@ -2182,22 +2070,22 @@ perform_update() {
 # 显示版本信息
 show_version_info() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}       One-Script     ${Font}"
+    echo -e "${Green}       One-Script 脚本信息${Font}"
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}     ${Font}One-Script       "
-    echo -e "${Green}     ${Font}$0"
-    echo -e "${Green}     ${Font}$(stat -c %y "$0" 2>/dev/null || echo "unknown")"
-    echo -e "${Green}     ${Font}$(stat -c %s "$0" 2>/dev/null || echo "unknown")   "
-    echo -e "${Green}GitHub   ${Font}https://github.com/charleslkx/one-script"
+    echo -e "${Green}脚本名称：${Font}One-Script 统一管理脚本"
+    echo -e "${Green}脚本路径：${Font}$0"
+    echo -e "${Green}修改时间：${Font}$(stat -c %y "$0" 2>/dev/null || echo "未知")"
+    echo -e "${Green}文件大小：${Font}$(stat -c %s "$0" 2>/dev/null || echo "未知") 字节"
+    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/one-script"
     echo
-    echo -e "${Green}     ${Font}"
-    echo -e "       Swap     "
-    echo -e "Please follow the on-screen instructions."  
-    echo -e "    V2Ray       "
-    echo -e "Please follow the on-screen instructions."
-    echo -e "Please follow the on-screen instructions."
-    echo -e "       iptables     "
-    echo -e "Please follow the on-screen instructions."
+    echo -e "${Green}功能特性：${Font}"
+    echo -e "  • 智能 Swap 内存管理"
+    echo -e "  • 远程脚本获取执行"  
+    echo -e "  • V2Ray 定时重启配置"
+    echo -e "  • 脚本自动更新功能"
+    echo -e "  • 简易命令安装管理"
+    echo -e "  • 智能 iptables 规则管理"
+    echo -e "  • 优化的工具安装流程"
     echo -e "${Blue}============================================${Font}"
     echo
 }
@@ -2206,7 +2094,7 @@ show_version_info() {
 command_management() {
     clear
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}               ${Font}"
+    echo -e "${Green}           命令管理${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
     
@@ -2214,7 +2102,7 @@ command_management() {
     local found=false
     
     # 检查命令状态
-    echo -e "${Green}         ${Font}"
+    echo -e "${Green}简易命令状态检查：${Font}"
     
     if [[ -f "/usr/bin/${command_name}" ]]; then
         echo -e "${Green}  /usr/bin/${command_name} ✓${Font}"
@@ -2232,25 +2120,25 @@ command_management() {
     fi
     
     if [[ "$found" == "true" ]]; then
-        echo -e "${Green}     ${Font}           "
-        echo -e "${Green}     ${Font}${command_name}   sudo ${command_name}"
-        echo -e "${Yellow}                  ${Font}"
+        echo -e "${Green}总体状态：${Font}已安装（远程运行模式）"
+        echo -e "${Green}使用方法：${Font}${command_name} 或 sudo ${command_name}"
+        echo -e "${Yellow}特性：始终运行最新版本，无需本地文件${Font}"
     else
-        echo -e "${Yellow}     ${Font}   "
+        echo -e "${Yellow}总体状态：${Font}未安装"
     fi
     
     echo
-    echo -e "${Green}       ${Font}"
-    echo -e "${Yellow}1.${Font}          (${command_name})"
-    echo -e "${Yellow}2.${Font}         "
-    echo -e "${Yellow}3.${Font}       "
-    echo -e "${Yellow}4.${Font}      "
+    echo -e "${Green}命令管理选项：${Font}"
+    echo -e "${Yellow}1.${Font} 安装远程运行命令 (${command_name})"
+    echo -e "${Yellow}2.${Font} 卸载远程运行命令"
+    echo -e "${Yellow}3.${Font} 查看详细状态"
+    echo -e "${Yellow}4.${Font} 返回主菜单"
     echo
     echo -e "${Blue}============================================${Font}"
     
     local choice
     while true; do
-        read -p "      [1-4]: " choice
+        read -p "请选择操作 [1-4]: " choice
         case $choice in
             1)
                 install_quick_command
@@ -2265,11 +2153,11 @@ command_management() {
                 break
                 ;;
             4)
-                echo -e "${Yellow}     ${Font}"
+                echo -e "${Yellow}返回主菜单${Font}"
                 return 0
                 ;;
             *)
-                echo -e "${Red}         1-4${Font}"
+                echo -e "${Red}无效选择，请输入 1-4${Font}"
                 ;;
         esac
     done
@@ -2278,23 +2166,23 @@ command_management() {
 # 显示命令状态
 show_command_status() {
     echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}                 ${Font}"
+    echo -e "${Green}         简易命令状态信息${Font}"
     echo -e "${Blue}============================================${Font}"
     
     local command_name="v2ray"
     local script_path="$(readlink -f "$0")"
     local found=false
     
-    echo -e "${Green}       ${Font}${script_path}"
-    echo -e "${Green}       ${Font}${command_name}"
+    echo -e "${Green}当前脚本路径：${Font}${script_path}"
+    echo -e "${Green}简易命令名称：${Font}${command_name}"
     echo
     
     # 检查各个位置的命令
-    echo -e "${Green}       ${Font}"
+    echo -e "${Green}命令安装状态：${Font}"
     
     if [[ -f "/usr/bin/${command_name}" ]]; then
         echo -e "${Green}  /usr/bin/${command_name} ✓${Font}"
-        echo -e "${Green}       $(readlink "/usr/bin/${command_name}" 2>/dev/null || echo "unreadable")${Font}"
+        echo -e "${Green}  链接目标：$(readlink "/usr/bin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
         found=true
     else
         echo -e "${Yellow}  /usr/bin/${command_name} ✗${Font}"
@@ -2302,7 +2190,7 @@ show_command_status() {
     
     if [[ -f "/usr/sbin/${command_name}" ]]; then
         echo -e "${Green}  /usr/sbin/${command_name} ✓${Font}"
-        echo -e "${Green}       $(readlink "/usr/sbin/${command_name}" 2>/dev/null || echo "unreadable")${Font}"
+        echo -e "${Green}  链接目标：$(readlink "/usr/sbin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
         found=true
     else
         echo -e "${Yellow}  /usr/sbin/${command_name} ✗${Font}"
@@ -2310,7 +2198,7 @@ show_command_status() {
     
     if [[ -f "/usr/local/bin/${command_name}" ]]; then
         echo -e "${Green}  /usr/local/bin/${command_name} ✓${Font}"
-        echo -e "${Green}       $(readlink "/usr/local/bin/${command_name}" 2>/dev/null || echo "unreadable")${Font}"
+        echo -e "${Green}  链接目标：$(readlink "/usr/local/bin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
         found=true
     else
         echo -e "${Yellow}  /usr/local/bin/${command_name} ✗${Font}"
@@ -2318,1147 +2206,32 @@ show_command_status() {
     
     echo
     if [[ "$found" == "true" ]]; then
-        echo -e "${Green}     ${Font}             "
+        echo -e "${Green}总体状态：${Font}已安装 ✓（远程运行模式）"
         echo
-        echo -e "${Green}     ${Font}"
-        echo -e "  ${Blue}${command_name}${Font}                #            "
-        echo -e "  ${Blue}sudo ${command_name}${Font}           #  root         "
-        echo -e "  ${Blue}${command_name} --help${Font}         #       "
-        echo -e "  ${Blue}${command_name} --version${Font}      #       "
+        echo -e "${Green}使用方法：${Font}"
+        echo -e "  ${Blue}${command_name}${Font}                # 从远程启动最新版本脚本"
+        echo -e "  ${Blue}sudo ${command_name}${Font}           # 以root权限从远程启动脚本"
+        echo -e "  ${Blue}${command_name} --help${Font}         # 查看帮助信息"
+        echo -e "  ${Blue}${command_name} --version${Font}      # 查看版本信息"
         echo
-        echo -e "${Green}   ${Font}"
-        echo -e "Please follow the on-screen instructions."
-        echo -e "Please follow the on-screen instructions."
-        echo -e "Please follow the on-screen instructions."
+        echo -e "${Green}特性：${Font}"
+        echo -e "  • 始终运行最新版本"
+        echo -e "  • 无需本地存储脚本"
+        echo -e "  • 自动检查网络连接"
     else
-        echo -e "${Yellow}     ${Font}   "
+        echo -e "${Yellow}总体状态：${Font}未安装"
         echo
-        echo -e "${Yellow}       ${Font}"
-        echo -e "  ${Blue}sudo ${command_name}${Font}           #        "
+        echo -e "${Yellow}安装后可使用：${Font}"
+        echo -e "  ${Blue}sudo ${command_name}${Font}           # 从远程启动脚本"
     fi
     
     echo
-    echo -e "${Yellow}PATH      ${Font}"
-    echo -e "${Blue}$(echo $PATH | tr ':' '\n' | grep -E '(usr/bin|usr/sbin|usr/local/bin)' || echo "no matching paths found")${Font}"
+    echo -e "${Yellow}PATH 环境变量：${Font}"
+    echo -e "${Blue}$(echo $PATH | tr ':' '\n' | grep -E '(usr/bin|usr/sbin|usr/local/bin)' || echo "未找到相关路径")${Font}"
     
     echo -e "${Blue}============================================${Font}"
     echo
 }
-
-# ============================================
-# VLESS Blue-Green Deployment Functions
-# ============================================
-
-# Check if VLESS blue-green is installed
-check_vless_installed() {
-    [[ -f "/etc/systemd/system/vless-instance-a.service" ]] && \
-    [[ -f "/etc/systemd/system/vless-instance-b.service" ]] && \
-    [[ -f "/usr/local/bin/switch-traffic.sh" ]]
-}
-
-# Install VLESS Blue-Green system
-install_vless_bluegreen() {
-    clear
-    echo -e "${Blue}============================================${Font}"
-    lang_echo "${Green}    VLESS Blue-Green Deployment Installation${Font}" "${Green}    VLESS Blue-Green Deployment Installation${Font}"
-    echo -e "${Blue}============================================${Font}"
-    echo
-    
-    if check_vless_installed; then
-        lang_echo "${Yellow}VLESS Blue-Green system is already installed!${Font}" "${Yellow}VLESS Blue-Green system is already installed!${Font}"
-        echo
-        lang_echo "${Yellow}Current status:${Font}" "${Yellow}Current status:${Font}"
-        systemctl is-active vless-instance-a.service &>/dev/null && \
-            echo -e "  Instance A: ${Green}active${Font}" || echo -e "  Instance A: ${Red}inactive${Font}"
-        systemctl is-active vless-instance-b.service &>/dev/null && \
-            echo -e "  Instance B: ${Green}active${Font}" || echo -e "  Instance B: ${Red}inactive${Font}"
-        systemctl is-active vless-monitor.service &>/dev/null && \
-            echo -e "  Monitor: ${Green}active${Font}" || echo -e "  Monitor: ${Red}inactive${Font}"
-        echo
-        read -p "$(lang_text "按回车键继续..." "Press Enter to continue...")"
-        return
-    fi
-    
-    lang_echo "${Green}Starting VLESS Blue-Green installation...${Font}" "${Green}Starting VLESS Blue-Green installation...${Font}"
-    echo
-    
-    # Step 1: Install dependencies
-    lang_echo "${Yellow}[1/9]${Font} Installing system dependencies..." "${Yellow}[1/9]${Font} Installing system dependencies..."
-    apt-get update -qq
-    apt-get install -y curl wget unzip netcat-openbsd jq systemd >/dev/null 2>&1
-    lang_echo "${Green}✓ Dependencies installed${Font}" "${Green}✓ Dependencies installed${Font}"
-    
-    # Step 2: Install Xray-core
-    lang_echo "${Yellow}[2/9]${Font} Installing Xray-core..." "${Yellow}[2/9]${Font} Installing Xray-core..."
-    if [ ! -f /usr/local/bin/xray ]; then
-        LATEST_VERSION=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases/latest | jq -r .tag_name)
-        ARCH=$(uname -m)
-        case $ARCH in
-            x86_64) XRAY_ARCH="linux-64" ;;
-            aarch64) XRAY_ARCH="linux-arm64-v8a" ;;
-            armv7l) XRAY_ARCH="linux-arm32-v7a" ;;
-            *) lang_echo "${Red}Unsupported architecture: $ARCH${Font}" "${Red}Unsupported architecture: $ARCH${Font}"; return 1 ;;
-        esac
-        
-        DOWNLOAD_URL="https://github.com/XTLS/Xray-core/releases/download/${LATEST_VERSION}/Xray-${XRAY_ARCH}.zip"
-        cd /tmp
-        wget -q --show-progress "$DOWNLOAD_URL" -O xray.zip
-        unzip -q xray.zip
-        mv xray /usr/local/bin/
-        chmod +x /usr/local/bin/xray
-        mkdir -p /usr/local/share/xray
-        mv geoip.dat geosite.dat /usr/local/share/xray/ 2>/dev/null || true
-        rm -f xray.zip
-        lang_echo "${Green}✓ Xray-core $LATEST_VERSION installed${Font}" "${Green}✓ Xray-core $LATEST_VERSION installed${Font}"
-    else
-        lang_echo "${Green}✓ Xray-core already installed${Font}" "${Green}✓ Xray-core already installed${Font}"
-    fi
-    
-    # Step 3: Create vless user
-    lang_echo "${Yellow}[3/9]${Font} Creating vless system user..." "${Yellow}[3/9]${Font} Creating vless system user..."
-    if ! id "vless" &>/dev/null; then
-        useradd -r -s /bin/false vless
-        lang_echo "${Green}✓ User 'vless' created${Font}" "${Green}✓ User 'vless' created${Font}"
-    else
-        lang_echo "${Green}✓ User 'vless' already exists${Font}" "${Green}✓ User 'vless' already exists${Font}"
-    fi
-    
-    # Step 4: Create directories
-    lang_echo "${Yellow}[4/9]${Font} Creating directory structure..." "${Yellow}[4/9]${Font} Creating directory structure..."
-    mkdir -p /etc/vless /var/log/vless /usr/local/bin
-    chown vless:vless /var/log/vless
-    chmod 755 /var/log/vless
-    lang_echo "${Green}✓ Directories created${Font}" "${Green}✓ Directories created${Font}"
-    
-    # Step 5: Create config files
-    lang_echo "${Yellow}[5/9]${Font} Creating configuration files..." "${Yellow}[5/9]${Font} Creating configuration files..."
-    local script_dir="$(dirname "$(readlink -f "$0")")"
-    
-    # Generate UUID and keys
-    local uuid=$(/usr/local/bin/xray uuid)
-    local keypair=$(/usr/local/bin/xray x25519)
-    local private_key=$(echo "$keypair" | grep "Private key:" | awk '{print $3}')
-    
-    # Create config-a.json
-    cat > /etc/vless/config-a.json <<EOF
-{
-  "log": {
-    "loglevel": "warning"
-  },
-  "inbounds": [
-    {
-      "port": 10080,
-      "protocol": "vless",
-      "settings": {
-        "clients": [
-          {
-            "id": "$uuid",
-            "flow": "xtls-rprx-vision"
-          }
-        ],
-        "decryption": "none"
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "reality",
-        "realitySettings": {
-          "show": false,
-          "dest": "www.microsoft.com:443",
-          "serverNames": ["www.microsoft.com"],
-          "privateKey": "$private_key",
-          "shortIds": [""]
-        }
-      }
-    }
-  ],
-  "outbounds": [
-    {
-      "protocol": "freedom",
-      "tag": "direct"
-    }
-  ]
-}
-EOF
-    
-    # Create config-b.json (same but port 10081)
-    cat > /etc/vless/config-b.json <<EOF
-{
-  "log": {
-    "loglevel": "warning"
-  },
-  "inbounds": [
-    {
-      "port": 10081,
-      "protocol": "vless",
-      "settings": {
-        "clients": [
-          {
-            "id": "$uuid",
-            "flow": "xtls-rprx-vision"
-          }
-        ],
-        "decryption": "none"
-      },
-      "streamSettings": {
-        "network": "tcp",
-        "security": "reality",
-        "realitySettings": {
-          "show": false,
-          "dest": "www.microsoft.com:443",
-          "serverNames": ["www.microsoft.com"],
-          "privateKey": "$private_key",
-          "shortIds": [""]
-        }
-      }
-    }
-  ],
-  "outbounds": [
-    {
-      "protocol": "freedom",
-      "tag": "direct"
-    }
-  ]
-}
-EOF
-    
-    chown -R vless:vless /etc/vless
-    chmod 600 /etc/vless/*.json
-    lang_echo "${Green}✓ Configuration files created (UUID: $uuid)${Font}" "${Green}✓ Configuration files created (UUID: $uuid)${Font}"
-    
-    # Step 6: Install systemd service files
-    lang_echo "${Yellow}[6/9]${Font} Installing systemd services..." "${Yellow}[6/9]${Font} Installing systemd services..."
-    cat > /etc/systemd/system/vless-instance-a.service <<'EOF'
-# VLESS Instance A - Blue-Green Deployment
-# Location: /etc/systemd/system/vless-instance-a.service
-# This service runs on port 10080 and can be active or standby
-
-[Unit]
-Description=VLESS Reality Instance A (Port 10080)
-Documentation=https://github.com/XTLS/Xray-core
-After=network-online.target nss-lookup.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=vless
-Group=vless
-
-# Binary and config paths (adjust to your installation)
-ExecStart=/usr/local/bin/xray run -c /etc/vless/config-a.json
-
-# Restart policy - critical for high availability
-Restart=on-failure
-RestartSec=5s
-StartLimitBurst=5
-StartLimitIntervalSec=60s
-
-# Resource Limits - prevent one instance from consuming all resources
-# Memory: Hard limit 512MB, soft warning at 400MB
-MemoryMax=512M
-MemoryHigh=400M
-MemoryAccounting=yes
-
-# CPU: Weight-based priority (default is 100, we use 200 for higher priority)
-CPUWeight=200
-CPUAccounting=yes
-
-# Nice value: -20 to 19, lower = higher priority (-5 is elevated)
-Nice=-5
-
-# File descriptor limit - important for high connection counts
-LimitNOFILE=65535
-
-# Process limits
-LimitNPROC=512
-
-# Core dumps disabled for security
-LimitCORE=0
-
-# Security hardening
-NoNewPrivileges=true
-PrivateTmp=yes
-ProtectSystem=strict
-ProtectHome=yes
-ReadWritePaths=/var/log/vless
-
-# Logging
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=vless-instance-a
-
-# Environment
-Environment="XRAY_LOCATION_ASSET=/usr/local/share/xray"
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    cat > /etc/systemd/system/vless-instance-b.service <<'EOF'
-# VLESS Instance B - Blue-Green Deployment
-# Location: /etc/systemd/system/vless-instance-b.service
-# This service runs on port 10081 and can be active or standby
-
-[Unit]
-Description=VLESS Reality Instance B (Port 10081)
-Documentation=https://github.com/XTLS/Xray-core
-After=network-online.target nss-lookup.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=vless
-Group=vless
-
-# Binary and config paths (adjust to your installation)
-ExecStart=/usr/local/bin/xray run -c /etc/vless/config-b.json
-
-# Restart policy - critical for high availability
-Restart=on-failure
-RestartSec=5s
-StartLimitBurst=5
-StartLimitIntervalSec=60s
-
-# Resource Limits - prevent one instance from consuming all resources
-# Memory: Hard limit 512MB, soft warning at 400MB
-MemoryMax=512M
-MemoryHigh=400M
-MemoryAccounting=yes
-
-# CPU: Weight-based priority (default is 100, we use 200 for higher priority)
-CPUWeight=200
-CPUAccounting=yes
-
-# Nice value: -20 to 19, lower = higher priority (-5 is elevated)
-Nice=-5
-
-# File descriptor limit - important for high connection counts
-LimitNOFILE=65535
-
-# Process limits
-LimitNPROC=512
-
-# Core dumps disabled for security
-LimitCORE=0
-
-# Security hardening
-NoNewPrivileges=true
-PrivateTmp=yes
-ProtectSystem=strict
-ProtectHome=yes
-ReadWritePaths=/var/log/vless
-
-# Logging
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=vless-instance-b
-
-# Environment
-Environment="XRAY_LOCATION_ASSET=/usr/local/share/xray"
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    cat > /etc/systemd/system/vless-monitor.service <<'EOF'
-# VLESS Monitor Service
-# Location: /etc/systemd/system/vless-monitor.service
-# Continuously monitors both VLESS instances and performs auto-failover
-
-[Unit]
-Description=VLESS Blue-Green Health Monitor and Auto-Failover
-Documentation=https://github.com/XTLS/Xray-core
-After=network-online.target vless-instance-a.service vless-instance-b.service
-Wants=network-online.target
-Requires=vless-instance-a.service vless-instance-b.service
-
-[Service]
-Type=simple
-User=root
-Group=root
-
-# Monitor script location
-ExecStart=/usr/local/bin/monitor-vless.sh
-
-# Restart the monitor if it crashes
-Restart=always
-RestartSec=10s
-
-# Resource limits (monitor should be lightweight)
-MemoryMax=128M
-CPUQuota=10%
-
-# Logging
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=vless-monitor
-
-# Security (less restrictive since it needs to manage other services)
-NoNewPrivileges=true
-PrivateTmp=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    chmod 644 /etc/systemd/system/vless-instance-a.service \
-        /etc/systemd/system/vless-instance-b.service \
-        /etc/systemd/system/vless-monitor.service
-    lang_echo "${Green}✓ Systemd services installed${Font}" "${Green}✓ Systemd services installed${Font}"
-    
-    # Step 7: Install scripts
-    lang_echo "${Yellow}[7/9]${Font} Installing management scripts..." "${Yellow}[7/9]${Font} Installing management scripts..."
-    cat > /usr/local/bin/switch-traffic.sh <<'EOF'
-#!/bin/bash
-# Traffic switching utility for VLESS blue-green deployment
-# Supports both nftables and iptables
-# Usage: sudo bash switch-traffic.sh [a|b]
-
-set -e
-
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-print_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-print_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-print_step() {
-    echo -e "${BLUE}[STEP]${NC} $1"
-}
-
-# Check root
-if [[ $EUID -ne 0 ]]; then
-   print_error "This script must be run as root (use sudo)"
-   exit 1
-fi
-
-# Determine which firewall system is in use
-detect_firewall() {
-    if command -v nft &> /dev/null && systemctl is-active --quiet nftables 2>/dev/null; then
-        echo "nftables"
-    elif command -v iptables &> /dev/null; then
-        echo "iptables"
-    else
-        echo "none"
-    fi
-}
-
-# Switch using nftables
-switch_nftables() {
-    local target=$1
-    local port=""
-    
-    if [ "$target" = "a" ]; then
-        port="10080"
-        print_step "Switching to Instance A (port 10080) via nftables..."
-    elif [ "$target" = "b" ]; then
-        port="10081"
-        print_step "Switching to Instance B (port 10081) via nftables..."
-    else
-        print_error "Invalid target: $target"
-        exit 1
-    fi
-    
-    # Flush the vless chain
-    print_info "Clearing existing redirect rules..."
-    nft flush chain nat prerouting_vless 2>/dev/null || {
-        print_warn "Chain doesn't exist, creating it..."
-        nft add chain nat prerouting_vless
-    }
-    
-    # Add new rule
-    print_info "Adding redirect rule: 443 -> $port"
-    nft add rule nat prerouting_vless tcp dport 443 counter dnat to :$port
-    
-    # Persist changes
-    print_info "Persisting configuration..."
-    nft list ruleset > /etc/nftables.conf
-    
-    print_info "✓ Traffic switched to Instance ${target^^} (port $port)"
-}
-
-# Switch using iptables
-switch_iptables() {
-    local target=$1
-    local port=""
-    
-    if [ "$target" = "a" ]; then
-        port="10080"
-        print_step "Switching to Instance A (port 10080) via iptables..."
-    elif [ "$target" = "b" ]; then
-        port="10081"
-        print_step "Switching to Instance B (port 10081) via iptables..."
-    else
-        print_error "Invalid target: $target"
-        exit 1
-    fi
-    
-    # Remove existing rules
-    print_info "Clearing existing redirect rules..."
-    iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 10080 2>/dev/null || true
-    iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 10081 2>/dev/null || true
-    
-    # Add new rule
-    print_info "Adding redirect rule: 443 -> $port"
-    iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port $port
-    
-    # Persist changes
-    print_info "Persisting configuration..."
-    if command -v netfilter-persistent &> /dev/null; then
-        netfilter-persistent save
-    else
-        print_warn "netfilter-persistent not found, rules may not persist after reboot"
-    fi
-    
-    print_info "✓ Traffic switched to Instance ${target^^} (port $port)"
-}
-
-# Show current status
-show_status() {
-    local fw=$(detect_firewall)
-    
-    echo ""
-    print_info "========================================="
-    print_info "Current Routing Status"
-    print_info "========================================="
-    
-    if [ "$fw" = "nftables" ]; then
-        print_info "Firewall: nftables"
-        echo ""
-        nft list chain nat prerouting_vless 2>/dev/null || print_warn "Chain not found"
-        
-        if nft list ruleset | grep -q "dnat to :10080"; then
-            print_info "✓ Active: Instance A (port 10080)"
-        elif nft list ruleset | grep -q "dnat to :10081"; then
-            print_info "✓ Active: Instance B (port 10081)"
-        else
-            print_warn "No active redirect found"
-        fi
-    elif [ "$fw" = "iptables" ]; then
-        print_info "Firewall: iptables"
-        echo ""
-        iptables -t nat -L PREROUTING -n -v | grep -E "dpt:443|Chain PREROUTING" || true
-        
-        if iptables -t nat -L PREROUTING -n | grep -q "redir ports 10080"; then
-            print_info "✓ Active: Instance A (port 10080)"
-        elif iptables -t nat -L PREROUTING -n | grep -q "redir ports 10081"; then
-            print_info "✓ Active: Instance B (port 10081)"
-        else
-            print_warn "No active redirect found"
-        fi
-    else
-        print_error "No firewall system detected"
-    fi
-    
-    echo ""
-    print_info "Service Status:"
-    systemctl is-active vless-instance-a.service &>/dev/null && \
-        echo -e "  Instance A: ${GREEN}active${NC}" || echo -e "  Instance A: ${RED}inactive${NC}"
-    systemctl is-active vless-instance-b.service &>/dev/null && \
-        echo -e "  Instance B: ${GREEN}active${NC}" || echo -e "  Instance B: ${RED}inactive${NC}"
-    
-    echo ""
-    print_info "Port Status:"
-    ss -tlnp | grep -q ":10080" && echo -e "  Port 10080: ${GREEN}listening${NC}" || echo -e "  Port 10080: ${RED}not listening${NC}"
-    ss -tlnp | grep -q ":10081" && echo -e "  Port 10081: ${GREEN}listening${NC}" || echo -e "  Port 10081: ${RED}not listening${NC}"
-    echo ""
-}
-
-# Validate target instance is running
-validate_instance() {
-    local target=$1
-    local port=""
-    local service=""
-    
-    if [ "$target" = "a" ]; then
-        port="10080"
-        service="vless-instance-a.service"
-    else
-        port="10081"
-        service="vless-instance-b.service"
-    fi
-    
-    # Check if service is active
-    if ! systemctl is-active --quiet "$service"; then
-        print_warn "Warning: $service is not active"
-        print_warn "Starting service..."
-        systemctl start "$service"
-        sleep 2
-    fi
-    
-    # Check if port is listening
-    if ! ss -tlnp | grep -q ":$port"; then
-        print_error "Instance ${target^^} port $port is not listening"
-        print_error "Please check the service: sudo systemctl status $service"
-        exit 1
-    fi
-    
-    print_info "✓ Instance ${target^^} is healthy and ready"
-}
-
-# Main logic
-FIREWALL=$(detect_firewall)
-
-if [ "$FIREWALL" = "none" ]; then
-    print_error "No firewall system detected (nftables or iptables required)"
-    exit 1
-fi
-
-case "${1:-}" in
-    a|A)
-        print_info "Target: Instance A"
-        validate_instance "a"
-        
-        if [ "$FIREWALL" = "nftables" ]; then
-            switch_nftables "a"
-        else
-            switch_iptables "a"
-        fi
-        
-        show_status
-        ;;
-    b|B)
-        print_info "Target: Instance B"
-        validate_instance "b"
-        
-        if [ "$FIREWALL" = "nftables" ]; then
-            switch_nftables "b"
-        else
-            switch_iptables "b"
-        fi
-        
-        show_status
-        ;;
-    status)
-        show_status
-        ;;
-    *)
-        echo "VLESS Traffic Switching Utility"
-        echo ""
-        echo "Usage: $0 [target]"
-        echo ""
-        echo "Targets:"
-        echo "  a        - Switch to Instance A (port 10080)"
-        echo "  b        - Switch to Instance B (port 10081)"
-        echo "  status   - Show current routing status"
-        echo ""
-        echo "Example:"
-        echo "  sudo $0 a"
-        echo "  sudo $0 b"
-        echo "  sudo $0 status"
-        echo ""
-        echo "Detected firewall: $FIREWALL"
-        exit 1
-        ;;
-esac
-
-exit 0
-EOF
-
-    cat > /usr/local/bin/monitor-vless.sh <<'EOF'
-#!/bin/bash
-# Health monitoring and auto-failover script for VLESS blue-green deployment
-# This script continuously monitors both instances and automatically switches traffic if needed
-# Logs to syslog for integration with monitoring systems
-
-# Configuration
-CHECK_INTERVAL=30          # Check every 30 seconds
-FAILURE_THRESHOLD=3        # Require 3 consecutive failures before failover
-CONNECTION_TIMEOUT=3       # Timeout for port checks (seconds)
-LOG_TAG="vless-monitor"
-
-# State file to track failures
-STATE_DIR="/var/run/vless-monitor"
-FAILURE_COUNT_FILE="$STATE_DIR/failure_count"
-ACTIVE_INSTANCE_FILE="$STATE_DIR/active_instance"
-
-# Create state directory
-mkdir -p "$STATE_DIR"
-
-# Initialize state files if they don't exist
-[ ! -f "$FAILURE_COUNT_FILE" ] && echo "0" > "$FAILURE_COUNT_FILE"
-[ ! -f "$ACTIVE_INSTANCE_FILE" ] && echo "a" > "$ACTIVE_INSTANCE_FILE"
-
-# Logging function
-log() {
-    local level=$1
-    shift
-    local message="$@"
-    logger -t "$LOG_TAG" -p "daemon.$level" "$message"
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $message"
-}
-
-# Get current active instance from firewall rules
-get_active_instance() {
-    # Try nftables first
-    if command -v nft &> /dev/null && systemctl is-active --quiet nftables 2>/dev/null; then
-        if nft list ruleset 2>/dev/null | grep -q "dnat to :10080"; then
-            echo "a"
-            return
-        elif nft list ruleset 2>/dev/null | grep -q "dnat to :10081"; then
-            echo "b"
-            return
-        fi
-    fi
-    
-    # Try iptables
-    if command -v iptables &> /dev/null; then
-        if iptables -t nat -L PREROUTING -n 2>/dev/null | grep -q "redir ports 10080"; then
-            echo "a"
-            return
-        elif iptables -t nat -L PREROUTING -n 2>/dev/null | grep -q "redir ports 10081"; then
-            echo "b"
-            return
-        fi
-    fi
-    
-    # Unknown state
-    echo "unknown"
-}
-
-# Check if a specific instance is healthy
-check_instance_health() {
-    local instance=$1
-    local port=""
-    local service=""
-    
-    if [ "$instance" = "a" ]; then
-        port="10080"
-        service="vless-instance-a.service"
-    elif [ "$instance" = "b" ]; then
-        port="10081"
-        service="vless-instance-b.service"
-    else
-        return 1
-    fi
-    
-    local healthy=true
-    
-    # Check 1: Service is active
-    if ! systemctl is-active --quiet "$service"; then
-        log "warning" "Instance $instance: service $service is not active"
-        healthy=false
-    fi
-    
-    # Check 2: Port is listening
-    if ! timeout "$CONNECTION_TIMEOUT" nc -z localhost "$port" 2>/dev/null; then
-        log "warning" "Instance $instance: port $port is not responding"
-        healthy=false
-    fi
-    
-    # Check 3: Memory limit not hit (check for OOM kills in recent logs)
-    if journalctl -u "$service" --since "1 minute ago" 2>/dev/null | grep -q "memory.max"; then
-        log "error" "Instance $instance: memory limit hit (potential OOM)"
-        healthy=false
-    fi
-    
-    # Check 4: Log explosion detection (> 1000 lines in last 5 minutes)
-    local log_count=$(journalctl -u "$service" --since "5 minutes ago" 2>/dev/null | wc -l)
-    if [ "$log_count" -gt 1000 ]; then
-        log "warning" "Instance $instance: log explosion detected ($log_count lines in 5 minutes)"
-        # Note: This is a warning, not a failure - might be legitimate traffic spike
-    fi
-    
-    # Check 5: Process exists and is responsive
-    if ! systemctl show "$service" -p MainPID | grep -q "MainPID=[1-9]"; then
-        log "error" "Instance $instance: no main process found"
-        healthy=false
-    fi
-    
-    if [ "$healthy" = true ]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Perform failover to standby instance
-perform_failover() {
-    local from_instance=$1
-    local to_instance=$2
-    
-    log "alert" "FAILOVER INITIATED: Switching from Instance $from_instance to Instance $to_instance"
-    
-    # Verify target instance is healthy before switching
-    if ! check_instance_health "$to_instance"; then
-        log "critical" "FAILOVER ABORTED: Target instance $to_instance is also unhealthy!"
-        log "critical" "BOTH INSTANCES DOWN - Manual intervention required!"
-        return 1
-    fi
-    
-    # Perform the switch
-    log "info" "Executing traffic switch to Instance $to_instance..."
-    
-    if ! /usr/local/bin/switch-traffic.sh "$to_instance" >> /var/log/vless-monitor.log 2>&1; then
-        log "critical" "FAILOVER FAILED: Unable to switch traffic!"
-        return 1
-    fi
-    
-    # Update state
-    echo "$to_instance" > "$ACTIVE_INSTANCE_FILE"
-    echo "0" > "$FAILURE_COUNT_FILE"
-    
-    log "alert" "FAILOVER COMPLETE: Traffic now routed to Instance $to_instance"
-    
-    # Try to restart the failed instance
-    local from_service=""
-    if [ "$from_instance" = "a" ]; then
-        from_service="vless-instance-a.service"
-    else
-        from_service="vless-instance-b.service"
-    fi
-    
-    log "info" "Attempting to restart failed instance: $from_service"
-    systemctl restart "$from_service" || log "error" "Failed to restart $from_service"
-    
-    return 0
-}
-
-# Main monitoring loop
-log "info" "VLESS Monitor started - checking every ${CHECK_INTERVAL}s"
-log "info" "Failure threshold: $FAILURE_THRESHOLD consecutive failures"
-
-while true; do
-    # Determine current active instance
-    ACTIVE=$(get_active_instance)
-    
-    if [ "$ACTIVE" = "unknown" ]; then
-        log "error" "Cannot determine active instance - skipping this check"
-        sleep "$CHECK_INTERVAL"
-        continue
-    fi
-    
-    # Determine standby instance
-    if [ "$ACTIVE" = "a" ]; then
-        STANDBY="b"
-    else
-        STANDBY="a"
-    fi
-    
-    # Check active instance health
-    if check_instance_health "$ACTIVE"; then
-        # Active instance is healthy - reset failure counter
-        CURRENT_FAILURES=$(cat "$FAILURE_COUNT_FILE")
-        if [ "$CURRENT_FAILURES" -gt 0 ]; then
-            log "info" "Instance $ACTIVE recovered - resetting failure counter"
-            echo "0" > "$FAILURE_COUNT_FILE"
-        fi
-    else
-        # Active instance is unhealthy - increment failure counter
-        CURRENT_FAILURES=$(cat "$FAILURE_COUNT_FILE")
-        CURRENT_FAILURES=$((CURRENT_FAILURES + 1))
-        echo "$CURRENT_FAILURES" > "$FAILURE_COUNT_FILE"
-        
-        log "warning" "Instance $ACTIVE health check failed ($CURRENT_FAILURES/$FAILURE_THRESHOLD)"
-        
-        # Check if we've hit the threshold
-        if [ "$CURRENT_FAILURES" -ge "$FAILURE_THRESHOLD" ]; then
-            log "error" "Instance $ACTIVE has failed $FAILURE_THRESHOLD consecutive checks"
-            perform_failover "$ACTIVE" "$STANDBY"
-        fi
-    fi
-    
-    # Also check standby instance (for informational purposes)
-    if check_instance_health "$STANDBY"; then
-        log "debug" "Standby Instance $STANDBY is healthy and ready"
-    else
-        log "warning" "Standby Instance $STANDBY is unhealthy - failover may not be possible"
-    fi
-    
-    # Wait before next check
-    sleep "$CHECK_INTERVAL"
-done
-EOF
-
-    chmod 755 /usr/local/bin/switch-traffic.sh /usr/local/bin/monitor-vless.sh
-    lang_echo "${Green}✓ Management scripts installed${Font}" "${Green}✓ Management scripts installed${Font}"
-    
-    # Step 8: Setup firewall
-    lang_echo "${Yellow}[8/9]${Font} Setting up port forwarding..." "${Yellow}[8/9]${Font} Setting up port forwarding..."
-    if command -v nft &> /dev/null; then
-        if [[ -f "$script_dir/setup-nftables.sh" ]]; then
-            bash "$script_dir/setup-nftables.sh" >/dev/null 2>&1
-            lang_echo "${Green}✓ nftables configured${Font}" "${Green}✓ nftables configured${Font}"
-        fi
-    elif command -v iptables &> /dev/null; then
-        if [[ -f "$script_dir/iptables-vless.sh" ]]; then
-            bash "$script_dir/iptables-vless.sh" install >/dev/null 2>&1
-            lang_echo "${Green}✓ iptables configured${Font}" "${Green}✓ iptables configured${Font}"
-        fi
-    fi
-    
-    # Step 9: Enable and start services
-    lang_echo "${Yellow}[9/9]${Font} Enabling and starting services..." "${Yellow}[9/9]${Font} Enabling and starting services..."
-    systemctl daemon-reload
-    systemctl enable vless-instance-a.service vless-instance-b.service vless-monitor.service >/dev/null 2>&1
-    systemctl start vless-instance-a.service vless-instance-b.service
-    sleep 2
-    systemctl start vless-monitor.service
-    lang_echo "${Green}✓ Services enabled and started (will auto-start on reboot)${Font}" "${Green}✓ Services enabled and started (will auto-start on reboot)${Font}"
-    
-    echo
-    echo -e "${Blue}============================================${Font}"
-    lang_echo "${Green}Installation Complete!${Font}" "${Green}Installation Complete!${Font}"
-    echo -e "${Blue}============================================${Font}"
-    echo
-    lang_echo "${Yellow}Important Information:${Font}" "${Yellow}Important Information:${Font}"
-    echo -e "  UUID: ${Green}$uuid${Font}"
-    echo -e "  Config A: ${Blue}/etc/vless/config-a.json${Font} (Port 10080)"
-    echo -e "  Config B: ${Blue}/etc/vless/config-b.json${Font} (Port 10081)"
-    echo -e "  Active: ${Green}Instance A${Font} (443 -> 10080)"
-    echo
-    lang_echo "${Yellow}Services are now running and will auto-start on reboot${Font}" "${Yellow}Services are now running and will auto-start on reboot${Font}"
-    echo
-    read -p "$(lang_text "按回车键继续..." "Press Enter to continue...")"
-}
-
-# Uninstall VLESS Blue-Green system
-uninstall_vless_bluegreen() {
-    clear
-    echo -e "${Blue}============================================${Font}"
-    lang_echo "${Red}    VLESS Blue-Green Uninstallation${Font}" "${Red}    VLESS Blue-Green Uninstallation${Font}"
-    echo -e "${Blue}============================================${Font}"
-    echo
-    
-    if ! check_vless_installed; then
-        lang_echo "${Yellow}VLESS Blue-Green system is not installed.${Font}" "${Yellow}VLESS Blue-Green system is not installed.${Font}"
-        read -p "$(lang_text "按回车键继续..." "Press Enter to continue...")"
-        return
-    fi
-    
-    lang_echo "${Yellow}This will completely remove VLESS Blue-Green deployment.${Font}" "${Yellow}This will completely remove VLESS Blue-Green deployment.${Font}"
-    lang_echo "${Red}WARNING: All configuration and data will be deleted!${Font}" "${Red}WARNING: All configuration and data will be deleted!${Font}"
-    echo
-    read -p "$(lang_text "确认删除? (y/N): " "Confirm uninstall? (y/N): ")" confirm
-    
-    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
-        lang_echo "${Green}Uninstall cancelled${Font}" "${Green}Uninstall cancelled${Font}"
-        read -p "$(lang_text "按回车键继续..." "Press Enter to continue...")"
-        return
-    fi
-    
-    echo
-    lang_echo "${Yellow}Stopping and disabling services...${Font}" "${Yellow}Stopping and disabling services...${Font}"
-    systemctl stop vless-instance-a.service vless-instance-b.service vless-monitor.service 2>/dev/null || true
-    systemctl disable vless-instance-a.service vless-instance-b.service vless-monitor.service 2>/dev/null || true
-    lang_echo "${Green}✓ Services stopped and disabled${Font}" "${Green}✓ Services stopped and disabled${Font}"
-    
-    lang_echo "${Yellow}Removing systemd service files...${Font}" "${Yellow}Removing systemd service files...${Font}"
-    rm -f /etc/systemd/system/vless-instance-a.service
-    rm -f /etc/systemd/system/vless-instance-b.service
-    rm -f /etc/systemd/system/vless-monitor.service
-    systemctl daemon-reload
-    lang_echo "${Green}✓ Service files removed${Font}" "${Green}✓ Service files removed${Font}"
-    
-    lang_echo "${Yellow}Removing management scripts...${Font}" "${Yellow}Removing management scripts...${Font}"
-    rm -f /usr/local/bin/switch-traffic.sh
-    rm -f /usr/local/bin/monitor-vless.sh
-    lang_echo "${Green}✓ Scripts removed${Font}" "${Green}✓ Scripts removed${Font}"
-    
-    lang_echo "${Yellow}Removing configuration files...${Font}" "${Yellow}Removing configuration files...${Font}"
-    rm -rf /etc/vless
-    rm -rf /var/log/vless
-    rm -rf /var/run/vless-monitor
-    lang_echo "${Green}✓ Configuration removed${Font}" "${Green}✓ Configuration removed${Font}"
-    
-    lang_echo "${Yellow}Cleaning firewall rules...${Font}" "${Yellow}Cleaning firewall rules...${Font}"
-    if command -v nft &> /dev/null; then
-        nft delete table nat 2>/dev/null || true
-    fi
-    if command -v iptables &> /dev/null; then
-        iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 10080 2>/dev/null || true
-        iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 10081 2>/dev/null || true
-        if command -v netfilter-persistent &> /dev/null; then
-            netfilter-persistent save 2>/dev/null || true
-        fi
-    fi
-    lang_echo "${Green}✓ Firewall rules cleaned${Font}" "${Green}✓ Firewall rules cleaned${Font}"
-    
-    lang_echo "${Yellow}Note: Xray-core binary and vless user are kept (may be used by other services)${Font}" "${Yellow}Note: Xray-core binary and vless user are kept (may be used by other services)${Font}"
-    
-    echo
-    echo -e "${Blue}============================================${Font}"
-    lang_echo "${Green}Uninstallation Complete!${Font}" "${Green}Uninstallation Complete!${Font}"
-    echo -e "${Blue}============================================${Font}"
-    echo
-    read -p "$(lang_text "按回车键继续..." "Press Enter to continue...")"
-}
-
-# VLESS Blue-Green management menu
-vless_bluegreen_menu() {
-    while true; do
-        clear
-        echo -e "${Blue}============================================${Font}"
-        lang_echo "${Green}    VLESS 蓝绿部署管理${Font}" "${Green}    VLESS Blue-Green Management${Font}"
-        echo -e "${Blue}============================================${Font}"
-        echo
-        
-        # Show current status
-        if check_vless_installed; then
-            lang_echo "${Green}系统状态:${Font}" "${Green}System Status:${Font}"
-            
-            # Check active instance
-            if command -v nft &> /dev/null && nft list ruleset 2>/dev/null | grep -q "dnat to :10080"; then
-                echo -e "  ${Yellow}活动实例:${Font} ${Green}Instance A (10080)${Font}" 
-            elif command -v nft &> /dev/null && nft list ruleset 2>/dev/null | grep -q "dnat to :10081"; then
-                echo -e "  ${Yellow}活动实例:${Font} ${Green}Instance B (10081)${Font}"
-            elif command -v iptables &> /dev/null && iptables -t nat -L PREROUTING -n 2>/dev/null | grep -q "redir ports 10080"; then
-                echo -e "  ${Yellow}活动实例:${Font} ${Green}Instance A (10080)${Font}"
-            elif command -v iptables &> /dev/null && iptables -t nat -L PREROUTING -n 2>/dev/null | grep -q "redir ports 10081"; then
-                echo -e "  ${Yellow}活动实例:${Font} ${Green}Instance B (10081)${Font}"
-            else
-                echo -e "  ${Yellow}活动实例:${Font} ${Red}Unknown${Font}"
-            fi
-            
-            # Service status
-            systemctl is-active vless-instance-a.service &>/dev/null && \
-                echo -e "  ${Yellow}Instance A:${Font} ${Green}running${Font}" || echo -e "  ${Yellow}Instance A:${Font} ${Red}stopped${Font}"
-            systemctl is-active vless-instance-b.service &>/dev/null && \
-                echo -e "  ${Yellow}Instance B:${Font} ${Green}running${Font}" || echo -e "  ${Yellow}Instance B:${Font} ${Red}stopped${Font}"
-            systemctl is-active vless-monitor.service &>/dev/null && \
-                echo -e "  ${Yellow}Monitor:${Font} ${Green}running${Font}" || echo -e "  ${Yellow}Monitor:${Font} ${Red}stopped${Font}"
-            echo
-        else
-            lang_echo "${Red}系统未安装${Font}" "${Red}System not installed${Font}"
-            echo
-        fi
-        
-        lang_echo "${Green}请选择操作:${Font}" "${Green}Select operation:${Font}"
-        echo
-        
-        if check_vless_installed; then
-            lang_echo "${Yellow}1.${Font}  切换到 Instance A (10080)" "${Yellow}1.${Font}  Switch to Instance A (10080)"
-            lang_echo "${Yellow}2.${Font}  切换到 Instance B (10081)" "${Yellow}2.${Font}  Switch to Instance B (10081)"
-            lang_echo "${Yellow}3.${Font}  查看详细状态" "${Yellow}3.${Font}  View detailed status"
-            lang_echo "${Yellow}4.${Font}  查看监控日志" "${Yellow}4.${Font}  View monitor logs"
-            lang_echo "${Yellow}5.${Font}  启动所有服务" "${Yellow}5.${Font}  Start all services"
-            lang_echo "${Yellow}6.${Font}  停止所有服务" "${Yellow}6.${Font}  Stop all services"
-            lang_echo "${Yellow}7.${Font}  重启所有服务" "${Yellow}7.${Font}  Restart all services"
-            lang_echo "${Yellow}8.${Font}  查看配置信息" "${Yellow}8.${Font}  View configuration"
-            lang_echo "${Yellow}9.${Font}  ${Red}卸载系统${Font}" "${Yellow}9.${Font}  ${Red}Uninstall system${Font}"
-            lang_echo "${Yellow}10.${Font} 返回主菜单" "${Yellow}10.${Font} Back to main menu"
-        else
-            lang_echo "${Yellow}1.${Font}  安装蓝绿部署系统" "${Yellow}1.${Font}  Install Blue-Green system"
-            lang_echo "${Yellow}2.${Font}  返回主菜单" "${Yellow}2.${Font}  Back to main menu"
-        fi
-        
-        echo
-        echo -e "${Blue}============================================${Font}"
-        
-        if check_vless_installed; then
-            read -p "$(lang_text "请输入选项 [1-10]: " "Enter option [1-10]: ")" vless_choice
-        else
-            read -p "$(lang_text "请输入选项 [1-2]: " "Enter option [1-2]: ")" vless_choice
-        fi
-        
-        if check_vless_installed; then
-            case $vless_choice in
-                1)
-                    lang_echo "${Green}正在切换到 Instance A...${Font}" "${Green}Switching to Instance A...${Font}"
-                    if /usr/local/bin/switch-traffic.sh a; then
-                        lang_echo "${Green}✓ 已切换到 Instance A${Font}" "${Green}✓ Switched to Instance A${Font}"
-                    else
-                        lang_echo "${Red}切换失败${Font}" "${Red}Switch failed${Font}"
-                    fi
-                    sleep 2
-                    ;;
-                2)
-                    lang_echo "${Green}正在切换到 Instance B...${Font}" "${Green}Switching to Instance B...${Font}"
-                    if /usr/local/bin/switch-traffic.sh b; then
-                        lang_echo "${Green}✓ 已切换到 Instance B${Font}" "${Green}✓ Switched to Instance B${Font}"
-                    else
-                        lang_echo "${Red}切换失败${Font}" "${Red}Switch failed${Font}"
-                    fi
-                    sleep 2
-                    ;;
-                3)
-                    /usr/local/bin/switch-traffic.sh status
-                    echo
-                    read -p "$(lang_text "按回车键继续..." "Press Enter to continue...")"
-                    ;;
-                4)
-                    lang_echo "${Green}显示监控日志 (Ctrl+C 退出)...${Font}" "${Green}Showing monitor logs (Ctrl+C to exit)...${Font}"
-                    journalctl -u vless-monitor.service -f
-                    ;;
-                5)
-                    lang_echo "${Green}正在启动所有服务...${Font}" "${Green}Starting all services...${Font}"
-                    systemctl start vless-instance-a.service vless-instance-b.service vless-monitor.service
-                    lang_echo "${Green}✓ 服务已启动${Font}" "${Green}✓ Services started${Font}"
-                    sleep 2
-                    ;;
-                6)
-                    lang_echo "${Yellow}正在停止所有服务...${Font}" "${Yellow}Stopping all services...${Font}"
-                    systemctl stop vless-instance-a.service vless-instance-b.service vless-monitor.service
-                    lang_echo "${Green}✓ 服务已停止${Font}" "${Green}✓ Services stopped${Font}"
-                    sleep 2
-                    ;;
-                7)
-                    lang_echo "${Green}正在重启所有服务...${Font}" "${Green}Restarting all services...${Font}"
-                    systemctl restart vless-instance-a.service vless-instance-b.service vless-monitor.service
-                    lang_echo "${Green}✓ 服务已重启${Font}" "${Green}✓ Services restarted${Font}"
-                    sleep 2
-                    ;;
-                8)
-                    clear
-                    echo -e "${Blue}============================================${Font}"
-                    lang_echo "${Green}    配置信息${Font}" "${Green}    Configuration Info${Font}"
-                    echo -e "${Blue}============================================${Font}"
-                    echo
-                    if [[ -f /etc/vless/config-a.json ]]; then
-                        local uuid=$(grep '"id"' /etc/vless/config-a.json | head -1 | awk -F'"' '{print $4}')
-                        echo -e "${Yellow}UUID:${Font} ${Green}$uuid${Font}"
-                        echo -e "${Yellow}Config A:${Font} ${Blue}/etc/vless/config-a.json${Font} (Port 10080)"
-                        echo -e "${Yellow}Config B:${Font} ${Blue}/etc/vless/config-b.json${Font} (Port 10081)"
-                        echo -e "${Yellow}External Port:${Font} ${Blue}443${Font}"
-                        echo
-                        lang_echo "${Yellow}编辑配置:${Font} sudo nano /etc/vless/config-a.json" "${Yellow}Edit config:${Font} sudo nano /etc/vless/config-a.json"
-                    fi
-                    echo
-                    read -p "$(lang_text "按回车键继续..." "Press Enter to continue...")"
-                    ;;
-                9)
-                    uninstall_vless_bluegreen
-                    ;;
-                10)
-                    return
-                    ;;
-                *)
-                    lang_echo "${Red}无效选项${Font}" "${Red}Invalid option${Font}"
-                    sleep 1
-                    ;;
-            esac
-        else
-            case $vless_choice in
-                1)
-                    install_vless_bluegreen
-                    ;;
-                2)
-                    return
-                    ;;
-                *)
-                    lang_echo "${Red}无效选项${Font}" "${Red}Invalid option${Font}"
-                    sleep 1
-                    ;;
-            esac
-        fi
-    done
-}
-
-# ============================================
-# End of VLESS Blue-Green Functions
-# ============================================
 
 # 启动脚本
 main "$@"

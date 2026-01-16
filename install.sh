@@ -4,44 +4,39 @@
 # 检查系统
 export LANG=en_US.UTF-8
 
-sanitize_output() {
-    # Keep printable ASCII only to avoid locale-dependent sed class errors.
-    printf "%s" "$1" | LC_ALL=C sed 's/[^ -~]/ /g'
-}
-
 echoContent() {
     case $1 in
     # 红色
     "red")
         # shellcheck disable=SC2154
-        ${echoType} "\033[31m${printN}$(sanitize_output "$2") \033[0m"
+        ${echoType} "\033[31m${printN}$2 \033[0m"
         ;;
         # 天蓝色
     "skyBlue")
-        ${echoType} "\033[1;36m${printN}$(sanitize_output "$2") \033[0m"
+        ${echoType} "\033[1;36m${printN}$2 \033[0m"
         ;;
         # 绿色
     "green")
-        ${echoType} "\033[32m${printN}$(sanitize_output "$2") \033[0m"
+        ${echoType} "\033[32m${printN}$2 \033[0m"
         ;;
         # 白色
     "white")
-        ${echoType} "\033[37m${printN}$(sanitize_output "$2") \033[0m"
+        ${echoType} "\033[37m${printN}$2 \033[0m"
         ;;
     "magenta")
-        ${echoType} "\033[31m${printN}$(sanitize_output "$2") \033[0m"
+        ${echoType} "\033[31m${printN}$2 \033[0m"
         ;;
         # 黄色
     "yellow")
-        ${echoType} "\033[33m${printN}$(sanitize_output "$2") \033[0m"
+        ${echoType} "\033[33m${printN}$2 \033[0m"
         ;;
     esac
 }
 # 检查SELinux状态
 checkCentosSELinux() {
     if [[ -f "/etc/selinux/config" ]] && ! grep -q "SELINUX=disabled" <"/etc/selinux/config"; then
-        echoContent yellow "# Note"
-        echoContent yellow "SELinux is enabled, please disable it manually. Tutorial:"
+        echoContent yellow "# 注意事项"
+        echoContent yellow "检测到SELinux已开启，请手动关闭，教程如下"
         echoContent yellow "https://www.v2ray-agent.com/archives/1684115970026#centos7-%E5%85%B3%E9%97%ADselinux"
         exit 0
     fi
@@ -88,7 +83,7 @@ checkSystem() {
     fi
 
     if [[ -z ${release} ]]; then
-        echoContent red "\nThis script does not support this system. Please report the log below to the developer.\n"
+        echoContent red "\n本脚本不支持此系统，请将下方日志反馈给开发者\n"
         echoContent yellow "$(cat /etc/issue)"
         echoContent yellow "$(cat /proc/version)"
         exit 0
@@ -114,13 +109,13 @@ checkCPUVendor() {
                 singBoxCoreCPUVendor="-linux-arm64"
                 ;;
             *)
-                echo "  Unsupported CPU architecture--->"
+                echo "  不支持此CPU架构--->"
                 exit 1
                 ;;
             esac
         fi
     else
-        echoContent red "  Unable to identify CPU architecture   amd64 x86_64--->"
+        echoContent red "  无法识别此CPU架构，默认amd64、x86_64--->"
         xrayCoreCPUVendor="Xray-linux-64"
         v2rayCoreCPUVendor="v2ray-linux-64"
     fi
@@ -142,7 +137,7 @@ initVar() {
 
     # 域名
     domain=
-    # 安装总Progress
+    # 安装总进度
     totalProgress=1
 
     # 1.xray-core安装
@@ -612,11 +607,11 @@ checkBTPanel() {
         # 读取域名
         if [[ -d '/www/server/panel/vhost/cert/' && -n $(find /www/server/panel/vhost/cert/*/fullchain.pem) ]]; then
             if [[ -z "${currentHost}" ]]; then
-                echoContent skyBlue "\n      \n"
+                echoContent skyBlue "\n读取宝塔配置\n"
 
                 find /www/server/panel/vhost/cert/*/fullchain.pem | awk -F "[/]" '{print $7}' | awk '{print NR""":"$0}'
 
-                read -r -p "       :" selectBTDomain
+                read -r -p "请输入编号选择:" selectBTDomain
             else
                 selectBTDomain=$(find /www/server/panel/vhost/cert/*/fullchain.pem | awk -F "[/]" '{print $7}' | awk '{print NR""":"$0}' | grep "${currentHost}" | cut -d ":" -f 1)
             fi
@@ -625,7 +620,7 @@ checkBTPanel() {
                 btDomain=$(find /www/server/panel/vhost/cert/*/fullchain.pem | awk -F "[/]" '{print $7}' | awk '{print NR""":"$0}' | grep -e "^${selectBTDomain}:" | cut -d ":" -f 2)
 
                 if [[ -z "${btDomain}" ]]; then
-                    echoContent red " --->           "
+                    echoContent red " ---> 选择错误，请重新选择"
                     checkBTPanel
                 else
                     domain=${btDomain}
@@ -644,7 +639,7 @@ checkBTPanel() {
                     nginxConfigPath="/www/server/panel/vhost/nginx/"
                 fi
             else
-                echoContent red " --->           "
+                echoContent red " ---> 选择错误，请重新选择"
                 checkBTPanel
             fi
         fi
@@ -655,11 +650,11 @@ check1Panel() {
         # 读取域名
         if [[ -d '/opt/1panel/apps/openresty/openresty/www/sites/' && -n $(find /opt/1panel/apps/openresty/openresty/www/sites/*/ssl/fullchain.pem) ]]; then
             if [[ -z "${currentHost}" ]]; then
-                echoContent skyBlue "\n  1Panel  \n"
+                echoContent skyBlue "\n读取1Panel配置\n"
 
                 find /opt/1panel/apps/openresty/openresty/www/sites/*/ssl/fullchain.pem | awk -F "[/]" '{print $9}' | awk '{print NR""":"$0}'
 
-                read -r -p "       :" selectBTDomain
+                read -r -p "请输入编号选择:" selectBTDomain
             else
                 selectBTDomain=$(find /opt/1panel/apps/openresty/openresty/www/sites/*/ssl/fullchain.pem | awk -F "[/]" '{print $9}' | awk '{print NR""":"$0}' | grep "${currentHost}" | cut -d ":" -f 1)
             fi
@@ -668,7 +663,7 @@ check1Panel() {
                 btDomain=$(find /opt/1panel/apps/openresty/openresty/www/sites/*/ssl/fullchain.pem | awk -F "[/]" '{print $9}' | awk '{print NR""":"$0}' | grep "${selectBTDomain}:" | cut -d ":" -f 2)
 
                 if [[ -z "${btDomain}" ]]; then
-                    echoContent red " --->           "
+                    echoContent red " ---> 选择错误，请重新选择"
                     check1Panel
                 else
                     domain=${btDomain}
@@ -680,7 +675,7 @@ check1Panel() {
                     nginxStaticPath="/opt/1panel/apps/openresty/openresty/www/sites/${btDomain}/index/"
                 fi
             else
-                echoContent red " --->           "
+                echoContent red " ---> 选择错误，请重新选择"
                 check1Panel
             fi
         fi
@@ -767,9 +762,9 @@ getPublicIP() {
 # 输出ufw端口开放状态
 checkUFWAllowPort() {
     if ufw status | grep -q "$1"; then
-        echoContent green " ---> $1      "
+        echoContent green " ---> $1端口开放成功"
     else
-        echoContent red " ---> $1      "
+        echoContent red " ---> $1端口开放失败"
         exit 0
     fi
 }
@@ -777,9 +772,9 @@ checkUFWAllowPort() {
 # 输出firewall-cmd端口开放状态
 checkFirewalldAllowPort() {
     if firewall-cmd --list-ports --permanent | grep -q "$1"; then
-        echoContent green " ---> $1      "
+        echoContent green " ---> $1端口开放成功"
     else
-        echoContent red " ---> $1      "
+        echoContent red " ---> $1端口开放失败"
         exit 0
     fi
 }
@@ -805,7 +800,7 @@ readSingBoxConfig() {
 # 读取上次安装的配置
 readLastInstallationConfig() {
     if [[ -n "${configPath}" ]]; then
-        read -r -p "                 [y/n]:" lastInstallationConfigStatus
+        read -r -p "读取到上次安装的配置，是否使用 ？[y/n]:" lastInstallationConfigStatus
         if [[ "${lastInstallationConfigStatus}" == "y" ]]; then
             lastInstallationConfig=true
         fi
@@ -817,12 +812,12 @@ unInstallSingBox() {
     if [[ -n "${singBoxConfigPath}" ]]; then
         if grep -q 'tuic' </etc/v2ray-agent/sing-box/conf/config.json && [[ "${type}" == "tuic" ]]; then
             rm "${singBoxConfigPath}09_tuic_inbounds.json"
-            echoContent green " --->   sing-box tuic    "
+            echoContent green " ---> 删除sing-box tuic配置成功"
         fi
 
         if grep -q 'hysteria2' </etc/v2ray-agent/sing-box/conf/config.json && [[ "${type}" == "hysteria2" ]]; then
             rm "${singBoxConfigPath}06_hysteria2_inbounds.json"
-            echoContent green " --->   sing-box hysteria2    "
+            echoContent green " ---> 删除sing-box hysteria2配置成功"
         fi
         rm "${singBoxConfigPath}config.json"
     fi
@@ -830,14 +825,14 @@ unInstallSingBox() {
     readInstallType
 
     if [[ -n "${singBoxConfigPath}" ]]; then
-        echoContent yellow " --->            sing-box  "
+        echoContent yellow " ---> 检测到有其他配置，保留sing-box核心"
         handleSingBox stop
         handleSingBox start
     else
         handleSingBox stop
         rm /etc/systemd/system/sing-box.service
         rm -rf /etc/v2ray-agent/sing-box/*
-        echoContent green " ---> sing-box     "
+        echoContent green " ---> sing-box 卸载完成"
     fi
 }
 
@@ -1062,9 +1057,9 @@ describeCDNPreference() {
     local preference=
     preference=$(normalizeCDNPreference "$1")
     if [[ "${preference}" == "ipv6" ]]; then
-        echo "IPv6  "
+        echo "IPv6优先"
     else
-        echo "IPv4  "
+        echo "IPv4优先"
     fi
 }
 
@@ -1078,11 +1073,11 @@ promptCDNPreference() {
         ipv4Label=
         ipv6Label="[默认]"
     fi
-    echoContent yellow "\n    ${nodeAddress}       "
-    echoContent yellow "1.IPv4  ${ipv4Label}"
-    echoContent yellow "2.IPv6  ${ipv6Label}"
+    echoContent yellow "\n为节点 ${nodeAddress} 选择访问方式"
+    echoContent yellow "1.IPv4优先${ipv4Label}"
+    echoContent yellow "2.IPv6优先${ipv6Label}"
     local selectPreference=
-    read -r -p "   [1-2]:" selectPreference
+    read -r -p "请选择[1-2]:" selectPreference
     if [[ -z "${selectPreference}" ]]; then
         if [[ "${defaultPreference}" == "ipv6" ]]; then
             selectPreference=2
@@ -1121,13 +1116,13 @@ buildCDNPreferenceList() {
 
 configureExistingCDNPreference() {
     if [[ ! -f "/etc/v2ray-agent/cdn" ]]; then
-        echoContent yellow " --->     CDN       "
+        echoContent yellow " ---> 未检测到CDN节点，请先添加"
         return
     fi
     local rawList=
     rawList=$(head -1 /etc/v2ray-agent/cdn)
     if [[ -z "${rawList}" ]]; then
-        echoContent yellow " --->     CDN       "
+        echoContent yellow " ---> 未检测到CDN节点，请先添加"
         return
     fi
     local entries=()
@@ -1140,20 +1135,20 @@ configureExistingCDNPreference() {
     done < <(echo "${rawList}" | tr ',' '\n')
 
     if [[ ${#entries[@]} -eq 0 ]]; then
-        echoContent yellow " --->     CDN       "
+        echoContent yellow " ---> 未检测到CDN节点，请先添加"
         return
     fi
 
-    echoContent skyBlue "\n         "
+    echoContent skyBlue "\n当前节点及其优先级"
     local idx=1
     for entry in "${entries[@]}"; do
         parseCDNNodeEntry "${entry}"
         echoContent yellow "${idx}. ${cdnNodeAddress} [$(describeCDNPreference "${cdnNodePreference:-ipv4}")]"
         idx=$((idx + 1))
     done
-    read -r -p "            :" selectNodeIndex
+    read -r -p "请选择需要修改的节点编号:" selectNodeIndex
     if [[ -z "${selectNodeIndex}" ]] || ! [[ "${selectNodeIndex}" =~ ^[0-9]+$ ]] || ((selectNodeIndex < 1)) || ((selectNodeIndex > ${#entries[@]})); then
-        echoContent red " --->         "
+        echoContent red " ---> 节点编号输入有误"
         return
     fi
     local targetEntry=${entries[$((selectNodeIndex - 1))]}
@@ -1162,7 +1157,7 @@ configureExistingCDNPreference() {
     updatedPreference=$(promptCDNPreference "${cdnNodeAddress}" "${cdnNodePreference:-ipv4}")
     entries[$((selectNodeIndex - 1))]="${cdnNodeAddress}|${updatedPreference}"
     (IFS=','; echo "${entries[*]}") >/etc/v2ray-agent/cdn
-    echoContent green " --->          "
+    echoContent green " ---> 节点优先级更新成功"
     subscribe false false
 }
 
@@ -1171,23 +1166,23 @@ showInstallStatus() {
     if [[ -n "${coreInstallType}" ]]; then
         if [[ "${coreInstallType}" == 1 ]]; then
             if [[ -n $(pgrep -f "xray/xray") ]]; then
-                echoContent yellow "\n  : Xray-core[   ]"
+                echoContent yellow "\n核心: Xray-core[运行中]"
             else
-                echoContent yellow "\n  : Xray-core[   ]"
+                echoContent yellow "\n核心: Xray-core[未运行]"
             fi
 
         elif [[ "${coreInstallType}" == 2 ]]; then
             if [[ -n $(pgrep -f "sing-box/sing-box") ]]; then
-                echoContent yellow "\n  : sing-box[   ]"
+                echoContent yellow "\n核心: sing-box[运行中]"
             else
-                echoContent yellow "\n  : sing-box[   ]"
+                echoContent yellow "\n核心: sing-box[未运行]"
             fi
         fi
         # 读取协议类型
         readInstallProtocolType
 
         if [[ -n ${currentInstallProtocolType} ]]; then
-            echoContent yellow "     : \c"
+            echoContent yellow "已安装协议: \c"
         fi
         if echo ${currentInstallProtocolType} | grep -q ",0,"; then
             echoContent yellow "VLESS+TCP[TLS_Vision] \c"
@@ -1293,7 +1288,7 @@ mkdirTools() {
 
 # 安装工具包
 installTools() {
-    echoContent skyBlue "\nProgress  $1/${totalProgress} :     "
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 安装工具"
     # 修复ubuntu个别系统问题
     if [[ "${release}" == "ubuntu" ]]; then
         dpkg --configure -a
@@ -1303,7 +1298,7 @@ installTools() {
         pgrep -f apt | xargs kill -9
     fi
 
-    echoContent green " --->                                   "
+    echoContent green " ---> 检查、安装更新【新机器会很慢，如长时间无反应，请手动停止后重新执行】"
 
     ${upgrade} >/etc/v2ray-agent/install.log 2>&1
     if grep <"/etc/v2ray-agent/install.log" -q "changed"; then
@@ -1316,50 +1311,50 @@ installTools() {
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w sudo; then
-        echoContent green " --->   sudo"
+        echoContent green " ---> 安装sudo"
         ${installType} sudo >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w wget; then
-        echoContent green " --->   wget"
+        echoContent green " ---> 安装wget"
         ${installType} wget >/dev/null 2>&1
     fi
 
     # 安装iptables-persistent（仅适用于基于Debian的系统）
     if [[ "${release}" == "debian" ]] || [[ "${release}" == "ubuntu" ]]; then
         if ! dpkg -l | grep -q iptables-persistent; then
-            echoContent green " --->   iptables-persistent"
+            echoContent green " ---> 安装iptables-persistent"
             # 预设置答案以避免交互式提示
             echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
             echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
             ${installType} iptables-persistent >/dev/null 2>&1
         else
-            echoContent yellow " ---> iptables-persistent      "
+            echoContent yellow " ---> iptables-persistent已安装，跳过"
         fi
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w curl; then
-        echoContent green " --->   curl"
+        echoContent green " ---> 安装curl"
         ${installType} curl >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w unzip; then
-        echoContent green " --->   unzip"
+        echoContent green " ---> 安装unzip"
         ${installType} unzip >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w socat; then
-        echoContent green " --->   socat"
+        echoContent green " ---> 安装socat"
         ${installType} socat >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w tar; then
-        echoContent green " --->   tar"
+        echoContent green " ---> 安装tar"
         ${installType} tar >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w cron; then
-        echoContent green " --->   crontabs"
+        echoContent green " ---> 安装crontabs"
         if [[ "${release}" == "ubuntu" ]] || [[ "${release}" == "debian" ]]; then
             ${installType} cron >/dev/null 2>&1
         else
@@ -1367,42 +1362,42 @@ installTools() {
         fi
     fi
     if ! find /usr/bin /usr/sbin | grep -q -w jq; then
-        echoContent green " --->   jq"
+        echoContent green " ---> 安装jq"
         ${installType} jq >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w binutils; then
-        echoContent green " --->   binutils"
+        echoContent green " ---> 安装binutils"
         ${installType} binutils >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w openssl; then
-        echoContent green " --->   openssl"
+        echoContent green " ---> 安装openssl"
         ${installType} openssl >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w ping6; then
-        echoContent green " --->   ping6"
+        echoContent green " ---> 安装ping6"
         ${installType} inetutils-ping >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w qrencode; then
-        echoContent green " --->   qrencode"
+        echoContent green " ---> 安装qrencode"
         ${installType} qrencode >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w lsb-release; then
-        echoContent green " --->   lsb-release"
+        echoContent green " ---> 安装lsb-release"
         ${installType} lsb-release >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w lsof; then
-        echoContent green " --->   lsof"
+        echoContent green " ---> 安装lsof"
         ${installType} lsof >/dev/null 2>&1
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w dig; then
-        echoContent green " --->   dig"
+        echoContent green " ---> 安装dig"
         if echo "${installType}" | grep -qw "apt"; then
             ${installType} dnsutils >/dev/null 2>&1
         elif echo "${installType}" | grep -qw "yum"; then
@@ -1414,20 +1409,20 @@ installTools() {
 
     # 检测nginx版本，并提供是否卸载的选项
     if echo "${selectCustomInstallType}" | grep -qwE ",7,|,8,|,7,8,"; then
-        echoContent green " --->        Nginx        "
+        echoContent green " ---> 检测到无需依赖Nginx的服务，跳过安装"
     else
         if ! find /usr/bin /usr/sbin | grep -q -w nginx; then
-            echoContent green " --->   nginx"
+            echoContent green " ---> 安装nginx"
             installNginxTools
         else
             nginxVersion=$(nginx -v 2>&1)
             nginxVersion=$(echo "${nginxVersion}" | awk -F "[n][g][i][n][x][/]" '{print $2}' | awk -F "[.]" '{print $2}')
             if [[ ${nginxVersion} -lt 14 ]]; then
-                read -r -p "      Nginx     gRPC             Nginx       [y/n]:" unInstallNginxStatus
+                read -r -p "读取到当前的Nginx版本不支持gRPC，会导致安装失败，是否卸载Nginx后重新安装 ？[y/n]:" unInstallNginxStatus
                 if [[ "${unInstallNginxStatus}" == "y" ]]; then
                     ${removeType} nginx >/dev/null 2>&1
-                    echoContent yellow " ---> nginx    "
-                    echoContent green " --->   nginx"
+                    echoContent yellow " ---> nginx卸载完成"
+                    echoContent green " ---> 安装nginx"
                     installNginxTools >/dev/null 2>&1
                 else
                     exit 0
@@ -1437,7 +1432,7 @@ installTools() {
     fi
 
     if ! find /usr/bin /usr/sbin | grep -q -w semanage; then
-        echoContent green " --->   semanage"
+        echoContent green " ---> 安装semanage"
         ${installType} bash-completion >/dev/null 2>&1
 
         if [[ "${centosVersion}" == "7" ]]; then
@@ -1455,19 +1450,19 @@ installTools() {
         fi
     fi
     if [[ "${selectCustomInstallType}" == "7" ]]; then
-        echoContent green " --->                  "
+        echoContent green " ---> 检测到无需依赖证书的服务，跳过安装"
     else
         if [[ ! -d "$HOME/.acme.sh" ]] || [[ -d "$HOME/.acme.sh" && -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
-            echoContent green " --->   acme.sh"
+            echoContent green " ---> 安装acme.sh"
             curl -s https://get.acme.sh | sh >/etc/v2ray-agent/tls/acme.log 2>&1
 
             if [[ ! -d "$HOME/.acme.sh" ]] || [[ -z $(find "$HOME/.acme.sh/acme.sh") ]]; then
-                echoContent red "  acme    --->"
+                echoContent red "  acme安装失败--->"
                 tail -n 100 /etc/v2ray-agent/tls/acme.log
-                echoContent yellow "    :"
-                echoContent red "  1.  Github        Github        Progress    [https://www.githubstatus.com/]"
-                echoContent red "  2.acme.sh    bug    [https://github.com/acmesh-official/acme.sh] issues"
-                echoContent red "  3.  IPv6      NAT64,                             NAT64"
+                echoContent yellow "错误排查:"
+                echoContent red "  1.获取Github文件失败，请等待Github恢复后尝试，恢复进度可查看 [https://www.githubstatus.com/]"
+                echoContent red "  2.acme.sh脚本出现bug，可查看[https://github.com/acmesh-official/acme.sh] issues"
+                echoContent red "  3.如纯IPv6机器，请设置NAT64,可执行下方命令，如果添加下方命令还是不可用，请尝试更换其他NAT64"
                 echoContent skyBlue "  sed -i \"1i\\\nameserver 2a00:1098:2b::1\\\nnameserver 2a00:1098:2c::1\\\nnameserver 2a01:4f8:c2c:123f::1\\\nnameserver 2a01:4f9:c010:3f02::1\" /etc/resolv.conf"
                 exit 0
             fi
@@ -1475,7 +1470,7 @@ installTools() {
     fi
 
     # 添加每天凌晨5点重启的定时任务
-    echoContent green " --->         "
+    echoContent green " ---> 配置系统定时重启"
     installDailyRebootCron
 
 }
@@ -1484,7 +1479,7 @@ installTools() {
 installDailyRebootCron() {
     # 检查是否已存在重启任务
     if crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-        echoContent yellow " --->     5             "
+        echoContent yellow " ---> 每日凌晨5点重启任务已存在，跳过添加"
         return
     fi
     
@@ -1502,11 +1497,11 @@ installDailyRebootCron() {
     
     # 验证任务是否添加成功
     if crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-        echoContent green " --->     5           "
-        echoContent yellow " --->         5:00           "
-        echoContent skyBlue " --->             : crontab -e        "
+        echoContent green " ---> 每日凌晨5点自动重启任务添加成功"
+        echoContent yellow " ---> 系统将在每天凌晨5:00自动重启以保持最佳性能"
+        echoContent skyBlue " ---> 如需取消重启任务，请执行: crontab -e 手动删除相关行"
     else
-        echoContent red " --->           "
+        echoContent red " ---> 定时重启任务添加失败"
     fi
 }
 
@@ -1571,7 +1566,7 @@ EOF
 # 安装warp
 installWarp() {
     if [[ "${cpuVendor}" == "arm" ]]; then
-        echoContent red " --->   WARP      ARM  "
+        echoContent red " ---> 官方WARP客户端不支持ARM架构"
         exit 0
     fi
 
@@ -1591,10 +1586,10 @@ installWarp() {
         sudo rpm -ivh "http://pkg.cloudflareclient.com/cloudflare-release-el${centosVersion}.rpm" >/dev/null 2>&1
     fi
 
-    echoContent green " --->   WARP"
+    echoContent green " ---> 安装WARP"
     ${installType} cloudflare-warp >/dev/null 2>&1
     if [[ -z $(which warp-cli) ]]; then
-        echoContent red " --->   WARP  "
+        echoContent red " ---> 安装WARP失败"
         exit 0
     fi
     systemctl enable warp-svc
@@ -1608,7 +1603,7 @@ installWarp() {
     warpStatus=$(curl -s --socks5 127.0.0.1:31303 https://www.cloudflare.com/cdn-cgi/trace | grep "warp" | cut -d "=" -f 2)
 
     if [[ "${warpStatus}" == "on" ]]; then
-        echoContent green " ---> WARP    "
+        echoContent green " ---> WARP启动成功"
     fi
 }
 
@@ -1623,12 +1618,12 @@ checkDNSIP() {
     fi
     if echo "${dnsIP}" | grep -q "timed out" || [[ -z "${dnsIP}" ]]; then
         echo
-        echoContent red " --->     DNS     IPv4   "
-        echoContent green " --->        IPv6   "
+        echoContent red " ---> 无法通过DNS获取域名 IPv4 地址"
+        echoContent green " ---> 尝试检查域名 IPv6 地址"
         dnsIP=$(dig @2606:4700:4700::1111 +time=2 aaaa +short "${domain}")
         ipType=6
         if echo "${dnsIP}" | grep -q "network unreachable" || [[ -z "${dnsIP}" ]]; then
-            echoContent red " --->     DNS    IPv6       "
+            echoContent red " ---> 无法通过DNS获取域名IPv6地址，退出安装"
             exit 0
         fi
     fi
@@ -1636,13 +1631,13 @@ checkDNSIP() {
 
     publicIP=$(getPublicIP "${ipType}")
     if [[ "${publicIP}" != "${dnsIP}" ]]; then
-        echoContent red " --->     IP      IP   \n"
-        echoContent yellow " --->                "
-        echoContent green " --->   VPS IP ${publicIP}"
-        echoContent green " ---> DNS   IP ${dnsIP}"
+        echoContent red " ---> 域名解析IP与当前服务器IP不一致\n"
+        echoContent yellow " ---> 请检查域名解析是否生效以及正确"
+        echoContent green " ---> 当前VPS IP：${publicIP}"
+        echoContent green " ---> DNS解析 IP：${dnsIP}"
         exit 0
     else
-        echoContent green " --->   IP    "
+        echoContent green " ---> 域名IP校验通过"
     fi
 }
 # 检查端口实际开放状态
@@ -1690,17 +1685,17 @@ EOF
         rm "${nginxConfigPath}checkPortOpen.conf"
         handleNginx stop
         if [[ "${checkPortOpenResult}" == "fjkvymb6len" ]]; then
-            echoContent green " --->    ${port}     "
+            echoContent green " ---> 检测到${port}端口已开放"
         else
-            echoContent green " --->     ${port}         "
+            echoContent green " ---> 未检测到${port}端口开放，退出安装"
             if echo "${checkPortOpenResult}" | grep -q "cloudflare"; then
-                echoContent yellow " --->                "
+                echoContent yellow " ---> 请关闭云朵后等待三分钟重新尝试"
             else
                 if [[ -z "${checkPortOpenResult}" ]]; then
-                    echoContent red " --->               Oracle     "
-                    echoContent red " --->          nginx            DD         "
+                    echoContent red " ---> 请检查是否有网页防火墙，比如Oracle等云服务商"
+                    echoContent red " ---> 检查是否自己安装过nginx并且有配置冲突，可以尝试DD纯净系统后重新尝试"
                 else
-                    echoContent red " --->      ${checkPortOpenResult}          issues    "
+                    echoContent red " ---> 错误日志：${checkPortOpenResult}，请将此错误日志通过issues提交反馈"
                 fi
             fi
             exit 0
@@ -1712,28 +1707,28 @@ EOF
 # 初始化Nginx申请证书配置
 initTLSNginxConfig() {
     handleNginx stop
-    echoContent skyBlue "\nProgress  $1/${totalProgress} :    Nginx      "
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 初始化Nginx申请证书配置"
     if [[ -n "${currentHost}" && -z "${lastInstallationConfig}" ]]; then
         echo
-        read -r -p "                        [y/n]:" historyDomainStatus
+        read -r -p "读取到上次安装记录，是否使用上次安装时的域名 ？[y/n]:" historyDomainStatus
         if [[ "${historyDomainStatus}" == "y" ]]; then
             domain=${currentHost}
-            echoContent yellow "\n --->   : ${domain}"
+            echoContent yellow "\n ---> 域名: ${domain}"
         else
             echo
-            echoContent yellow "           : www.v2ray-agent.com --->"
-            read -r -p "  :" domain
+            echoContent yellow "请输入要配置的域名 例: www.v2ray-agent.com --->"
+            read -r -p "域名:" domain
         fi
     elif [[ -n "${currentHost}" && -n "${lastInstallationConfig}" ]]; then
         domain=${currentHost}
     else
         echo
-        echoContent yellow "           : www.v2ray-agent.com --->"
-        read -r -p "  :" domain
+        echoContent yellow "请输入要配置的域名 例: www.v2ray-agent.com --->"
+        read -r -p "域名:" domain
     fi
 
     if [[ -z ${domain} ]]; then
-        echoContent red "        --->"
+        echoContent red "  域名不可为空--->"
         initTLSNginxConfig 3
     else
         dnsTLSDomain=$(echo "${domain}" | awk -F "." '{$1="";print $0}' | sed 's/^[[:space:]]*//' | sed 's/ /./g')
@@ -1749,7 +1744,7 @@ initTLSNginxConfig() {
 removeNginxDefaultConf() {
     if [[ -f ${nginxConfigPath}default.conf ]]; then
         if [[ "$(grep -c "server_name" <${nginxConfigPath}default.conf)" == "1" ]] && [[ "$(grep -c "server_name  localhost;" <${nginxConfigPath}default.conf)" == "1" ]]; then
-            echoContent green " --->   Nginx    "
+            echoContent green " ---> 删除Nginx默认配置"
             rm -rf ${nginxConfigPath}default.conf >/dev/null 2>&1
         fi
     fi
@@ -1953,38 +1948,38 @@ EOF
 
 # 检查ip
 checkIP() {
-    echoContent skyBlue "\n --->     ip "
+    echoContent skyBlue "\n ---> 检查域名ip中"
     local localIP=$1
 
     if [[ -z ${localIP} ]] || ! echo "${localIP}" | sed '1{s/[^(]*(//;s/).*//;q}' | grep -q '\.' && ! echo "${localIP}" | sed '1{s/[^(]*(//;s/).*//;q}' | grep -q ':'; then
-        echoContent red "\n --->          ip"
-        echoContent skyBlue " --->          "
-        echoContent yellow " --->  1.          "
-        echoContent yellow " --->  2.    dns      "
-        echoContent yellow " --->  3.         dns           "
-        echoContent yellow " --->  4.  Nginx          nginx              issues"
+        echoContent red "\n ---> 未检测到当前域名的ip"
+        echoContent skyBlue " ---> 请依次进行下列检查"
+        echoContent yellow " --->  1.检查域名是否书写正确"
+        echoContent yellow " --->  2.检查域名dns解析是否正确"
+        echoContent yellow " --->  3.如解析正确，请等待dns生效，预计三分钟内生效"
+        echoContent yellow " --->  4.如报Nginx启动问题，请手动启动nginx查看错误，如自己无法处理请提issues"
         echo
-        echoContent skyBlue " --->                        "
+        echoContent skyBlue " ---> 如以上设置都正确，请重新安装纯净系统后再次尝试"
 
         if [[ -n ${localIP} ]]; then
-            echoContent yellow " --->               nginx       "
-            echoContent red " --->      ${localIP}"
+            echoContent yellow " ---> 检测返回值异常，建议手动卸载nginx后重新执行脚本"
+            echoContent red " ---> 异常结果：${localIP}"
         fi
         exit 0
     else
         if echo "${localIP}" | awk -F "[,]" '{print $2}' | grep -q "." || echo "${localIP}" | awk -F "[,]" '{print $2}' | grep -q ":"; then
-            echoContent red "\n --->      ip        cloudflare   "
-            echoContent yellow " --->              "
-            echoContent yellow " --->     ip  :[${localIP}]"
+            echoContent red "\n ---> 检测到多个ip，请确认是否关闭cloudflare的云朵"
+            echoContent yellow " ---> 关闭云朵后等待三分钟后重试"
+            echoContent yellow " ---> 检测到的ip如下:[${localIP}]"
             exit 0
         fi
-        echoContent green " --->       IP  "
+        echoContent green " ---> 检查当前域名IP正确"
     fi
 }
 # 自定义email
 customSSLEmail() {
     if echo "$1" | grep -q "validate email"; then
-        read -r -p "          [y/n]:" sslEmailStatus
+        read -r -p "是否重新输入邮箱地址[y/n]:" sslEmailStatus
         if [[ "${sslEmailStatus}" == "y" ]]; then
             sed '/ACCOUNT_EMAIL/d' /root/.acme.sh/account.conf >/root/.acme.sh/account.conf_tmp && mv /root/.acme.sh/account.conf_tmp /root/.acme.sh/account.conf
         else
@@ -1994,12 +1989,12 @@ customSSLEmail() {
 
     if [[ -d "/root/.acme.sh" && -f "/root/.acme.sh/account.conf" ]]; then
         if ! grep -q "ACCOUNT_EMAIL" <"/root/.acme.sh/account.conf" && ! echo "${sslType}" | grep -q "letsencrypt"; then
-            read -r -p "       :" sslEmail
+            read -r -p "请输入邮箱地址:" sslEmail
             if echo "${sslEmail}" | grep -q "@"; then
                 echo "ACCOUNT_EMAIL='${sslEmail}'" >>/root/.acme.sh/account.conf
-                echoContent green " --->     "
+                echoContent green " ---> 添加完毕"
             else
-                echoContent yellow "            [ : username@example.com]"
+                echoContent yellow "请重新输入正确的邮箱格式[例: username@example.com]"
                 customSSLEmail
             fi
         fi
@@ -2008,13 +2003,13 @@ customSSLEmail() {
 }
 # DNS API申请证书
 switchDNSAPI() {
-    read -r -p "    DNS API    [  NAT] [y/n]:" dnsAPIStatus
+    read -r -p "是否使用DNS API申请证书[支持NAT]？[y/n]:" dnsAPIStatus
     if [[ "${dnsAPIStatus}" == "y" ]]; then
         echoContent red "\n=============================================================="
-        echoContent yellow "1.cloudflare[  ]"
+        echoContent yellow "1.cloudflare[默认]"
         echoContent yellow "2.aliyun"
         echoContent red "=============================================================="
-        read -r -p "   [  ]    :" selectDNSAPIType
+        read -r -p "请选择[回车]使用默认:" selectDNSAPIType
         case ${selectDNSAPIType} in
         1)
             dnsAPIType="cloudflare"
@@ -2032,32 +2027,32 @@ switchDNSAPI() {
 # 初始化dns配置
 initDNSAPIConfig() {
     if [[ "$1" == "cloudflare" ]]; then
-        echoContent yellow "\n CF_Token       https://www.v2ray-agent.com/archives/1701160377972\n"
-        read -r -p "   API Token:" cfAPIToken
+        echoContent yellow "\n CF_Token参考配置教程：https://www.v2ray-agent.com/archives/1701160377972\n"
+        read -r -p "请输入API Token:" cfAPIToken
         if [[ -z "${cfAPIToken}" ]]; then
-            echoContent red " --->           "
+            echoContent red " ---> 输入为空，请重新输入"
             initDNSAPIConfig "$1"
         else
             echo
             if ! echo "${dnsTLSDomain}" | grep -q "\." || [[ -z $(echo "${dnsTLSDomain}" | awk -F "[.]" '{print $1}') ]]; then
-                echoContent green " --->                      [xx.xx.xx]"
+                echoContent green " ---> 不支持此域名申请通配符证书，建议使用此格式[xx.xx.xx]"
                 exit 0
             fi
-            read -r -p "    *.${dnsTLSDomain}  API        [y/n]:" dnsAPIStatus
+            read -r -p "是否使用*.${dnsTLSDomain}进行API申请通配符证书？[y/n]:" dnsAPIStatus
         fi
     elif [[ "$1" == "aliyun" ]]; then
-        read -r -p "   Ali Key:" aliKey
-        read -r -p "   Ali Secret:" aliSecret
+        read -r -p "请输入Ali Key:" aliKey
+        read -r -p "请输入Ali Secret:" aliSecret
         if [[ -z "${aliKey}" || -z "${aliSecret}" ]]; then
-            echoContent red " --->           "
+            echoContent red " ---> 输入为空，请重新输入"
             initDNSAPIConfig "$1"
         else
             echo
             if ! echo "${dnsTLSDomain}" | grep -q "\." || [[ -z $(echo "${dnsTLSDomain}" | awk -F "[.]" '{print $1}') ]]; then
-                echoContent green " --->                      [xx.xx.xx]"
+                echoContent green " ---> 不支持此域名申请通配符证书，建议使用此格式[xx.xx.xx]"
                 exit 0
             fi
-            read -r -p "    *.${dnsTLSDomain}  API        [y/n]:" dnsAPIStatus
+            read -r -p "是否使用*.${dnsTLSDomain}进行API申请通配符证书？[y/n]:" dnsAPIStatus
         fi
     fi
 }
@@ -2065,11 +2060,11 @@ initDNSAPIConfig() {
 switchSSLType() {
     if [[ -z "${sslType}" ]]; then
         echoContent red "\n=============================================================="
-        echoContent yellow "1.letsencrypt[  ]"
+        echoContent yellow "1.letsencrypt[默认]"
         echoContent yellow "2.zerossl"
-        echoContent yellow "3.buypass[   DNS  ]"
+        echoContent yellow "3.buypass[不支持DNS申请]"
         echoContent red "=============================================================="
-        read -r -p "   [  ]    :" selectSSLType
+        read -r -p "请选择[回车]使用默认:" selectSSLType
         case ${selectSSLType} in
         1)
             sslType="letsencrypt"
@@ -2085,7 +2080,7 @@ switchSSLType() {
             ;;
         esac
         if [[ -n "${dnsAPIType}" && "${sslType}" == "buypass" ]]; then
-            echoContent red " ---> buypass   API    "
+            echoContent red " ---> buypass不支持API申请证书"
             exit 0
         fi
         echo "${sslType}" >/etc/v2ray-agent/tls/ssl_type
@@ -2121,13 +2116,13 @@ acmeInstallSSL() {
     fi
 
     if [[ "${dnsAPIType}" == "cloudflare" ]]; then
-        echoContent green " ---> DNS API      "
+        echoContent green " ---> DNS API 生成证书中"
         sudo CF_Token="${cfAPIToken}" "$HOME/.acme.sh/acme.sh" --issue -d "${dnsAPIDomain}" -d "${dnsTLSDomain}" --dns dns_cf -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     elif [[ "${dnsAPIType}" == "aliyun" ]]; then
-        echoContent green " --->  DNS API      "
+        echoContent green " --->  DNS API 生成证书中"
         sudo Ali_Key="${aliKey}" Ali_Secret="${aliSecret}" "$HOME/.acme.sh/acme.sh" --issue -d "${dnsAPIDomain}" -d "${dnsTLSDomain}" --dns dns_ali -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     else
-        echoContent green " --->      "
+        echoContent green " ---> 生成证书中"
         sudo "$HOME/.acme.sh/acme.sh" --issue -d "${tlsDomain}" --standalone -k ec-256 --server "${sslType}" ${sslIPv6} 2>&1 | tee -a /etc/v2ray-agent/tls/acme.log >/dev/null
     fi
 }
@@ -2137,10 +2132,10 @@ customPortFunction() {
     if [[ -n "${customPort}" || -n "${currentPort}" ]]; then
         echo
         if [[ -z "${lastInstallationConfig}" ]]; then
-            read -r -p "                         [y/n]:" historyCustomPortStatus
+            read -r -p "读取到上次安装时的端口，是否使用上次安装时的端口？[y/n]:" historyCustomPortStatus
             if [[ "${historyCustomPortStatus}" == "y" ]]; then
                 port=${currentPort}
-                echoContent yellow "\n --->   : ${port}"
+                echoContent yellow "\n ---> 端口: ${port}"
             fi
         elif [[ -n "${lastInstallationConfig}" ]]; then
             port=${currentPort}
@@ -2150,15 +2145,15 @@ customPortFunction() {
         echo
 
         if [[ -n "${btDomain}" ]]; then
-            echoContent yellow "     [   BT Panel/1Panel         ]"
-            read -r -p "  :" port
+            echoContent yellow "请输入端口[不可与BT Panel/1Panel端口相同，回车随机]"
+            read -r -p "端口:" port
             if [[ -z "${port}" ]]; then
                 port=$((RANDOM % 20001 + 10000))
             fi
         else
             echo
-            echoContent yellow "     [  : 443]       [      ]"
-            read -r -p "  :" port
+            echoContent yellow "请输入端口[默认: 443]，可自定义端口[回车使用默认]"
+            read -r -p "端口:" port
             if [[ -z "${port}" ]]; then
                 port=443
             fi
@@ -2170,18 +2165,18 @@ customPortFunction() {
         if [[ -n "${port}" ]]; then
             if ((port >= 1 && port <= 65535)); then
                 allowPort "${port}"
-                echoContent yellow "\n --->   : ${port}"
+                echoContent yellow "\n ---> 端口: ${port}"
                 if [[ -z "${btDomain}" ]]; then
                     checkDNSIP "${domain}"
                     removeNginxDefaultConf
                     checkPortOpen "${port}" "${domain}"
                 fi
             else
-                echoContent red " --->       "
+                echoContent red " ---> 端口输入错误"
                 exit 0
             fi
         else
-            echoContent red " --->       "
+            echoContent red " ---> 端口不可为空"
             exit 0
         fi
     fi
@@ -2190,7 +2185,7 @@ customPortFunction() {
 # 检测端口是否占用
 checkPort() {
     if [[ -n "$1" ]] && lsof -i "tcp:$1" | grep -q LISTEN; then
-        echoContent red "\n ---> $1              \n"
+        echoContent red "\n ---> $1端口被占用，请手动关闭后安装\n"
         lsof -i "tcp:$1" | grep LISTEN
         exit 0
     fi
@@ -2198,13 +2193,13 @@ checkPort() {
 
 # 安装TLS
 installTLS() {
-    echoContent skyBlue "\nProgress  $1/${totalProgress} :   TLS  \n"
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 申请TLS证书\n"
     readAcmeTLS
     local tlsDomain=${domain}
 
     # 安装tls
     if [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" && -n $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]] || [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]] || [[ "${installedDNSAPIStatus}" == "true" ]]; then
-        echoContent green " --->      "
+        echoContent green " ---> 检测到证书"
         renewalTLS
 
         if [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.crt") ]] || [[ -z $(find /etc/v2ray-agent/tls/ -name "${tlsDomain}.key") ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
@@ -2217,8 +2212,8 @@ installTLS() {
         else
             if [[ -d "$HOME/.acme.sh/${tlsDomain}_ecc" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" && -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" ]] || [[ "${installedDNSAPIStatus}" == "true" ]]; then
                 if [[ -z "${lastInstallationConfig}" ]]; then
-                    echoContent yellow " --->               [n]\n"
-                    read -r -p "       [y/n]:" reInstallStatus
+                    echoContent yellow " ---> 如未过期或者自定义证书请选择[n]\n"
+                    read -r -p "是否重新安装？[y/n]:" reInstallStatus
                     if [[ "${reInstallStatus}" == "y" ]]; then
                         rm -rf /etc/v2ray-agent/tls/*
                         installTLS "$1"
@@ -2230,8 +2225,8 @@ installTLS() {
     elif [[ -d "$HOME/.acme.sh" ]] && [[ ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.cer" || ! -f "$HOME/.acme.sh/${tlsDomain}_ecc/${tlsDomain}.key" ]]; then
         switchDNSAPI
         if [[ -z "${dnsAPIType}" ]]; then
-            echoContent yellow "\n --->    API    "
-            echoContent green " --->   TLS       80  "
+            echoContent yellow "\n ---> 不采用API申请证书"
+            echoContent green " ---> 安装TLS证书，需要依赖80端口"
             allowPort 80
         fi
 
@@ -2248,7 +2243,7 @@ installTLS() {
         if [[ ! -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" || ! -f "/etc/v2ray-agent/tls/${tlsDomain}.key" ]] || [[ -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.key") || -z $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
             tail -n 10 /etc/v2ray-agent/tls/acme.log
             if [[ ${installTLSCount} == "1" ]]; then
-                echoContent red " ---> TLS        acme  "
+                echoContent red " ---> TLS安装失败，请检查acme日志"
                 exit 0
             fi
 
@@ -2256,7 +2251,7 @@ installTLS() {
             echo
 
             if tail -n 10 /etc/v2ray-agent/tls/acme.log | grep -q "Could not validate email address as valid"; then
-                echoContent red " --->       SSL          "
+                echoContent red " ---> 邮箱无法通过SSL厂商验证，请重新输入"
                 echo
                 customSSLEmail "validate email"
                 installTLS "$1"
@@ -2265,9 +2260,9 @@ installTLS() {
             fi
         fi
 
-        echoContent green " ---> TLS    "
+        echoContent green " ---> TLS生成成功"
     else
-        echoContent yellow " --->    acme.sh"
+        echoContent yellow " ---> 未安装acme.sh"
         exit 0
     fi
 }
@@ -2286,14 +2281,14 @@ initRandomPath() {
 # 自定义/随机路径
 randomPathFunction() {
     if [[ -n $1 ]]; then
-        echoContent skyBlue "\nProgress  $1/${totalProgress} :       "
+        echoContent skyBlue "\n进度  $1/${totalProgress} : 生成随机路径"
     else
-        echoContent skyBlue "Please follow the on-screen instructions."
+        echoContent skyBlue "生成随机路径"
     fi
 
     if [[ -n "${currentPath}" && -z "${lastInstallationConfig}" ]]; then
         echo
-        read -r -p "                    path    [y/n]:" historyPathStatus
+        read -r -p "读取到上次安装记录，是否使用上次安装时的path路径 ？[y/n]:" historyPathStatus
         echo
     elif [[ -n "${currentPath}" && -n "${lastInstallationConfig}" ]]; then
         historyPathStatus="y"
@@ -2301,17 +2296,17 @@ randomPathFunction() {
 
     if [[ "${historyPathStatus}" == "y" ]]; then
         customPath=${currentPath}
-        echoContent green " --->     \n"
+        echoContent green " ---> 使用成功\n"
     else
-        echoContent yellow "        [ : alone]       [  ]    "
-        read -r -p '  :' customPath
+        echoContent yellow "请输入自定义路径[例: alone]，不需要斜杠，[回车]随机路径"
+        read -r -p '路径:' customPath
         if [[ -z "${customPath}" ]]; then
             initRandomPath
             currentPath=${customPath}
         else
             if [[ "${customPath: -2}" == "ws" ]]; then
                 echo
-                echoContent red " --->    path     ws             "
+                echoContent red " ---> 自定义path结尾不可用ws结尾，否则无法区分分流路径"
                 randomPathFunction "$1"
             else
                 currentPath=${customPath}
@@ -2334,15 +2329,15 @@ randomNum() {
 # Nginx伪装博客
 nginxBlog() {
     if [[ -n "$1" ]]; then
-        echoContent skyBlue "\nProgress $1/${totalProgress} :       "
+        echoContent skyBlue "\n进度 $1/${totalProgress} : 添加伪装站点"
     else
-        echoContent yellow "\n        "
+        echoContent yellow "\n开始添加伪装站点"
     fi
 
     if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
         echo
         if [[ -z "${lastInstallationConfig}" ]]; then
-            read -r -p "                  [y/n]:" nginxBlogInstallStatus
+            read -r -p "检测到安装伪装站点，是否需要重新安装[y/n]:" nginxBlogInstallStatus
         else
             nginxBlogInstallStatus="n"
         fi
@@ -2359,7 +2354,7 @@ nginxBlog() {
 
             unzip -o "${nginxStaticPath}html${randomNum}.zip" -d "${nginxStaticPath}" >/dev/null
             rm -f "${nginxStaticPath}html${randomNum}.zip*"
-            echoContent green " --->         "
+            echoContent green " ---> 添加伪装站点成功"
         fi
     else
         randomNum=$(randomNum 1 9)
@@ -2374,7 +2369,7 @@ nginxBlog() {
 
         unzip -o "${nginxStaticPath}html${randomNum}.zip" -d "${nginxStaticPath}" >/dev/null
         rm -f "${nginxStaticPath}html${randomNum}.zip*"
-        echoContent green " --->         "
+        echoContent green " ---> 添加伪装站点成功"
     fi
 
 }
@@ -2385,15 +2380,15 @@ updateSELinuxHTTPPortT() {
     $(find /usr/bin /usr/sbin | grep -w journalctl) -xe >/etc/v2ray-agent/nginx_error.log 2>&1
 
     if find /usr/bin /usr/sbin | grep -q -w semanage && find /usr/bin /usr/sbin | grep -q -w getenforce && grep -E "31300|31302" </etc/v2ray-agent/nginx_error.log | grep -q "Permission denied"; then
-        echoContent red " --->   SELinux      "
+        echoContent red " ---> 检查SELinux端口是否开放"
         if ! $(find /usr/bin /usr/sbin | grep -w semanage) port -l | grep http_port | grep -q 31300; then
             $(find /usr/bin /usr/sbin | grep -w semanage) port -a -t http_port_t -p tcp 31300
-            echoContent green " ---> http_port_t 31300       "
+            echoContent green " ---> http_port_t 31300 端口开放成功"
         fi
 
         if ! $(find /usr/bin /usr/sbin | grep -w semanage) port -l | grep http_port | grep -q 31302; then
             $(find /usr/bin /usr/sbin | grep -w semanage) port -a -t http_port_t -p tcp 31302
-            echoContent green " ---> http_port_t 31302       "
+            echoContent green " ---> http_port_t 31302 端口开放成功"
         fi
         handleNginx start
 
@@ -2415,14 +2410,14 @@ handleNginx() {
         sleep 0.5
 
         if [[ -z $(pgrep -f "nginx") ]]; then
-            echoContent red " ---> Nginx    "
-            echoContent red " --->             "
+            echoContent red " ---> Nginx启动失败"
+            echoContent red " ---> 请将下方日志反馈给开发者"
             nginx
             if grep -q "journalctl -xe" </etc/v2ray-agent/nginx_error.log; then
                 updateSELinuxHTTPPortT
             fi
         else
-            echoContent green " ---> Nginx    "
+            echoContent green " ---> Nginx启动成功"
         fi
 
     elif [[ -n $(pgrep -f "nginx") ]] && [[ "$1" == "stop" ]]; then
@@ -2437,35 +2432,35 @@ handleNginx() {
         if [[ -z ${btDomain} && -n $(pgrep -f "nginx") ]]; then
             pgrep -f "nginx" | xargs kill -9
         fi
-        echoContent green " ---> Nginx    "
+        echoContent green " ---> Nginx关闭成功"
     fi
 }
 
 # 定时任务更新tls证书
 installCronTLS() {
     if [[ -z "${btDomain}" ]]; then
-        echoContent skyBlue "\nProgress $1/${totalProgress} :         "
+        echoContent skyBlue "\n进度 $1/${totalProgress} : 添加定时维护证书"
         crontab -l >/etc/v2ray-agent/backup_crontab.cron
         local historyCrontab
         historyCrontab=$(sed '/v2ray-agent/d;/acme.sh/d' /etc/v2ray-agent/backup_crontab.cron)
         echo "${historyCrontab}" >/etc/v2ray-agent/backup_crontab.cron
         echo "30 1 * * * /bin/bash /etc/v2ray-agent/install.sh RenewTLS >> /etc/v2ray-agent/crontab_tls.log 2>&1" >>/etc/v2ray-agent/backup_crontab.cron
         crontab /etc/v2ray-agent/backup_crontab.cron
-        echoContent green "\n --->           "
+        echoContent green "\n ---> 添加定时维护证书成功"
     fi
 }
 # 定时任务更新geo文件
 installCronUpdateGeo() {
     if [[ "${coreInstallType}" == "1" ]]; then
         if crontab -l | grep -q "UpdateGeo"; then
-            echoContent red "\n --->                    "
+            echoContent red "\n ---> 已添加自动更新定时任务，请不要重复添加"
             exit 0
         fi
-        echoContent skyBlue "\nProgress 1/1 :       geo  "
+        echoContent skyBlue "\n进度 1/1 : 添加定时更新geo文件"
         crontab -l >/etc/v2ray-agent/backup_crontab.cron
         echo "35 1 * * * /bin/bash /etc/v2ray-agent/install.sh UpdateGeo >> /etc/v2ray-agent/crontab_tls.log 2>&1" >>/etc/v2ray-agent/backup_crontab.cron
         crontab /etc/v2ray-agent/backup_crontab.cron
-        echoContent green "\n --->       geo    "
+        echoContent green "\n ---> 添加定时更新geo文件成功"
     fi
 }
 
@@ -2473,7 +2468,7 @@ installCronUpdateGeo() {
 renewalTLS() {
 
     if [[ -n $1 ]]; then
-        echoContent skyBlue "\nProgress  $1/1 :     "
+        echoContent skyBlue "\n进度  $1/1 : 更新证书"
     fi
     readAcmeTLS
     local domain=${currentHost}
@@ -2506,14 +2501,14 @@ renewalTLS() {
             tlsStatus="已过期"
         fi
 
-        echoContent skyBlue " --->       :$(date "+%F %H:%M:%S")"
-        echoContent skyBlue " --->       :$(date -d @"${modifyTime}" +"%F %H:%M:%S")"
-        echoContent skyBlue " --->       :${days}"
-        echoContent skyBlue " --->       :"${tlsStatus}
-        echoContent skyBlue " --->                         "
+        echoContent skyBlue " ---> 证书检查日期:$(date "+%F %H:%M:%S")"
+        echoContent skyBlue " ---> 证书生成日期:$(date -d @"${modifyTime}" +"%F %H:%M:%S")"
+        echoContent skyBlue " ---> 证书生成天数:${days}"
+        echoContent skyBlue " ---> 证书剩余天数:"${tlsStatus}
+        echoContent skyBlue " ---> 证书过期前最后一天自动更新，如更新失败请手动更新"
 
         if [[ ${remainingDays} -le 1 ]]; then
-            echoContent yellow " --->       "
+            echoContent yellow " ---> 重新生成证书"
             handleNginx stop
 
             if [[ "${coreInstallType}" == "1" ]]; then
@@ -2527,12 +2522,12 @@ renewalTLS() {
             reloadCore
             handleNginx start
         else
-            echoContent green " --->     "
+            echoContent green " ---> 证书有效"
         fi
     elif [[ -f "/etc/v2ray-agent/tls/${tlsDomain}.crt" && -f "/etc/v2ray-agent/tls/${tlsDomain}.key" && -n $(cat "/etc/v2ray-agent/tls/${tlsDomain}.crt") ]]; then
-        echoContent yellow " --->                renew   "
+        echoContent yellow " ---> 检测到使用自定义证书，无法执行renew操作。"
     else
-        echoContent red " --->    "
+        echoContent red " ---> 未安装"
     fi
 }
 # 查看TLS证书的状态
@@ -2552,16 +2547,16 @@ checkTLStatus() {
             tlsStatus="已过期"
         fi
 
-        echoContent skyBlue " --->       :$(date -d "@${modifyTime}" +"%F %H:%M:%S")"
-        echoContent skyBlue " --->       :${days}"
-        echoContent skyBlue " --->       :${tlsStatus}"
+        echoContent skyBlue " ---> 证书生成日期:$(date -d "@${modifyTime}" +"%F %H:%M:%S")"
+        echoContent skyBlue " ---> 证书生成天数:${days}"
+        echoContent skyBlue " ---> 证书剩余天数:${tlsStatus}"
     fi
 }
 
 # 安装V2Ray、指定版本
 installV2Ray() {
     readInstallType
-    echoContent skyBlue "\nProgress  $1/${totalProgress} :   V2Ray"
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 安装V2Ray"
 
     if [[ "${coreInstallType}" != "2" && "${coreInstallType}" != "3" ]]; then
         if [[ "${selectCoreType}" == "2" ]]; then
@@ -2571,7 +2566,7 @@ installV2Ray() {
             version=${v2rayCoreVersion}
         fi
 
-        echoContent green " ---> v2ray-core  :${version}"
+        echoContent green " ---> v2ray-core版本:${version}"
         if [[ "${release}" == "alpine" ]]; then
             wget -c -q -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
         else
@@ -2582,13 +2577,13 @@ installV2Ray() {
         rm -rf "/etc/v2ray-agent/v2ray/${v2rayCoreCPUVendor}.zip"
     else
         if [[ "${selectCoreType}" == "3" ]]; then
-            echoContent green " --->   v2ray-core   v4.32.1"
+            echoContent green " ---> 锁定v2ray-core版本为v4.32.1"
             rm -f /etc/v2ray-agent/v2ray/v2ray
             rm -f /etc/v2ray-agent/v2ray/v2ctl
             installV2Ray "$1"
         else
-            echoContent green " ---> v2ray-core  :$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)"
-            read -r -p "        [y/n]:" reInstallV2RayStatus
+            echoContent green " ---> v2ray-core版本:$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)"
+            read -r -p "是否更新、升级？[y/n]:" reInstallV2RayStatus
             if [[ "${reInstallV2RayStatus}" == "y" ]]; then
                 rm -f /etc/v2ray-agent/v2ray/v2ray
                 rm -f /etc/v2ray-agent/v2ray/v2ctl
@@ -2601,13 +2596,13 @@ installV2Ray() {
 # 安装 sing-box
 installSingBox() {
     readInstallType
-    echoContent skyBlue "\nProgress  $1/${totalProgress} :   sing-box"
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 安装sing-box"
 
     if [[ ! -f "/etc/v2ray-agent/sing-box/sing-box" ]]; then
 
         version=$(curl -s "https://api.github.com/repos/SagerNet/sing-box/releases?per_page=20" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
 
-        echoContent green " ---> sing-box  :${version}"
+        echoContent green " ---> sing-box版本:${version}"
 
         if [[ "${release}" == "alpine" ]]; then
             wget -c -q -P /etc/v2ray-agent/sing-box/ "https://github.com/SagerNet/sing-box/releases/download/${version}/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz"
@@ -2616,7 +2611,7 @@ installSingBox() {
         fi
 
         if [[ ! -f "/etc/v2ray-agent/sing-box/sing-box-${version/v/}${singBoxCoreCPUVendor}.tar.gz" ]]; then
-            read -r -p "                      [y/n]" downloadStatus
+            read -r -p "核心下载失败，请重新尝试安装，是否重新尝试？[y/n]" downloadStatus
             if [[ "${downloadStatus}" == "y" ]]; then
                 installSingBox "$1"
             fi
@@ -2629,9 +2624,9 @@ installSingBox() {
             chmod 655 /etc/v2ray-agent/sing-box/sing-box
         fi
     else
-        echoContent green " ---> sing-box  :v$(/etc/v2ray-agent/sing-box/sing-box version | grep "sing-box version" | awk '{print $3}')"
+        echoContent green " ---> sing-box版本:v$(/etc/v2ray-agent/sing-box/sing-box version | grep "sing-box version" | awk '{print $3}')"
         if [[ -z "${lastInstallationConfig}" ]]; then
-            read -r -p "        [y/n]:" reInstallSingBoxStatus
+            read -r -p "是否更新、升级？[y/n]:" reInstallSingBoxStatus
             if [[ "${reInstallSingBoxStatus}" == "y" ]]; then
                 rm -f /etc/v2ray-agent/sing-box/sing-box
                 installSingBox "$1"
@@ -2657,12 +2652,12 @@ installXray() {
         prereleaseStatus=true
     fi
 
-    echoContent skyBlue "\nProgress  $1/${totalProgress} :   Xray"
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 安装Xray"
 
     if [[ ! -f "/etc/v2ray-agent/xray/xray" ]]; then
 
         version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
-        echoContent green " ---> Xray-core  :${version}"
+        echoContent green " ---> Xray-core版本:${version}"
         if [[ "${release}" == "alpine" ]]; then
             wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
         else
@@ -2670,7 +2665,7 @@ installXray() {
         fi
 
         if [[ ! -f "/etc/v2ray-agent/xray/${xrayCoreCPUVendor}.zip" ]]; then
-            read -r -p "                      [y/n]" downloadStatus
+            read -r -p "核心下载失败，请重新尝试安装，是否重新尝试？[y/n]" downloadStatus
             if [[ "${downloadStatus}" == "y" ]]; then
                 installXray "$1"
             fi
@@ -2695,8 +2690,8 @@ installXray() {
         fi
     else
         if [[ -z "${lastInstallationConfig}" ]]; then
-            echoContent green " ---> Xray-core  :$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
-            read -r -p "        [y/n]:" reInstallXrayStatus
+            echoContent green " ---> Xray-core版本:$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
+            read -r -p "是否更新、升级？[y/n]:" reInstallXrayStatus
             if [[ "${reInstallXrayStatus}" == "y" ]]; then
                 rm -f /etc/v2ray-agent/xray/xray
                 installXray "$1" "$2"
@@ -2707,38 +2702,38 @@ installXray() {
 
 # v2ray版本管理
 v2rayVersionManageMenu() {
-    echoContent skyBlue "\nProgress  $1/${totalProgress} : V2Ray    "
+    echoContent skyBlue "\n进度  $1/${totalProgress} : V2Ray版本管理"
     if [[ ! -d "/etc/v2ray-agent/v2ray/" ]]; then
-        echoContent red " --->                    "
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
         menu
         exit 0
     fi
     echoContent red "\n=============================================================="
-    echoContent yellow "1.  v2ray-core"
-    echoContent yellow "2.  v2ray-core"
-    echoContent yellow "3.  v2ray-core"
-    echoContent yellow "4.  v2ray-core"
-    echoContent yellow "5.  v2ray-core"
-    echoContent yellow "6.  geosite geoip"
-    echoContent yellow "7.      geo  [      ]"
+    echoContent yellow "1.升级v2ray-core"
+    echoContent yellow "2.回退v2ray-core"
+    echoContent yellow "3.关闭v2ray-core"
+    echoContent yellow "4.打开v2ray-core"
+    echoContent yellow "5.重启v2ray-core"
+    echoContent yellow "6.更新geosite、geoip"
+    echoContent yellow "7.设置自动更新geo文件[每天凌晨更新]"
     echoContent red "=============================================================="
-    read -r -p "Please select:" selectV2RayType
+    read -r -p "请选择:" selectV2RayType
     if [[ "${selectV2RayType}" == "1" ]]; then
         updateV2Ray
     elif [[ "${selectV2RayType}" == "2" ]]; then
-        echoContent yellow "\n1.            "
-        echoContent yellow "2.              "
-        echoContent yellow "3.             config            "
+        echoContent yellow "\n1.只可以回退最近的五个版本"
+        echoContent yellow "2.不保证回退后一定可以正常使用"
+        echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
         echoContent skyBlue "------------------------Version-------------------------------"
         curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | grep -v 'v5' | head -5 | awk '{print ""NR""":"$0}'
 
         echoContent skyBlue "--------------------------------------------------------------"
-        read -r -p "         :" selectV2rayVersionType
+        read -r -p "请输入要回退的版本:" selectV2rayVersionType
         version=$(curl -s https://api.github.com/repos/v2fly/v2ray-core/releases | jq -r '.[]|select (.prerelease==false)|.tag_name' | grep -v 'v5' | head -5 | awk '{print ""NR""":"$0}' | grep "${selectV2rayVersionType}:" | awk -F "[:]" '{print $2}')
         if [[ -n "${version}" ]]; then
             updateV2Ray "${version}"
         else
-            echoContent red "\n --->           "
+            echoContent red "\n ---> 输入有误，请重新输入"
             v2rayVersionManageMenu 1
         fi
     elif [[ "${selectV2RayType}" == "3" ]]; then
@@ -2756,23 +2751,23 @@ v2rayVersionManageMenu() {
 
 # xray版本管理
 xrayVersionManageMenu() {
-    echoContent skyBlue "\nProgress  $1/${totalProgress} : Xray    "
+    echoContent skyBlue "\n进度  $1/${totalProgress} : Xray版本管理"
     if [[ "${coreInstallType}" != "1" ]]; then
-        echoContent red " --->                    "
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
         exit 0
     fi
     echoContent red "\n=============================================================="
-    echoContent yellow "1.  Xray-core"
-    echoContent yellow "2.  Xray-core    "
-    echoContent yellow "3.  Xray-core"
-    echoContent yellow "4.  Xray-core"
-    echoContent yellow "5.  Xray-core"
-    echoContent yellow "6.  Xray-core"
-    echoContent yellow "7.  geosite geoip"
-    echoContent yellow "8.      geo  [      ]"
-    echoContent yellow "9.    "
+    echoContent yellow "1.升级Xray-core"
+    echoContent yellow "2.升级Xray-core 预览版"
+    echoContent yellow "3.回退Xray-core"
+    echoContent yellow "4.关闭Xray-core"
+    echoContent yellow "5.打开Xray-core"
+    echoContent yellow "6.重启Xray-core"
+    echoContent yellow "7.更新geosite、geoip"
+    echoContent yellow "8.设置自动更新geo文件[每天凌晨更新]"
+    echoContent yellow "9.查看日志"
     echoContent red "=============================================================="
-    read -r -p "Please select:" selectXrayType
+    read -r -p "请选择:" selectXrayType
     if [[ "${selectXrayType}" == "1" ]]; then
         prereleaseStatus=false
         updateXray
@@ -2780,18 +2775,18 @@ xrayVersionManageMenu() {
         prereleaseStatus=true
         updateXray
     elif [[ "${selectXrayType}" == "3" ]]; then
-        echoContent yellow "\n1.            "
-        echoContent yellow "2.              "
-        echoContent yellow "3.             config            "
+        echoContent yellow "\n1.只可以回退最近的五个版本"
+        echoContent yellow "2.不保证回退后一定可以正常使用"
+        echoContent yellow "3.如果回退的版本不支持当前的config，则会无法连接，谨慎操作"
         echoContent skyBlue "------------------------Version-------------------------------"
         curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==false)|.tag_name" | awk '{print ""NR""":"$0}'
         echoContent skyBlue "--------------------------------------------------------------"
-        read -r -p "         :" selectXrayVersionType
+        read -r -p "请输入要回退的版本:" selectXrayVersionType
         version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==false)|.tag_name" | awk '{print ""NR""":"$0}' | grep "${selectXrayVersionType}:" | awk -F "[:]" '{print $2}')
         if [[ -n "${version}" ]]; then
             updateXray "${version}"
         else
-            echoContent red "\n --->           "
+            echoContent red "\n ---> 输入有误，请重新输入"
             xrayVersionManageMenu 1
         fi
     elif [[ "${selectXrayType}" == "4" ]]; then
@@ -2811,7 +2806,7 @@ xrayVersionManageMenu() {
 
 # 更新 geosite
 updateGeoSite() {
-    echoContent yellow "\n   https://github.com/Loyalsoldier/v2ray-rules-dat"
+    echoContent yellow "\n来源 https://github.com/Loyalsoldier/v2ray-rules-dat"
 
     version=$(curl -s https://api.github.com/repos/Loyalsoldier/v2ray-rules-dat/releases?per_page=1 | jq -r '.[]|.tag_name')
     echoContent skyBlue "------------------------Version-------------------------------"
@@ -2827,7 +2822,7 @@ updateGeoSite() {
     fi
 
     reloadCore
-    echoContent green " --->     "
+    echoContent green " ---> 更新完毕"
 
 }
 # 更新V2Ray
@@ -2844,7 +2839,7 @@ updateV2Ray() {
         if [[ -n "${v2rayCoreVersion}" ]]; then
             version=${v2rayCoreVersion}
         fi
-        echoContent green " ---> v2ray-core  :${version}"
+        echoContent green " ---> v2ray-core版本:${version}"
         if [[ "${release}" == "alpine" ]]; then
             wget -c -q -P /etc/v2ray-agent/v2ray/ "https://github.com/v2fly/v2ray-core/releases/download/${version}/${v2rayCoreCPUVendor}.zip"
         else
@@ -2856,7 +2851,7 @@ updateV2Ray() {
         handleV2Ray stop
         handleV2Ray start
     else
-        echoContent green " --->   v2ray-core  :$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)"
+        echoContent green " ---> 当前v2ray-core版本:$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)"
 
         if [[ -n "$1" ]]; then
             version=$1
@@ -2868,12 +2863,12 @@ updateV2Ray() {
             version=${v2rayCoreVersion}
         fi
         if [[ -n "$1" ]]; then
-            read -r -p "     ${version}      [y/n]:" rollbackV2RayStatus
+            read -r -p "回退版本为${version}，是否继续？[y/n]:" rollbackV2RayStatus
             if [[ "${rollbackV2RayStatus}" == "y" ]]; then
                 if [[ "${coreInstallType}" == "2" ]]; then
-                    echoContent green " --->   v2ray-core  :$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)"
+                    echoContent green " ---> 当前v2ray-core版本:$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)"
                 elif [[ "${coreInstallType}" == "1" ]]; then
-                    echoContent green " --->   Xray-core  :$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
+                    echoContent green " ---> 当前Xray-core版本:$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
                 fi
 
                 handleV2Ray stop
@@ -2881,26 +2876,26 @@ updateV2Ray() {
                 rm -f /etc/v2ray-agent/v2ray/v2ctl
                 updateV2Ray "${version}"
             else
-                echoContent green " --->       "
+                echoContent green " ---> 放弃回退版本"
             fi
         elif [[ "${version}" == "v$(/etc/v2ray-agent/v2ray/v2ray --version | awk '{print $2}' | head -1)" ]]; then
-            read -r -p "                  [y/n]:" reInstallV2RayStatus
+            read -r -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstallV2RayStatus
             if [[ "${reInstallV2RayStatus}" == "y" ]]; then
                 handleV2Ray stop
                 rm -f /etc/v2ray-agent/v2ray/v2ray
                 rm -f /etc/v2ray-agent/v2ray/v2ctl
                 updateV2Ray
             else
-                echoContent green " --->       "
+                echoContent green " ---> 放弃重新安装"
             fi
         else
-            read -r -p "     :${version}      [y/n]:" installV2RayStatus
+            read -r -p "最新版本为:${version}，是否更新？[y/n]:" installV2RayStatus
             if [[ "${installV2RayStatus}" == "y" ]]; then
                 rm -f /etc/v2ray-agent/v2ray/v2ray
                 rm -f /etc/v2ray-agent/v2ray/v2ctl
                 updateV2Ray
             else
-                echoContent green " --->     "
+                echoContent green " ---> 放弃更新"
             fi
 
         fi
@@ -2918,7 +2913,7 @@ updateXray() {
             version=$(curl -s "https://api.github.com/repos/XTLS/Xray-core/releases?per_page=5" | jq -r ".[]|select (.prerelease==${prereleaseStatus})|.tag_name" | head -1)
         fi
 
-        echoContent green " ---> Xray-core  :${version}"
+        echoContent green " ---> Xray-core版本:${version}"
 
         if [[ "${release}" == "alpine" ]]; then
             wget -c -q -P /etc/v2ray-agent/xray/ "https://github.com/XTLS/Xray-core/releases/download/${version}/${xrayCoreCPUVendor}.zip"
@@ -2932,7 +2927,7 @@ updateXray() {
         handleXray stop
         handleXray start
     else
-        echoContent green " --->   Xray-core  :$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
+        echoContent green " ---> 当前Xray-core版本:$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
 
         if [[ -n "$1" ]]; then
             version=$1
@@ -2941,32 +2936,32 @@ updateXray() {
         fi
 
         if [[ -n "$1" ]]; then
-            read -r -p "     ${version}      [y/n]:" rollbackXrayStatus
+            read -r -p "回退版本为${version}，是否继续？[y/n]:" rollbackXrayStatus
             if [[ "${rollbackXrayStatus}" == "y" ]]; then
-                echoContent green " --->   Xray-core  :$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
+                echoContent green " ---> 当前Xray-core版本:$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)"
 
                 handleXray stop
                 rm -f /etc/v2ray-agent/xray/xray
                 updateXray "${version}"
             else
-                echoContent green " --->       "
+                echoContent green " ---> 放弃回退版本"
             fi
         elif [[ "${version}" == "v$(/etc/v2ray-agent/xray/xray --version | awk '{print $2}' | head -1)" ]]; then
-            read -r -p "                  [y/n]:" reInstallXrayStatus
+            read -r -p "当前版本与最新版相同，是否重新安装？[y/n]:" reInstallXrayStatus
             if [[ "${reInstallXrayStatus}" == "y" ]]; then
                 handleXray stop
                 rm -f /etc/v2ray-agent/xray/xray
                 updateXray
             else
-                echoContent green " --->       "
+                echoContent green " ---> 放弃重新安装"
             fi
         else
-            read -r -p "     :${version}      [y/n]:" installXrayStatus
+            read -r -p "最新版本为:${version}，是否更新？[y/n]:" installXrayStatus
             if [[ "${installXrayStatus}" == "y" ]]; then
                 rm /etc/v2ray-agent/xray/xray
                 updateXray
             else
-                echoContent green " --->     "
+                echoContent green " ---> 放弃更新"
             fi
 
         fi
@@ -2976,20 +2971,20 @@ updateXray() {
 # 验证整个服务是否可用
 checkGFWStatue() {
     readInstallType
-    echoContent skyBlue "\nProgress $1/${totalProgress} :         "
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 验证服务启动状态"
     if [[ "${coreInstallType}" == "1" ]] && [[ -n $(pgrep -f "xray/xray") ]]; then
-        echoContent green " --->       "
+        echoContent green " ---> 服务启动成功"
     elif [[ "${coreInstallType}" == "2" ]] && [[ -n $(pgrep -f "sing-box/sing-box") ]]; then
-        echoContent green " --->       "
+        echoContent green " ---> 服务启动成功"
     else
-        echoContent red " --->                    "
+        echoContent red " ---> 服务启动失败，请检查终端是否有日志打印"
         exit 0
     fi
 }
 
 # 安装hysteria开机自启
 installHysteriaService() {
-    echoContent skyBlue "\nProgress  $1/${totalProgress} :   Hysteria    "
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Hysteria开机自启"
     if [[ -n $(find /bin /usr/bin -name "systemctl") ]]; then
         rm -rf /etc/systemd/system/hysteria.service
         touch /etc/systemd/system/hysteria.service
@@ -3014,7 +3009,7 @@ WantedBy=multi-user.target
 EOF
         systemctl daemon-reload
         systemctl enable hysteria.service
-        echoContent green " --->   Hysteria      "
+        echoContent green " ---> 配置Hysteria开机自启成功"
     fi
 }
 
@@ -3048,7 +3043,7 @@ EOF
 
 # sing-box开机自启
 installSingBoxService() {
-    echoContent skyBlue "\nProgress  $1/${totalProgress} :   sing-box    "
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 配置sing-box开机自启"
     execStart='/etc/v2ray-agent/sing-box/sing-box run -c /etc/v2ray-agent/sing-box/conf/config.json'
 
     if [[ -n $(find /bin /usr/bin -name "systemctl") && "${release}" != "alpine" ]]; then
@@ -3081,12 +3076,12 @@ EOF
         bootStartup "sing-box"
     fi
 
-    echoContent green " --->   sing-box      "
+    echoContent green " ---> 配置sing-box开机启动完毕"
 }
 
 # Xray开机自启
 installXrayService() {
-    echoContent skyBlue "\nProgress  $1/${totalProgress} :   Xray    "
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 配置Xray开机自启"
     execStart='/etc/v2ray-agent/xray/xray run -confdir /etc/v2ray-agent/xray/conf'
     if [[ -n $(find /bin /usr/bin -name "systemctl") ]]; then
         rm -rf /etc/systemd/system/xray.service
@@ -3107,7 +3102,7 @@ LimitNOFILE=infinity
 WantedBy=multi-user.target
 EOF
         bootStartup "xray.service"
-        echoContent green " --->   Xray      "
+        echoContent green " ---> 配置Xray开机自启成功"
     elif [[ "${release}" == "alpine" ]]; then
         installAlpineStartup "xray"
         bootStartup "xray"
@@ -3128,18 +3123,18 @@ handleHysteria() {
 
     if [[ "$1" == "start" ]]; then
         if [[ -n $(pgrep -f "hysteria/hysteria") ]]; then
-            echoContent green " ---> Hysteria    "
+            echoContent green " ---> Hysteria启动成功"
         else
-            echoContent red "Hysteria    "
-            echoContent red "      /etc/v2ray-agent/hysteria/hysteria --log-level debug -c /etc/v2ray-agent/hysteria/conf/config.json server        "
+            echoContent red "Hysteria启动失败"
+            echoContent red "请手动执行【/etc/v2ray-agent/hysteria/hysteria --log-level debug -c /etc/v2ray-agent/hysteria/conf/config.json server】，查看错误日志"
             exit 0
         fi
     elif [[ "$1" == "stop" ]]; then
         if [[ -z $(pgrep -f "hysteria/hysteria") ]]; then
-            echoContent green " ---> Hysteria    "
+            echoContent green " ---> Hysteria关闭成功"
         else
-            echoContent red "Hysteria    "
-            echoContent red "      ps -ef|grep -v grep|grep hysteria|awk '{print \$2}'|xargs kill -9 "
+            echoContent red "Hysteria关闭失败"
+            echoContent red "请手动执行【ps -ef|grep -v grep|grep hysteria|awk '{print \$2}'|xargs kill -9】"
             exit 0
         fi
     fi
@@ -3167,18 +3162,18 @@ handleTuic() {
 
     if [[ "$1" == "start" ]]; then
         if [[ -n $(pgrep -f "tuic/tuic") ]]; then
-            echoContent green " ---> Tuic    "
+            echoContent green " ---> Tuic启动成功"
         else
-            echoContent red "Tuic    "
-            echoContent red "      /etc/v2ray-agent/tuic/tuic -c /etc/v2ray-agent/tuic/conf/config.json        "
+            echoContent red "Tuic启动失败"
+            echoContent red "请手动执行【/etc/v2ray-agent/tuic/tuic -c /etc/v2ray-agent/tuic/conf/config.json】，查看错误日志"
             exit 0
         fi
     elif [[ "$1" == "stop" ]]; then
         if [[ -z $(pgrep -f "tuic/tuic") ]]; then
-            echoContent green " ---> Tuic    "
+            echoContent green " ---> Tuic关闭成功"
         else
-            echoContent red "Tuic    "
-            echoContent red "      ps -ef|grep -v grep|grep tuic|awk '{print \$2}'|xargs kill -9 "
+            echoContent red "Tuic关闭失败"
+            echoContent red "请手动执行【ps -ef|grep -v grep|grep tuic|awk '{print \$2}'|xargs kill -9】"
             exit 0
         fi
     fi
@@ -3205,20 +3200,20 @@ handleSingBox() {
 
     if [[ "$1" == "start" ]]; then
         if [[ -n $(pgrep -f "sing-box") ]]; then
-            echoContent green " ---> sing-box    "
+            echoContent green " ---> sing-box启动成功"
         else
-            echoContent red "sing-box    "
-            echoContent yellow "       /etc/v2ray-agent/sing-box/sing-box merge config.json -C /etc/v2ray-agent/sing-box/conf/config/ -D /etc/v2ray-agent/sing-box/conf/         "
+            echoContent red "sing-box启动失败"
+            echoContent yellow "请手动执行【 /etc/v2ray-agent/sing-box/sing-box merge config.json -C /etc/v2ray-agent/sing-box/conf/config/ -D /etc/v2ray-agent/sing-box/conf/ 】，查看错误日志"
             echo
-            echoContent yellow "                 /etc/v2ray-agent/sing-box/sing-box run -c /etc/v2ray-agent/sing-box/conf/config.json         "
+            echoContent yellow "如上面命令没有错误，请手动执行【 /etc/v2ray-agent/sing-box/sing-box run -c /etc/v2ray-agent/sing-box/conf/config.json 】，查看错误日志"
             exit 0
         fi
     elif [[ "$1" == "stop" ]]; then
         if [[ -z $(pgrep -f "sing-box") ]]; then
-            echoContent green " ---> sing-box    "
+            echoContent green " ---> sing-box关闭成功"
         else
-            echoContent red " ---> sing-box    "
-            echoContent red "      ps -ef|grep -v grep|grep sing-box|awk '{print \$2}'|xargs kill -9 "
+            echoContent red " ---> sing-box关闭失败"
+            echoContent red "请手动执行【ps -ef|grep -v grep|grep sing-box|awk '{print \$2}'|xargs kill -9】"
             exit 0
         fi
     fi
@@ -3244,18 +3239,18 @@ handleXray() {
 
     if [[ "$1" == "start" ]]; then
         if [[ -n $(pgrep -f "xray/xray") ]]; then
-            echoContent green " ---> Xray    "
+            echoContent green " ---> Xray启动成功"
         else
-            echoContent red "Xray    "
-            echoContent red "            /etc/v2ray-agent/xray/xray -confdir /etc/v2ray-agent/xray/conf          "
+            echoContent red "Xray启动失败"
+            echoContent red "请手动执行以下的命令后【/etc/v2ray-agent/xray/xray -confdir /etc/v2ray-agent/xray/conf】将错误日志进行反馈"
             exit 0
         fi
     elif [[ "$1" == "stop" ]]; then
         if [[ -z $(pgrep -f "xray/xray") ]]; then
-            echoContent green " ---> Xray    "
+            echoContent green " ---> Xray关闭成功"
         else
-            echoContent red "xray    "
-            echoContent red "      ps -ef|grep -v grep|grep xray|awk '{print \$2}'|xargs kill -9 "
+            echoContent red "xray关闭失败"
+            echoContent red "请手动执行【ps -ef|grep -v grep|grep xray|awk '{print \$2}'|xargs kill -9】"
             exit 0
         fi
     fi
@@ -3459,26 +3454,26 @@ addClientsHysteria() {
 initHysteriaPort() {
     readSingBoxConfig
     if [[ -n "${hysteriaPort}" ]]; then
-        read -r -p "                         [y/n]:" historyHysteriaPortStatus
+        read -r -p "读取到上次安装时的端口，是否使用上次安装时的端口？[y/n]:" historyHysteriaPortStatus
         if [[ "${historyHysteriaPortStatus}" == "y" ]]; then
-            echoContent yellow "\n --->   : ${hysteriaPort}"
+            echoContent yellow "\n ---> 端口: ${hysteriaPort}"
         else
             hysteriaPort=
         fi
     fi
 
     if [[ -z "${hysteriaPort}" ]]; then
-        echoContent yellow "   Hysteria  [    10000-30000]          "
-        read -r -p "  :" hysteriaPort
+        echoContent yellow "请输入Hysteria端口[回车随机10000-30000]，不可与其他服务重复"
+        read -r -p "端口:" hysteriaPort
         if [[ -z "${hysteriaPort}" ]]; then
             hysteriaPort=$((RANDOM % 20001 + 10000))
         fi
     fi
     if [[ -z ${hysteriaPort} ]]; then
-        echoContent red " --->       "
+        echoContent red " ---> 端口不可为空"
         initHysteriaPort "$2"
     elif ((hysteriaPort < 1 || hysteriaPort > 65535)); then
-        echoContent red " --->      "
+        echoContent red " ---> 端口不合法"
         initHysteriaPort "$2"
     fi
     allowPort "${hysteriaPort}"
@@ -3487,13 +3482,13 @@ initHysteriaPort() {
 
 # 初始化hysteria的协议
 initHysteriaProtocol() {
-    echoContent skyBlue "\n       "
+    echoContent skyBlue "\n请选择协议类型"
     echoContent red "=============================================================="
-    echoContent yellow "1.udp(QUIC)(  )"
+    echoContent yellow "1.udp(QUIC)(默认)"
     echoContent yellow "2.faketcp"
     echoContent yellow "3.wechat-video"
     echoContent red "=============================================================="
-    read -r -p "Please select:" selectHysteriaProtocol
+    read -r -p "请选择:" selectHysteriaProtocol
     case ${selectHysteriaProtocol} in
     1)
         hysteriaProtocol="udp"
@@ -3508,24 +3503,24 @@ initHysteriaProtocol() {
         hysteriaProtocol="udp"
         ;;
     esac
-    echoContent yellow "\n --->   : ${hysteriaProtocol}\n"
+    echoContent yellow "\n ---> 协议: ${hysteriaProtocol}\n"
 }
 
 # 初始化hysteria网络信息
 initHysteria2Network() {
 
-    echoContent yellow "                  100    Mbps "
-    read -r -p "    :" hysteria2ClientDownloadSpeed
+    echoContent yellow "请输入本地带宽峰值的下行速度（默认：100，单位：Mbps）"
+    read -r -p "下行速度:" hysteria2ClientDownloadSpeed
     if [[ -z "${hysteria2ClientDownloadSpeed}" ]]; then
         hysteria2ClientDownloadSpeed=100
-        echoContent yellow "\n --->     : ${hysteria2ClientDownloadSpeed}\n"
+        echoContent yellow "\n ---> 下行速度: ${hysteria2ClientDownloadSpeed}\n"
     fi
 
-    echoContent yellow "                  50    Mbps "
-    read -r -p "    :" hysteria2ClientUploadSpeed
+    echoContent yellow "请输入本地带宽峰值的上行速度（默认：50，单位：Mbps）"
+    read -r -p "上行速度:" hysteria2ClientUploadSpeed
     if [[ -z "${hysteria2ClientUploadSpeed}" ]]; then
         hysteria2ClientUploadSpeed=50
-        echoContent yellow "\n --->     : ${hysteria2ClientUploadSpeed}\n"
+        echoContent yellow "\n ---> 上行速度: ${hysteria2ClientUploadSpeed}\n"
     fi
 }
 
@@ -3546,31 +3541,31 @@ addPortHopping() {
     local type=$1
     local targetPort=$2
     if [[ -n "${portHoppingStart}" || -n "${portHoppingEnd}" ]]; then
-        echoContent red " --->                   "
+        echoContent red " ---> 已添加不可重复添加，可删除后重新添加"
         exit 0
     fi
     if [[ "${release}" == "centos" ]]; then
         if ! systemctl status firewalld 2>/dev/null | grep -q "active (running)"; then
-            echoContent red " --->    firewalld             "
+            echoContent red " ---> 未启动firewalld防火墙，无法设置端口跳跃。"
             exit 0
         fi
     fi
 
-    echoContent skyBlue "\nProgress 1/1 :     "
+    echoContent skyBlue "\n进度 1/1 : 端口跳跃"
     echoContent red "\n=============================================================="
-    echoContent yellow "# Note\n"
-    echoContent yellow "   Hysteria2 Tuic"
-    echoContent yellow "          30000"
-    echoContent yellow "          40000"
-    echoContent yellow "   30000-40000      "
-    echoContent yellow "  1000   "
-    echoContent yellow "Please follow the on-screen instructions."
+    echoContent yellow "# 注意事项\n"
+    echoContent yellow "仅支持Hysteria2、Tuic"
+    echoContent yellow "端口跳跃的起始位置为30000"
+    echoContent yellow "端口跳跃的结束位置为40000"
+    echoContent yellow "可以在30000-40000范围中选一段"
+    echoContent yellow "建议1000个左右"
+    echoContent yellow "注意不要和其他的端口跳跃设置范围一样，设置相同会覆盖。"
 
-    echoContent yellow "             [30000-31000]"
+    echoContent yellow "请输入端口跳跃的范围，例如[30000-31000]"
 
-    read -r -p "  :" portHoppingRange
+    read -r -p "范围:" portHoppingRange
     if [[ -z "${portHoppingRange}" ]]; then
-        echoContent red " --->       "
+        echoContent red " ---> 范围不可为空"
         addPortHopping "${type}" "${targetPort}"
     elif echo "${portHoppingRange}" | grep -q "-"; then
 
@@ -3580,31 +3575,31 @@ addPortHopping() {
         portEnd=$(echo "${portHoppingRange}" | awk -F '-' '{print $2}')
 
         if [[ -z "${portStart}" || -z "${portEnd}" ]]; then
-            echoContent red " --->      "
+            echoContent red " ---> 范围不合法"
             addPortHopping "${type}" "${targetPort}"
         elif ((portStart < 30000 || portStart > 40000 || portEnd < 30000 || portEnd > 40000 || portEnd < portStart)); then
-            echoContent red " --->      "
+            echoContent red " ---> 范围不合法"
             addPortHopping "${type}" "${targetPort}"
         else
-            echoContent green "\n    : ${portHoppingRange}\n"
+            echoContent green "\n端口范围: ${portHoppingRange}\n"
             if [[ "${release}" == "centos" ]]; then
                 sudo firewall-cmd --permanent --add-masquerade
                 sudo firewall-cmd --reload
                 addFirewalldPortHopping "${portStart}" "${portEnd}" "${targetPort}"
                 if ! sudo firewall-cmd --list-forward-ports | grep -q "toport=${targetPort}"; then
-                    echoContent red " --->         "
+                    echoContent red " ---> 端口跳跃添加失败"
                     exit 0
                 fi
             else
                 iptables -t nat -A PREROUTING -p udp --dport "${portStart}:${portEnd}" -m comment --comment "mack-a_${type}_portHopping" -j DNAT --to-destination ":${targetPort}"
                 sudo netfilter-persistent save
                 if ! iptables-save | grep -q "mack-a_${type}_portHopping"; then
-                    echoContent red " --->         "
+                    echoContent red " ---> 端口跳跃添加失败"
                     exit 0
                 fi
             fi
             allowPort "${portStart}:${portEnd}" udp
-            echoContent green " --->         "
+            echoContent green " ---> 端口跳跃添加成功"
         fi
     fi
 }
@@ -3669,12 +3664,12 @@ autoAddHysteria2PortHopping() {
     fi
 
     if [[ "${release}" == "centos" ]]; then
-        echoContent yellow " --->    CentOS             "
+        echoContent yellow " ---> 检测到CentOS系统，自动端口跳跃暂未适配"
         return
     fi
 
     if ! command -v iptables >/dev/null || ! command -v iptables-save >/dev/null || ! command -v netfilter-persistent >/dev/null; then
-        echoContent yellow " --->     iptables/iptables-save netfilter-persistent           "
+        echoContent yellow " ---> 未检测到iptables/iptables-save或netfilter-persistent，跳过自动端口跳跃配置"
         return
     fi
 
@@ -3683,9 +3678,9 @@ autoAddHysteria2PortHopping() {
 
     if [[ -n "${existingRule}" ]]; then
         if echo "${existingRule}" | grep -q "${portStart}:${portEnd}" && echo "${existingRule}" | grep -q ":${targetPort}"; then
-            echoContent yellow " --->      Hysteria2             "
+            echoContent yellow " ---> 检测到已有Hysteria2端口跳跃规则，跳过自动配置"
         else
-            echoContent yellow " --->      Hysteria2             "
+            echoContent yellow " ---> 已存在其他Hysteria2端口跳跃规则，跳过自动配置"
         fi
         return
     fi
@@ -3694,14 +3689,14 @@ autoAddHysteria2PortHopping() {
 
     existingRule=$(iptables-save | grep "mack-a_hysteria2_portHopping")
     if [[ -z "${existingRule}" ]]; then
-        echoContent red " --->     Hysteria2      "
+        echoContent red " ---> 自动添加Hysteria2端口跳跃失败"
         iptables -t nat -D PREROUTING -p udp --dport ${portStart}:${portEnd} -m comment --comment "mack-a_hysteria2_portHopping" -j DNAT --to-destination :${targetPort} >/dev/null 2>&1
         return
     fi
 
     allowPort "${portStart}:${portEnd}" udp
     sudo netfilter-persistent save >/dev/null 2>&1
-    echoContent green " --->      Hysteria2     ${portStart}-${portEnd} -> ${targetPort}"
+    echoContent green " ---> 已自动添加Hysteria2端口跳跃 ${portStart}-${portEnd} -> ${targetPort}"
 }
 
 # 端口跳跃菜单
@@ -3709,7 +3704,7 @@ portHoppingMenu() {
     local type=$1
     # 判断iptables是否存在
     if ! find /usr/bin /usr/sbin | grep -q -w iptables; then
-        echoContent red " --->     iptables                "
+        echoContent red " ---> 无法识别iptables工具，无法使用端口跳跃，退出安装"
         exit 0
     fi
 
@@ -3729,22 +3724,22 @@ portHoppingMenu() {
         portHoppingEnd=${tuicPortHoppingEnd}
     fi
 
-    echoContent skyBlue "\nProgress 1/1 :     "
+    echoContent skyBlue "\n进度 1/1 : 端口跳跃"
     echoContent red "\n=============================================================="
-    echoContent yellow "1.      "
-    echoContent yellow "2.      "
-    echoContent yellow "3.      "
-    read -r -p "Please select:" selectPortHoppingStatus
+    echoContent yellow "1.添加端口跳跃"
+    echoContent yellow "2.删除端口跳跃"
+    echoContent yellow "3.查看端口跳跃"
+    read -r -p "请选择:" selectPortHoppingStatus
     if [[ "${selectPortHoppingStatus}" == "1" ]]; then
         addPortHopping "${type}" "${targetPort}"
     elif [[ "${selectPortHoppingStatus}" == "2" ]]; then
         deletePortHoppingRules "${type}" "${portHoppingStart}" "${portHoppingEnd}" "${targetPort}"
-        echoContent green " --->     "
+        echoContent green " ---> 删除成功"
     elif [[ "${selectPortHoppingStatus}" == "3" ]]; then
         if [[ -n "${portHoppingStart}" && -n "${portHoppingEnd}" ]]; then
-            echoContent green " --->          : ${portHoppingStart}-${portHoppingEnd}"
+            echoContent green " ---> 当前端口跳跃范围为: ${portHoppingStart}-${portHoppingEnd}"
         else
-            echoContent yellow " --->        "
+            echoContent yellow " ---> 未设置端口跳跃"
         fi
     else
         portHoppingMenu
@@ -3752,7 +3747,7 @@ portHoppingMenu() {
 }
 # 初始化Hysteria配置
 initHysteriaConfig() {
-    echoContent skyBlue "\nProgress $1/${totalProgress} :    Hysteria  "
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Hysteria配置"
 
     initHysteriaPort
     #    initHysteriaProtocol
@@ -3822,29 +3817,29 @@ EOF
 initTuicPort() {
     readSingBoxConfig
     if [[ -n "${tuicPort}" ]]; then
-        read -r -p "                         [y/n]:" historyTuicPortStatus
+        read -r -p "读取到上次安装时的端口，是否使用上次安装时的端口？[y/n]:" historyTuicPortStatus
         if [[ "${historyTuicPortStatus}" == "y" ]]; then
-            echoContent yellow "\n --->   : ${tuicPort}"
+            echoContent yellow "\n ---> 端口: ${tuicPort}"
         else
             tuicPort=
         fi
     fi
 
     if [[ -z "${tuicPort}" ]]; then
-        echoContent yellow "   Tuic  [    10000-30000]          "
-        read -r -p "  :" tuicPort
+        echoContent yellow "请输入Tuic端口[回车随机10000-30000]，不可与其他服务重复"
+        read -r -p "端口:" tuicPort
         if [[ -z "${tuicPort}" ]]; then
             tuicPort=$((RANDOM % 20001 + 10000))
         fi
     fi
     if [[ -z ${tuicPort} ]]; then
-        echoContent red " --->       "
+        echoContent red " ---> 端口不可为空"
         initTuicPort "$2"
     elif ((tuicPort < 1 || tuicPort > 65535)); then
-        echoContent red " --->      "
+        echoContent red " ---> 端口不合法"
         initTuicPort "$2"
     fi
-    echoContent green "\n --->   : ${tuicPort}"
+    echoContent green "\n ---> 端口: ${tuicPort}"
     allowPort "${tuicPort}"
     allowPort "${tuicPort}" "udp"
 }
@@ -3852,25 +3847,25 @@ initTuicPort() {
 # 初始化tuic的协议
 initTuicProtocol() {
     if [[ -n "${tuicAlgorithm}" && -z "${lastInstallationConfig}" ]]; then
-        read -r -p "                 [y/n]:" historyTuicAlgorithm
+        read -r -p "读取到上次使用的算法，是否使用 ？[y/n]:" historyTuicAlgorithm
         if [[ "${historyTuicAlgorithm}" != "y" ]]; then
             tuicAlgorithm=
         else
-            echoContent yellow "\n --->   : ${tuicAlgorithm}\n"
+            echoContent yellow "\n ---> 算法: ${tuicAlgorithm}\n"
         fi
     elif [[ -n "${tuicAlgorithm}" && -n "${lastInstallationConfig}" ]]; then
-        echoContent yellow "\n --->   : ${tuicAlgorithm}\n"
+        echoContent yellow "\n ---> 算法: ${tuicAlgorithm}\n"
     fi
 
     if [[ -z "${tuicAlgorithm}" ]]; then
 
-        echoContent skyBlue "\n       "
+        echoContent skyBlue "\n请选择算法类型"
         echoContent red "=============================================================="
-        echoContent yellow "1.bbr(  )"
+        echoContent yellow "1.bbr(默认)"
         echoContent yellow "2.cubic"
         echoContent yellow "3.new_reno"
         echoContent red "=============================================================="
-        read -r -p "Please select:" selectTuicAlgorithm
+        read -r -p "请选择:" selectTuicAlgorithm
         case ${selectTuicAlgorithm} in
         1)
             tuicAlgorithm="bbr"
@@ -3885,13 +3880,13 @@ initTuicProtocol() {
             tuicAlgorithm="bbr"
             ;;
         esac
-        echoContent yellow "\n --->   : ${tuicAlgorithm}\n"
+        echoContent yellow "\n ---> 算法: ${tuicAlgorithm}\n"
     fi
 }
 
 # 初始化tuic配置
 #initTuicConfig() {
-#    echoContent skyBlue "\nProgress $1/${totalProgress} :    Tuic  "
+#    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Tuic配置"
 #
 #    initTuicPort
 #    initTuicProtocol
@@ -3910,7 +3905,7 @@ initTuicProtocol() {
 
 # 初始化 sing-box Tuic 配置
 initSingBoxTuicConfig() {
-    echoContent skyBlue "\nProgress $1/${totalProgress} :    Tuic  "
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Tuic配置"
 
     initTuicPort
     initTuicProtocol
@@ -3985,7 +3980,7 @@ addSingBoxRouteRule() {
     local routingName=$3
     # 读取上次安装内容
     if [[ -f "${singBoxConfigPath}${routingName}.json" ]]; then
-        read -r -p "               [y/n]:" historyRouteStatus
+        read -r -p "读取到上次的配置，是否保留 ？[y/n]:" historyRouteStatus
         if [[ "${historyRouteStatus}" == "y" ]]; then
             domainList="${domainList},$(jq -rc .route.rules[0].rule_set[] "${singBoxConfigPath}${routingName}.json" | awk -F "[_]" '{print $1}' | paste -sd ',')"
             domainList="${domainList},$(jq -rc .route.rules[0].domain_regex[] "${singBoxConfigPath}${routingName}.json" | awk -F "[*]" '{print $2}' | paste -sd ',' | sed 's/\\//g')"
@@ -4413,7 +4408,7 @@ EOF
 
 # 初始化 sing-box Hysteria2 配置
 initSingBoxHysteria2Config() {
-    echoContent skyBlue "\nProgress $1/${totalProgress} :    Hysteria2  "
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 初始化Hysteria2配置"
 
     initHysteriaPort
     initHysteria2Network
@@ -4446,7 +4441,7 @@ EOF
 # sing-box Tuic安装
 singBoxTuicInstall() {
     if ! echo "${currentInstallProtocolType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,"; then
-        echoContent red "\n --->             Tuic       TLS    "
+        echoContent red "\n ---> 由于需要依赖证书，如安装Tuic，请先安装带有TLS标识协议"
         exit 0
     fi
 
@@ -4462,7 +4457,7 @@ singBoxTuicInstall() {
 # sing-box hy2安装
 singBoxHysteria2Install() {
     if ! echo "${currentInstallProtocolType}" | grep -qE ",0,|,1,|,2,|,3,|,4,|,5,|,6,|,9,|,10,"; then
-        echoContent red "\n --->             Hysteria2       TLS    "
+        echoContent red "\n ---> 由于需要依赖证书，如安装Hysteria2，请先安装带有TLS标识协议"
         exit 0
     fi
 
@@ -4483,14 +4478,14 @@ singBoxMergeConfig() {
 
 # 初始化Xray Trojan XTLS 配置文件
 #initXrayFrontingConfig() {
-#    echoContent red " ---> Trojan     xtls-rprx-vision"
+#    echoContent red " ---> Trojan暂不支持 xtls-rprx-vision"
 #    if [[ -z "${configPath}" ]]; then
-#        echoContent red " --->            "
+#        echoContent red " ---> 未安装，请使用脚本安装"
 #        menu
 #        exit 0
 #    fi
 #    if [[ "${coreInstallType}" != "1" ]]; then
-#        echoContent red " --->        "
+#        echoContent red " ---> 未安装可用类型"
 #    fi
 #    local xtlsType=
 #    if echo ${currentInstallProtocolType} | grep -q trojan; then
@@ -4499,16 +4494,16 @@ singBoxMergeConfig() {
 #        xtlsType=Trojan
 #    fi
 #
-#    echoContent skyBlue "\n   1/${totalProgress} :      ${xtlsType}"
+#    echoContent skyBlue "\n功能 1/${totalProgress} : 前置切换为${xtlsType}"
 #    echoContent red "\n=============================================================="
-#    echoContent yellow "# Note\n"
-#    echoContent yellow "       ${xtlsType}"
-#    echoContent yellow "     Trojan            Trojan            xtls"
-#    echoContent yellow "              \n"
+#    echoContent yellow "# 注意事项\n"
+#    echoContent yellow "会将前置替换为${xtlsType}"
+#    echoContent yellow "如果前置是Trojan，查看账号时则会出现两个Trojan协议的节点，有一个不可用xtls"
+#    echoContent yellow "再次执行可切换至上一次的前置\n"
 #
-#    echoContent yellow "1.   ${xtlsType}"
+#    echoContent yellow "1.切换至${xtlsType}"
 #    echoContent red "=============================================================="
-#    read -r -p "Please select:" selectType
+#    read -r -p "请选择:" selectType
 #    if [[ "${selectType}" == "1" ]]; then
 #
 #        if [[ "${xtlsType}" == "Trojan" ]]; then
@@ -4546,7 +4541,7 @@ singBoxMergeConfig() {
 initSingBoxPort() {
     local port=$1
     if [[ -n "${port}" && -z "${lastInstallationConfig}" ]]; then
-        read -r -p "                 [y/n]:" historyPort
+        read -r -p "读取到上次使用的端口，是否使用 ？[y/n]:" historyPort
         if [[ "${historyPort}" != "y" ]]; then
             port=
         else
@@ -4556,7 +4551,7 @@ initSingBoxPort() {
         echo "${port}"
     fi
     if [[ -z "${port}" ]]; then
-        read -r -p '        [   ]        [  ]    :' port
+        read -r -p '请输入自定义端口[需合法]，端口不可重复，[回车]随机端口:' port
         if [[ -z "${port}" ]]; then
             port=$((RANDOM % 50001 + 10000))
         fi
@@ -4565,7 +4560,7 @@ initSingBoxPort() {
             allowPort "${port}" "udp"
             echo "${port}"
         else
-            echoContent red " --->       "
+            echoContent red " ---> 端口输入错误"
             exit 0
         fi
     fi
@@ -4573,22 +4568,22 @@ initSingBoxPort() {
 
 # 初始化Xray 配置文件
 initXrayConfig() {
-    echoContent skyBlue "\nProgress $2/${totalProgress} :    Xray  "
+    echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化Xray配置"
     echo
     local uuid=
     local addClientsStatus=
     if [[ -n "${currentUUID}" && -z "${lastInstallationConfig}" ]]; then
-        read -r -p "                       [y/n]:" historyUUIDStatus
+        read -r -p "读取到上次用户配置，是否使用上次安装的配置 ？[y/n]:" historyUUIDStatus
         if [[ "${historyUUIDStatus}" == "y" ]]; then
             addClientsStatus=true
-            echoContent green "\n --->     "
+            echoContent green "\n ---> 使用成功"
         fi
     elif [[ -n "${currentUUID}" && -n "${lastInstallationConfig}" ]]; then
         addClientsStatus=true
     fi
 
     if [[ -z "${addClientsStatus}" ]]; then
-        echoContent yellow "      UUID[   ] [  ]  UUID"
+        echoContent yellow "请输入自定义UUID[需合法]，[回车]随机UUID"
         read -r -p 'UUID:' customUUID
 
         if [[ -n ${customUUID} ]]; then
@@ -4597,8 +4592,8 @@ initXrayConfig() {
             uuid=$(/etc/v2ray-agent/xray/xray uuid)
         fi
 
-        echoContent yellow "\n         [   ] [  ]     "
-        read -r -p '   :' customEmail
+        echoContent yellow "\n请输入自定义用户名[需合法]，[回车]随机用户名"
+        read -r -p '用户名:' customEmail
         if [[ -z ${customEmail} ]]; then
             customEmail="$(echo "${uuid}" | cut -d "-" -f 1)-VLESS_TCP/TLS_Vision"
         fi
@@ -4606,7 +4601,7 @@ initXrayConfig() {
 
     if [[ -z "${addClientsStatus}" && -z "${uuid}" ]]; then
         addClientsStatus=
-        echoContent red "\n ---> uuid         "
+        echoContent red "\n ---> uuid读取错误，随机生成"
         uuid=$(/etc/v2ray-agent/xray/xray uuid)
     fi
 
@@ -4946,7 +4941,7 @@ EOF
 
     # VLESS_TCP/reality
     if echo "${selectCustomInstallType}" | grep -q ",7," || [[ "$1" == "all" ]]; then
-        echoContent skyBlue "\n=====================   VLESS+Reality =====================\n"
+        echoContent skyBlue "\n===================== 配置VLESS+Reality =====================\n"
 
         initXrayRealityPort
         initRealityClientServersName
@@ -5045,15 +5040,15 @@ EOF
 
 # 初始化TCP Brutal
 initTCPBrutal() {
-    echoContent skyBlue "\nProgress $2/${totalProgress} :    TCP_Brutal  "
-    read -r -p "    TCP_Brutal [y/n]:" tcpBrutalStatus
+    echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化TCP_Brutal配置"
+    read -r -p "是否使用TCP_Brutal？[y/n]:" tcpBrutalStatus
     if [[ "${tcpBrutalStatus}" == "y" ]]; then
-        read -r -p "                  100    Mbps :" tcpBrutalClientDownloadSpeed
+        read -r -p "请输入本地带宽峰值的下行速度（默认：100，单位：Mbps）:" tcpBrutalClientDownloadSpeed
         if [[ -z "${tcpBrutalClientDownloadSpeed}" ]]; then
             tcpBrutalClientDownloadSpeed=100
         fi
 
-        read -r -p "                  50    Mbps :" tcpBrutalClientUploadSpeed
+        read -r -p "请输入本地带宽峰值的上行速度（默认：50，单位：Mbps）:" tcpBrutalClientUploadSpeed
         if [[ -z "${tcpBrutalClientUploadSpeed}" ]]; then
             tcpBrutalClientUploadSpeed=50
         fi
@@ -5061,7 +5056,7 @@ initTCPBrutal() {
 }
 # 初始化sing-box配置文件
 initSingBoxConfig() {
-    echoContent skyBlue "\nProgress $2/${totalProgress} :    sing-box  "
+    echoContent skyBlue "\n进度 $2/${totalProgress} : 初始化sing-box配置"
 
     echo
     local uuid=
@@ -5073,17 +5068,17 @@ initSingBoxConfig() {
         sslDomain="${currentHost}"
     fi
     if [[ -n "${currentUUID}" && -z "${lastInstallationConfig}" ]]; then
-        read -r -p "                       [y/n]:" historyUUIDStatus
+        read -r -p "读取到上次用户配置，是否使用上次安装的配置 ？[y/n]:" historyUUIDStatus
         if [[ "${historyUUIDStatus}" == "y" ]]; then
             addClientsStatus=true
-            echoContent green "\n --->     "
+            echoContent green "\n ---> 使用成功"
         fi
     elif [[ -n "${currentUUID}" && -n "${lastInstallationConfig}" ]]; then
         addClientsStatus=true
     fi
 
     if [[ -z "${addClientsStatus}" ]]; then
-        echoContent yellow "      UUID[   ] [  ]  UUID"
+        echoContent yellow "请输入自定义UUID[需合法]，[回车]随机UUID"
         read -r -p 'UUID:' customUUID
 
         if [[ -n ${customUUID} ]]; then
@@ -5092,8 +5087,8 @@ initSingBoxConfig() {
             uuid=$(/etc/v2ray-agent/sing-box/sing-box generate uuid)
         fi
 
-        echoContent yellow "\n         [   ] [  ]     "
-        read -r -p '   :' customEmail
+        echoContent yellow "\n请输入自定义用户名[需合法]，[回车]随机用户名"
+        read -r -p '用户名:' customEmail
         if [[ -z ${customEmail} ]]; then
             customEmail="$(echo "${uuid}" | cut -d "-" -f 1)-VLESS_TCP/TLS_Vision"
         fi
@@ -5101,7 +5096,7 @@ initSingBoxConfig() {
 
     if [[ -z "${addClientsStatus}" && -z "${uuid}" ]]; then
         addClientsStatus=
-        echoContent red "\n ---> uuid         "
+        echoContent red "\n ---> uuid读取错误，随机生成"
         uuid=$(/etc/v2ray-agent/sing-box/sing-box generate uuid)
     fi
 
@@ -5112,11 +5107,11 @@ initSingBoxConfig() {
 
     # VLESS Vision
     if echo "${selectCustomInstallType}" | grep -q ",0," || [[ "$1" == "all" ]]; then
-        echoContent yellow "\n=====================   VLESS+Vision =====================\n"
-        echoContent skyBlue "\n    VLESS+Vision    "
+        echoContent yellow "\n===================== 配置VLESS+Vision =====================\n"
+        echoContent skyBlue "\n开始配置VLESS+Vision协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxVLESSVisionPort}")
-        echoContent green "\n ---> VLESS_Vision   ${result[-1]}"
+        echoContent green "\n ---> VLESS_Vision端口：${result[-1]}"
 
         checkDNSIP "${domain}"
         removeNginxDefaultConf
@@ -5147,11 +5142,11 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q ",1," || [[ "$1" == "all" ]]; then
-        echoContent yellow "\n=====================   VLESS+WS =====================\n"
-        echoContent skyBlue "\n    VLESS+WS    "
+        echoContent yellow "\n===================== 配置VLESS+WS =====================\n"
+        echoContent skyBlue "\n开始配置VLESS+WS协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxVLESSWSPort}")
-        echoContent green "\n ---> VLESS_WS   ${result[-1]}"
+        echoContent green "\n ---> VLESS_WS端口：${result[-1]}"
 
         checkDNSIP "${domain}"
         removeNginxDefaultConf
@@ -5188,11 +5183,11 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q ",3," || [[ "$1" == "all" ]]; then
-        echoContent yellow "\n=====================   VMess+ws =====================\n"
-        echoContent skyBlue "\n    VMess+ws    "
+        echoContent yellow "\n===================== 配置VMess+ws =====================\n"
+        echoContent skyBlue "\n开始配置VMess+ws协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxVMessWSPort}")
-        echoContent green "\n ---> VMess_ws   ${result[-1]}"
+        echoContent green "\n ---> VMess_ws端口：${result[-1]}"
 
         checkDNSIP "${domain}"
         removeNginxDefaultConf
@@ -5230,13 +5225,13 @@ EOF
 
     # VLESS_Reality_Vision
     if echo "${selectCustomInstallType}" | grep -q ",7," || [[ "$1" == "all" ]]; then
-        echoContent yellow "\n=================   VLESS+Reality+Vision =================\n"
+        echoContent yellow "\n================= 配置VLESS+Reality+Vision =================\n"
         initRealityClientServersName
         initRealityKey
-        echoContent skyBlue "\n    VLESS+Reality+Vision    "
+        echoContent skyBlue "\n开始配置VLESS+Reality+Vision协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxVLESSRealityVisionPort}")
-        echoContent green "\n ---> VLESS_Reality_Vision   ${result[-1]}"
+        echoContent green "\n ---> VLESS_Reality_Vision端口：${result[-1]}"
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/07_VLESS_vision_reality_inbounds.json
 {
   "inbounds": [
@@ -5271,13 +5266,13 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q ",8," || [[ "$1" == "all" ]]; then
-        echoContent yellow "\n==================   VLESS+Reality+gRPC ==================\n"
+        echoContent yellow "\n================== 配置VLESS+Reality+gRPC ==================\n"
         initRealityClientServersName
         initRealityKey
-        echoContent skyBlue "\n    VLESS+Reality+gRPC    "
+        echoContent skyBlue "\n开始配置VLESS+Reality+gRPC协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxVLESSRealityGRPCPort}")
-        echoContent green "\n ---> VLESS_Reality_gPRC   ${result[-1]}"
+        echoContent green "\n ---> VLESS_Reality_gPRC端口：${result[-1]}"
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/08_VLESS_vision_gRPC_inbounds.json
 {
   "inbounds": [
@@ -5316,11 +5311,11 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q ",6," || [[ "$1" == "all" ]]; then
-        echoContent yellow "\n==================    Hysteria2 ==================\n"
-        echoContent skyBlue "\n    Hysteria2    "
+        echoContent yellow "\n================== 配置 Hysteria2 ==================\n"
+        echoContent skyBlue "\n开始配置Hysteria2协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxHysteria2Port}")
-        echoContent green "\n ---> Hysteria2   ${result[-1]}"
+        echoContent green "\n ---> Hysteria2端口：${result[-1]}"
         initHysteria2Network
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json
 {
@@ -5351,11 +5346,11 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q ",4," || [[ "$1" == "all" ]]; then
-        echoContent yellow "\n==================    Trojan ==================\n"
-        echoContent skyBlue "\n    Trojan    "
+        echoContent yellow "\n================== 配置 Trojan ==================\n"
+        echoContent skyBlue "\n开始配置Trojan协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxTrojanPort}")
-        echoContent green "\n ---> Trojan   ${result[-1]}"
+        echoContent green "\n ---> Trojan端口：${result[-1]}"
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/04_trojan_TCP_inbounds.json
 {
     "inbounds": [
@@ -5379,11 +5374,11 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q ",9," || [[ "$1" == "all" ]]; then
-        echoContent yellow "\n====================    Tuic =====================\n"
-        echoContent skyBlue "\n    Tuic    "
+        echoContent yellow "\n==================== 配置 Tuic =====================\n"
+        echoContent skyBlue "\n开始配置Tuic协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxTuicPort}")
-        echoContent green "\n ---> Tuic   ${result[-1]}"
+        echoContent green "\n ---> Tuic端口：${result[-1]}"
         initTuicProtocol
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/09_tuic_inbounds.json
 {
@@ -5413,11 +5408,11 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q ",10," || [[ "$1" == "all" ]]; then
-        echoContent yellow "\n====================    Naive =====================\n"
-        echoContent skyBlue "\n    Naive    "
+        echoContent yellow "\n==================== 配置 Naive =====================\n"
+        echoContent skyBlue "\n开始配置Naive协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxNaivePort}")
-        echoContent green "\n ---> Naive   ${result[-1]}"
+        echoContent green "\n ---> Naive端口：${result[-1]}"
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/10_naive_inbounds.json
 {
      "inbounds": [
@@ -5441,11 +5436,11 @@ EOF
         rm /etc/v2ray-agent/sing-box/conf/config/10_naive_inbounds.json >/dev/null 2>&1
     fi
     if echo "${selectCustomInstallType}" | grep -q ",11," || [[ "$1" == "all" ]]; then
-        echoContent yellow "\n=====================   VMess+HTTPUpgrade =====================\n"
-        echoContent skyBlue "\n    VMess+HTTPUpgrade    "
+        echoContent yellow "\n===================== 配置VMess+HTTPUpgrade =====================\n"
+        echoContent skyBlue "\n开始配置VMess+HTTPUpgrade协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxVMessHTTPUpgradePort}")
-        echoContent green "\n ---> VMess_HTTPUpgrade   ${result[-1]}"
+        echoContent green "\n ---> VMess_HTTPUpgrade端口：${result[-1]}"
 
         checkDNSIP "${domain}"
         removeNginxDefaultConf
@@ -5477,11 +5472,11 @@ EOF
     fi
 
     if echo "${selectCustomInstallType}" | grep -q ",13," || [[ "$1" == "all" ]]; then
-        echoContent yellow "\n==================    AnyTLS ==================\n"
-        echoContent skyBlue "\n    AnyTLS    "
+        echoContent yellow "\n================== 配置 AnyTLS ==================\n"
+        echoContent skyBlue "\n开始配置AnyTLS协议端口"
         echo
         mapfile -t result < <(initSingBoxPort "${singBoxAnyTLSPort}")
-        echoContent green "\n ---> AnyTLS   ${result[-1]}"
+        echoContent green "\n ---> AnyTLS端口：${result[-1]}"
         cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/13_anytls_inbounds.json
 {
     "inbounds": [
@@ -5560,11 +5555,11 @@ defaultBase64Code() {
     local singBoxSubscribeLocalConfig=
     if [[ "${type}" == "vlesstcp" ]]; then
 
-        echoContent yellow " --->     (VLESS+TCP+TLS_Vision)"
+        echoContent yellow " ---> 通用格式(VLESS+TCP+TLS_Vision)"
         echoContent green "    vless://${id}@${currentHost}:${port}?encryption=none&security=tls&fp=chrome&type=tcp&host=${currentHost}&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}\n"
 
-        echoContent yellow " --->      (VLESS+TCP+TLS_Vision)"
-        echoContent green "    :VLESS   :${currentHost}   :${port}   ID:${id}   :tls client-fingerprint: chrome     :tcp flow:xtls-rprx-vision    :${email}\n"
+        echoContent yellow " ---> 格式化明文(VLESS+TCP+TLS_Vision)"
+        echoContent green "协议类型:VLESS，地址:${currentHost}，端口:${port}，用户ID:${id}，安全:tls，client-fingerprint: chrome，传输方式:tcp，flow:xtls-rprx-vision，账户名:${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 vless://${id}@${currentHost}:${port}?encryption=none&security=tls&type=tcp&host=${currentHost}&fp=chrome&headerType=none&sni=${currentHost}&flow=xtls-rprx-vision#${email}
 EOF
@@ -5583,18 +5578,18 @@ EOF
         singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${currentHost}\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"packet_encoding\":\"xudp\"}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent yellow " --->     VLESS(VLESS+TCP+TLS_Vision)"
+        echoContent yellow " ---> 二维码 VLESS(VLESS+TCP+TLS_Vision)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${currentHost}%3A${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26type%3Dtcp%26${currentHost}%3D${currentHost}%26headerType%3Dnone%26sni%3D${currentHost}%26flow%3Dxtls-rprx-vision%23${email}\n"
 
     elif [[ "${type}" == "vmessws" ]]; then
         qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0)
         qrCodeBase64Default="${qrCodeBase64Default// /}"
 
-        echoContent yellow " --->   json(VMess+WS+TLS)"
+        echoContent yellow " ---> 通用json(VMess+WS+TLS)"
         echoContent green "    {\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"ws\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}\n"
-        echoContent yellow " --->   vmess(VMess+WS+TLS)  "
+        echoContent yellow " ---> 通用vmess(VMess+WS+TLS)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
-        echoContent yellow " --->     vmess(VMess+WS+TLS)"
+        echoContent yellow " ---> 二维码 vmess(VMess+WS+TLS)"
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 vmess://${qrCodeBase64Default}
@@ -5625,11 +5620,11 @@ EOF
 
     elif [[ "${type}" == "vlessws" ]]; then
 
-        echoContent yellow " --->     (VLESS+WS+TLS)"
+        echoContent yellow " ---> 通用格式(VLESS+WS+TLS)"
         echoContent green "    vless://${id}@${uriAddress}:${port}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=${path}#${email}\n"
 
-        echoContent yellow " --->      (VLESS+WS+TLS)"
-        echoContent green "        :VLESS   :${add}     /SNI:${currentHost}   :${port} client-fingerprint: chrome,  ID:${id}   :tls     :ws   :${path}    :${email}\n"
+        echoContent yellow " ---> 格式化明文(VLESS+WS+TLS)"
+        echoContent green "    协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${port}，client-fingerprint: chrome,用户ID:${id}，安全:tls，传输方式:ws，路径:${path}，账户名:${email}\n"
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 vless://${id}@${uriAddress}:${port}?encryption=none&security=tls&type=ws&host=${currentHost}&sni=${currentHost}&fp=chrome&path=${path}#${email}
@@ -5654,31 +5649,31 @@ EOF
         singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"${add}\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32},\"packet_encoding\":\"xudp\"${singBoxDomainStrategyField},\"transport\":{\"type\":\"ws\",\"path\":\"${path}\",\"headers\":{\"Host\":\"${currentHost}\"}}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent yellow " --->     VLESS(VLESS+WS+TLS)"
+        echoContent yellow " ---> 二维码 VLESS(VLESS+WS+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${uriAddress}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dws%26host%3D${currentHost}%26fp%3Dchrome%26sni%3D${currentHost}%26path%3D${path}%23${email}"
 
     elif [[ "${type}" == "vlessXHTTP" ]]; then
 
-        echoContent yellow " --->     (VLESS+reality+XHTTP)"
+        echoContent yellow " ---> 通用格式(VLESS+reality+XHTTP)"
         echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=xhttp&sni=${xrayVLESSRealityXHTTPServerName}&host=${xrayVLESSRealityXHTTPServerName}&fp=chrome&path=${path}&pbk=${currentRealityXHTTPPublicKey}&sid=6ba85179e30d4fc2#${email}\n"
 
-        echoContent yellow " --->      (VLESS+reality+XHTTP)"
-        echoContent green "    :VLESS reality   :$(getPublicIP) publicKey:${currentRealityXHTTPPublicKey} shortId: 6ba85179e30d4fc2,serverNames ${xrayVLESSRealityXHTTPServerName}   :${port}    ${path} SNI:${xrayVLESSRealityXHTTPServerName}     :${xrayVLESSRealityXHTTPServerName}   ID:${id}     :xhttp    :${email}\n"
+        echoContent yellow " ---> 格式化明文(VLESS+reality+XHTTP)"
+        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${currentRealityXHTTPPublicKey}，shortId: 6ba85179e30d4fc2,serverNames：${xrayVLESSRealityXHTTPServerName}，端口:${port}，路径：${path}，SNI:${xrayVLESSRealityXHTTPServerName}，伪装域名:${xrayVLESSRealityXHTTPServerName}，用户ID:${id}，传输方式:xhttp，账户名:${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=xhttp&sni=${xrayVLESSRealityXHTTPServerName}&fp=chrome&path=${path}&pbk=${currentRealityXHTTPPublicKey}&sid=6ba85179e30d4fc2#${email}
 EOF
-        echoContent yellow " --->     VLESS(VLESS+reality+XHTTP)"
+        echoContent yellow " ---> 二维码 VLESS(VLESS+reality+XHTTP)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dtcp%26sni%3D${xrayVLESSRealityXHTTPServerName}%26fp%3Dchrome%26path%3D${path}%26host%3D${xrayVLESSRealityXHTTPServerName}%26pbk%3D${currentRealityXHTTPPublicKey}%26sid%3D6ba85179e30d4fc2%23${email}\n"
 
     elif
         [[ "${type}" == "vlessgrpc" ]]
     then
 
-        echoContent yellow " --->     (VLESS+gRPC+TLS)"
+        echoContent yellow " ---> 通用格式(VLESS+gRPC+TLS)"
         echoContent green "    vless://${id}@${uriAddress}:${port}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&fp=chrome&serviceName=${currentPath}grpc&alpn=h2&sni=${currentHost}#${email}\n"
 
-        echoContent yellow " --->      (VLESS+gRPC+TLS)"
-        echoContent green "        :VLESS   :${add}     /SNI:${currentHost}   :${port}   ID:${id}   :tls     :gRPC alpn:h2 client-fingerprint: chrome,serviceName:${currentPath}grpc    :${email}\n"
+        echoContent yellow " ---> 格式化明文(VLESS+gRPC+TLS)"
+        echoContent green "    协议类型:VLESS，地址:${add}，伪装域名/SNI:${currentHost}，端口:${port}，用户ID:${id}，安全:tls，传输方式:gRPC，alpn:h2，client-fingerprint: chrome,serviceName:${currentPath}grpc，账户名:${email}\n"
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 vless://${id}@${uriAddress}:${port}?encryption=none&security=tls&type=grpc&host=${currentHost}&path=${currentPath}grpc&serviceName=${currentPath}grpc&fp=chrome&alpn=h2&sni=${currentHost}#${email}
@@ -5701,7 +5696,7 @@ EOF
         singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"vless\",\"server\": \"${add}\",\"server_port\": ${port},\"uuid\": \"${id}\",\"tls\": {  \"enabled\": true,  \"server_name\": \"${currentHost}\",  \"utls\": {    \"enabled\": true,    \"fingerprint\": \"chrome\"  }},\"packet_encoding\": \"xudp\"${singBoxDomainStrategyField},\"transport\": {  \"type\": \"grpc\",  \"service_name\": \"${currentPath}grpc\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent yellow " --->     VLESS(VLESS+gRPC+TLS)"
+        echoContent yellow " ---> 二维码 VLESS(VLESS+gRPC+TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40${uriAddress}%3A${port}%3Fencryption%3Dnone%26security%3Dtls%26type%3Dgrpc%26host%3D${currentHost}%26serviceName%3D${currentPath}grpc%26fp%3Dchrome%26path%3D${currentPath}grpc%26sni%3D${currentHost}%26alpn%3Dh2%23${email}"
 
     elif [[ "${type}" == "trojan" ]]; then
@@ -5726,7 +5721,7 @@ EOF
         singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${currentHost}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"alpn\":[\"http/1.1\"],\"enabled\":true,\"server_name\":\"${currentHost}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent yellow " --->     Trojan(TLS)"
+        echoContent yellow " ---> 二维码 Trojan(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${currentHost}%3a${port}%3fpeer%3d${currentHost}%26fp%3Dchrome%26sni%3d${currentHost}%26alpn%3Dhttp/1.1%23${email}\n"
 
     elif [[ "${type}" == "trojangrpc" ]]; then
@@ -5753,7 +5748,7 @@ EOF
         singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"trojan\",\"server\":\"${add}\",\"server_port\":${port},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"insecure\":true,\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"}}${singBoxDomainStrategyField},\"transport\":{\"type\":\"grpc\",\"service_name\":\"${currentPath}trojangrpc\",\"idle_timeout\":\"15s\",\"ping_timeout\":\"15s\",\"permit_without_stream\":false},\"multiplex\":{\"enabled\":false,\"protocol\":\"smux\",\"max_streams\":32}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent yellow " --->     Trojan gRPC(TLS)"
+        echoContent yellow " ---> 二维码 Trojan gRPC(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=trojan%3a%2f%2f${id}%40${uriAddress}%3a${port}%3Fencryption%3Dnone%26fp%3Dchrome%26security%3Dtls%26peer%3d${currentHost}%26type%3Dgrpc%26sni%3d${currentHost}%26path%3D${currentPath}trojangrpc%26alpn%3Dh2%26serviceName%3D${currentPath}trojangrpc%23${email}\n"
 
     elif [[ "${type}" == "hysteria" ]]; then
@@ -5790,7 +5785,7 @@ EOF
         singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"hysteria2\",\"server\":\"${currentHost}\",\"server_port\":${singBoxHysteria2Port},\"up_mbps\":${hysteria2ClientUploadSpeed},\"down_mbps\":${hysteria2ClientDownloadSpeed},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\",\"alpn\":[\"h3\"]}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent yellow " --->     Hysteria2(TLS)"
+        echoContent yellow " ---> 二维码 Hysteria2(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=hysteria2%3A%2F%2F${id}%40${currentHost}%3A${singBoxHysteria2Port}%3F${multiPortEncode}peer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%26alpn%3Dh3%23${email}\n"
 
     elif [[ "${type}" == "vlessReality" ]]; then
@@ -5802,11 +5797,11 @@ EOF
             realityServerName=${singBoxVLESSRealityVisionServerName}
             publicKey=${singBoxVLESSRealityPublicKey}
         fi
-        echoContent yellow " --->     (VLESS+reality+uTLS+Vision)"
+        echoContent yellow " ---> 通用格式(VLESS+reality+uTLS+Vision)"
         echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}\n"
 
-        echoContent yellow " --->      (VLESS+reality+uTLS+Vision)"
-        echoContent green "    :VLESS reality   :$(getPublicIP) publicKey:${publicKey} shortId: 6ba85179e30d4fc2 pqv=${realityMldsa65Verify} serverNames ${realityServerName}   :${port}   ID:${id}     :tcp    :${email}\n"
+        echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+Vision)"
+        echoContent green "协议类型:VLESS reality，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，pqv=${realityMldsa65Verify}，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=tcp&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&flow=xtls-rprx-vision#${email}
 EOF
@@ -5830,7 +5825,7 @@ EOF
         singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"flow\":\"xtls-rprx-vision\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\"}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent yellow " --->     VLESS(VLESS+reality+uTLS+Vision)"
+        echoContent yellow " ---> 二维码 VLESS(VLESS+reality+uTLS+Vision)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dtcp%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26flow%3Dxtls-rprx-vision%23${email}\n"
 
     elif [[ "${type}" == "vlessRealityGRPC" ]]; then
@@ -5843,13 +5838,13 @@ EOF
             publicKey=${singBoxVLESSRealityPublicKey}
         fi
 
-        echoContent yellow " --->     (VLESS+reality+uTLS+gRPC)"
+        echoContent yellow " ---> 通用格式(VLESS+reality+uTLS+gRPC)"
         # pqv=${realityMldsa65Verify}&
         echoContent green "    vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}\n"
 
-        echoContent yellow " --->      (VLESS+reality+uTLS+gRPC)"
+        echoContent yellow " ---> 格式化明文(VLESS+reality+uTLS+gRPC)"
         # pqv=${realityMldsa65Verify}，
-        echoContent green "    :VLESS reality serviceName:grpc   :$(getPublicIP) publicKey:${publicKey} shortId: 6ba85179e30d4fc2 serverNames ${realityServerName}   :${port}   ID:${id}     :gRPC client-fingerprint chrome    :${email}\n"
+        echoContent green "协议类型:VLESS reality，serviceName:grpc，地址:$(getPublicIP)，publicKey:${publicKey}，shortId: 6ba85179e30d4fc2，serverNames：${realityServerName}，端口:${port}，用户ID:${id}，传输方式:gRPC，client-fingerprint：chrome，账户名:${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 vless://${id}@$(getPublicIP):${port}?encryption=none&security=reality&pqv=${realityMldsa65Verify}&type=grpc&sni=${realityServerName}&fp=chrome&pbk=${publicKey}&sid=6ba85179e30d4fc2&path=grpc&serviceName=grpc#${email}
 EOF
@@ -5874,7 +5869,7 @@ EOF
         singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"vless\",\"server\":\"$(getPublicIP)\",\"server_port\":${port},\"uuid\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${realityServerName}\",\"utls\":{\"enabled\":true,\"fingerprint\":\"chrome\"},\"reality\":{\"enabled\":true,\"public_key\":\"${publicKey}\",\"short_id\":\"6ba85179e30d4fc2\"}},\"packet_encoding\":\"xudp\",\"transport\":{\"type\":\"grpc\",\"service_name\":\"grpc\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent yellow " --->     VLESS(VLESS+reality+uTLS+gRPC)"
+        echoContent yellow " ---> 二维码 VLESS(VLESS+reality+uTLS+gRPC)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=vless%3A%2F%2F${id}%40$(getPublicIP)%3A${port}%3Fencryption%3Dnone%26security%3Dreality%26type%3Dgrpc%26sni%3D${realityServerName}%26fp%3Dchrome%26pbk%3D${publicKey}%26sid%3D6ba85179e30d4fc2%26path%3Dgrpc%26serviceName%3Dgrpc%23${email}\n"
     elif [[ "${type}" == "tuic" ]]; then
         local tuicUUID=
@@ -5884,12 +5879,12 @@ EOF
         tuicPassword=$(echo "${id}" | awk -F "[_]" '{print $2}')
 
         if [[ -z "${email}" ]]; then
-            echoContent red " --->             "
+            echoContent red " ---> 读取配置失败，请重新安装"
             exit 0
         fi
 
-        echoContent yellow " --->      (Tuic+TLS)"
-        echoContent green "        :Tuic   :${currentHost}    ${port} uuid ${tuicUUID} password ${tuicPassword} congestion-controller:${tuicAlgorithm} alpn: h3    :${email}\n"
+        echoContent yellow " ---> 格式化明文(Tuic+TLS)"
+        echoContent green "    协议类型:Tuic，地址:${currentHost}，端口：${port}，uuid：${tuicUUID}，password：${tuicPassword}，congestion-controller:${tuicAlgorithm}，alpn: h3，账户名:${email}\n"
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 tuic://${tuicUUID}:${tuicPassword}@${currentHost}:${port}?congestion_control=${tuicAlgorithm}&alpn=h3&sni=${currentHost}&udp_relay_mode=quic&allow_insecure=0#${email}
@@ -5915,7 +5910,7 @@ EOF
         singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\": \"tuic\",\"server\": \"${currentHost}\",\"server_port\": ${port},\"uuid\": \"${tuicUUID}\",\"password\": \"${tuicPassword}\",\"congestion_control\": \"${tuicAlgorithm}\",\"tls\": {\"enabled\": true,\"server_name\": \"${currentHost}\",\"alpn\": [\"h3\"]}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent yellow "\n --->     Tuic"
+        echoContent yellow "\n ---> 二维码 Tuic"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=tuic%3A%2F%2F${tuicUUID}%3A${tuicPassword}%40${currentHost}%3A${tuicPort}%3Fcongestion_control%3D${tuicAlgorithm}%26alpn%3Dh3%26sni%3D${currentHost}%26udp_relay_mode%3Dquic%26allow_insecure%3D0%23${email}\n"
     elif [[ "${type}" == "naive" ]]; then
         echoContent yellow " ---> Naive(TLS)"
@@ -5924,17 +5919,17 @@ EOF
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
 naive+https://${email}:${id}@${currentHost}:${port}?padding=true#${email}
 EOF
-        echoContent yellow " --->     Naive(TLS)"
+        echoContent yellow " ---> 二维码 Naive(TLS)"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=naive%2Bhttps%3A%2F%2F${email}%3A${id}%40${currentHost}%3A${port}%3Fpadding%3Dtrue%23${email}\n"
     elif [[ "${type}" == "vmessHTTPUpgrade" ]]; then
         qrCodeBase64Default=$(echo -n "{\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"httpupgrade\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}" | base64 -w 0)
         qrCodeBase64Default="${qrCodeBase64Default// /}"
 
-        echoContent yellow " --->   json(VMess+HTTPUpgrade+TLS)"
+        echoContent yellow " ---> 通用json(VMess+HTTPUpgrade+TLS)"
         echoContent green "    {\"port\":${port},\"ps\":\"${email}\",\"tls\":\"tls\",\"id\":\"${id}\",\"aid\":0,\"v\":2,\"host\":\"${currentHost}\",\"type\":\"none\",\"path\":\"${path}\",\"net\":\"httpupgrade\",\"add\":\"${add}\",\"allowInsecure\":0,\"method\":\"none\",\"peer\":\"${currentHost}\",\"sni\":\"${currentHost}\"}\n"
-        echoContent yellow " --->   vmess(VMess+HTTPUpgrade+TLS)  "
+        echoContent yellow " ---> 通用vmess(VMess+HTTPUpgrade+TLS)链接"
         echoContent green "    vmess://${qrCodeBase64Default}\n"
-        echoContent yellow " --->     vmess(VMess+HTTPUpgrade+TLS)"
+        echoContent yellow " ---> 二维码 vmess(VMess+HTTPUpgrade+TLS)"
 
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
    vmess://${qrCodeBase64Default}
@@ -5967,8 +5962,8 @@ EOF
     elif [[ "${type}" == "anytls" ]]; then
         echoContent yellow " ---> AnyTLS"
 
-        echoContent yellow " --->      (AnyTLS)"
-        echoContent green "    :anytls   :${currentHost}   :${singBoxAnyTLSPort}   ID:${id}     :tcp    :${email}\n"
+        echoContent yellow " ---> 格式化明文(AnyTLS)"
+        echoContent green "协议类型:anytls，地址:${currentHost}，端口:${singBoxAnyTLSPort}，用户ID:${id}，传输方式:tcp，账户名:${email}\n"
 
         echoContent green "    anytls://${id}@${currentHost}:${singBoxAnyTLSPort}?peer=${currentHost}&insecure=0&sni=${currentHost}#${email}\n"
         cat <<EOF >>"/etc/v2ray-agent/subscribe_local/default/${user}"
@@ -5991,7 +5986,7 @@ EOF
         singBoxSubscribeLocalConfig=$(jq -r ". += [{\"tag\":\"${email}\",\"type\":\"anytls\",\"server\":\"${currentHost}\",\"server_port\":${singBoxAnyTLSPort},\"password\":\"${id}\",\"tls\":{\"enabled\":true,\"server_name\":\"${currentHost}\"}}]" "/etc/v2ray-agent/subscribe_local/sing-box/${user}")
         echo "${singBoxSubscribeLocalConfig}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${user}"
 
-        echoContent yellow " --->     AnyTLS"
+        echoContent yellow " ---> 二维码 AnyTLS"
         echoContent green "    https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=anytls%3A%2F%2F${id}%40${currentHost}%3A${singBoxAnyTLSPort}%3Fpeer%3D${currentHost}%26insecure%3D0%26sni%3D${currentHost}%23${email}\n"
     fi
 
@@ -6004,29 +5999,29 @@ showAccounts() {
     readConfigHostPathUUID
     readSingBoxConfig
 
-    echoContent skyBlue "=========================          ==========================="
+    echoContent skyBlue "========================= 核心配置文件路径 ==========================="
     if [[ "${coreInstallType}" == "1" ]]; then
-        echoContent yellow "Xray       : /etc/v2ray-agent/xray/conf/"
-        echoContent yellow "Xray      : /etc/v2ray-agent/xray/conf/config.json"
+        echoContent yellow "Xray 配置文件目录: /etc/v2ray-agent/xray/conf/"
+        echoContent yellow "Xray 主配置文件: /etc/v2ray-agent/xray/conf/config.json"
     elif [[ "${coreInstallType}" == "2" ]]; then
-        echoContent yellow "Sing-box       : /etc/v2ray-agent/sing-box/conf/"
-        echoContent yellow "Sing-box      : /etc/v2ray-agent/sing-box/conf/config.json"
+        echoContent yellow "Sing-box 配置文件目录: /etc/v2ray-agent/sing-box/conf/"
+        echoContent yellow "Sing-box 主配置文件: /etc/v2ray-agent/sing-box/conf/config.json"
     fi
     echoContent skyBlue "======================================================================"
 
     echo
-    echoContent skyBlue "\nProgress $1/${totalProgress} :   "
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 账号"
 
     initSubscribeLocalConfig
     # VLESS TCP
     if echo ${currentInstallProtocolType} | grep -q ",0,"; then
 
-        echoContent skyBlue "============================= VLESS TCP TLS_Vision [  ] ==============================\n"
+        echoContent skyBlue "============================= VLESS TCP TLS_Vision [推荐] ==============================\n"
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}02_VLESS_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
-            echoContent skyBlue "\n --->   :${email}"
+            echoContent skyBlue "\n ---> 账号:${email}"
             echo
             defaultBase64Code vlesstcp "${currentDefaultPort}${singBoxVLESSVisionPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
         done
@@ -6034,7 +6029,7 @@ showAccounts() {
 
     # VLESS WS
     if echo ${currentInstallProtocolType} | grep -q ",1,"; then
-        echoContent skyBlue "\n================================ VLESS WS TLS [ CDN  ] ================================\n"
+        echoContent skyBlue "\n================================ VLESS WS TLS [仅CDN推荐] ================================\n"
 
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}03_VLESS_WS_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
@@ -6062,7 +6057,7 @@ showAccounts() {
                 local nodePreference="${cdnNodePreference:-ipv4}"
                 local connectAddress=
                 connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
-                echoContent skyBlue "\n --->   :${email}${count}"
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
                 defaultBase64Code vlessws "${vlessWSPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${connectAddress}" "${path}" "${nodePreference}"
                 count=$((count + 1))
                 echo
@@ -6071,7 +6066,7 @@ showAccounts() {
     fi
     # trojan grpc
     if echo ${currentInstallProtocolType} | grep -q ",2,"; then
-        echoContent skyBlue "\n================================  Trojan gRPC TLS [ CDN  ]  ================================\n"
+        echoContent skyBlue "\n================================  Trojan gRPC TLS [仅CDN推荐]  ================================\n"
         jq .inbounds[0].settings.clients ${configPath}04_trojan_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email)
@@ -6084,7 +6079,7 @@ showAccounts() {
                 local nodePreference="${cdnNodePreference:-ipv4}"
                 local connectAddress=
                 connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
-                echoContent skyBlue "\n --->   :${email}${count}"
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
                 defaultBase64Code trojangrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .password)" "${connectAddress}" "" "${nodePreference}"
                 count=$((count + 1))
@@ -6094,7 +6089,7 @@ showAccounts() {
     fi
     # VMess WS
     if echo ${currentInstallProtocolType} | grep -q ",3,"; then
-        echoContent skyBlue "\n================================ VMess WS TLS [ CDN  ]  ================================\n"
+        echoContent skyBlue "\n================================ VMess WS TLS [仅CDN推荐]  ================================\n"
         local path="${currentPath}vws"
         if [[ ${coreInstallType} == "1" ]]; then
             path="/${currentPath}vws"
@@ -6119,7 +6114,7 @@ showAccounts() {
                 local nodePreference="${cdnNodePreference:-ipv4}"
                 local connectAddress=
                 connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
-                echoContent skyBlue "\n --->   :${email}${count}"
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
                 defaultBase64Code vmessws "${vmessPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${connectAddress}" "${path}" "${nodePreference}"
                 count=$((count + 1))
@@ -6129,18 +6124,18 @@ showAccounts() {
 
     # trojan tcp
     if echo ${currentInstallProtocolType} | grep -q ",4,"; then
-        echoContent skyBlue "\n==================================  Trojan TLS [   ] ==================================\n"
+        echoContent skyBlue "\n==================================  Trojan TLS [不推荐] ==================================\n"
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}04_trojan_TCP_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
-            echoContent skyBlue "\n --->   :${email}"
+            echoContent skyBlue "\n ---> 账号:${email}"
 
             defaultBase64Code trojan "${currentDefaultPort}${singBoxTrojanPort}" "${email}" "$(echo "${user}" | jq -r .password)"
         done
     fi
     # VLESS grpc
     if echo ${currentInstallProtocolType} | grep -q ",5,"; then
-        echoContent skyBlue "\n=============================== VLESS gRPC TLS [ CDN  ]  ===============================\n"
+        echoContent skyBlue "\n=============================== VLESS gRPC TLS [仅CDN推荐]  ===============================\n"
         jq .inbounds[0].settings.clients ${configPath}06_VLESS_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
 
             local email=
@@ -6155,7 +6150,7 @@ showAccounts() {
                 local nodePreference="${cdnNodePreference:-ipv4}"
                 local connectAddress=
                 connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
-                echoContent skyBlue "\n --->   :${email}${count}"
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
                 defaultBase64Code vlessgrpc "${currentDefaultPort}" "${email}${count}" "$(echo "${user}" | jq -r .id)" "${connectAddress}" "" "${nodePreference}"
                 count=$((count + 1))
@@ -6166,7 +6161,7 @@ showAccounts() {
     # hysteria2
     if echo ${currentInstallProtocolType} | grep -q ",6," || [[ -n "${hysteriaPort}" ]]; then
         readPortHopping "hysteria2" "${singBoxHysteria2Port}"
-        echoContent skyBlue "\n================================  Hysteria2 TLS [  ] ================================\n"
+        echoContent skyBlue "\n================================  Hysteria2 TLS [推荐] ================================\n"
         local path="${configPath}"
         if [[ "${coreInstallType}" == "1" ]]; then
             path="${singBoxConfigPath}"
@@ -6179,7 +6174,7 @@ showAccounts() {
         fi
 
         jq -r -c '.inbounds[]|.users[]' "${path}06_hysteria2_inbounds.json" | while read -r user; do
-            echoContent skyBlue "\n --->   :$(echo "${user}" | jq -r .name)"
+            echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
             defaultBase64Code hysteria "${hysteria2DefaultPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
         done
@@ -6188,37 +6183,37 @@ showAccounts() {
 
     # VLESS reality vision
     if echo ${currentInstallProtocolType} | grep -q ",7,"; then
-        echoContent skyBlue "============================= VLESS reality_vision [  ]  ==============================\n"
+        echoContent skyBlue "============================= VLESS reality_vision [推荐]  ==============================\n"
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}07_VLESS_vision_reality_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
-            echoContent skyBlue "\n --->   :${email}"
+            echoContent skyBlue "\n ---> 账号:${email}"
             echo
             defaultBase64Code vlessReality "${xrayVLESSRealityVisionPort}${singBoxVLESSRealityVisionPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
         done
     fi
     # VLESS reality gRPC
     if echo ${currentInstallProtocolType} | grep -q ",8,"; then
-        echoContent skyBlue "============================== VLESS reality_gRPC [  ] ===============================\n"
+        echoContent skyBlue "============================== VLESS reality_gRPC [推荐] ===============================\n"
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}08_VLESS_vision_gRPC_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
             email=$(echo "${user}" | jq -r .email//.name)
 
-            echoContent skyBlue "\n --->   :${email}"
+            echoContent skyBlue "\n ---> 账号:${email}"
             echo
             defaultBase64Code vlessRealityGRPC "${xrayVLESSRealityVisionPort}${singBoxVLESSRealityGRPCPort}" "${email}" "$(echo "${user}" | jq -r .id//.uuid)"
         done
     fi
     # tuic
     if echo ${currentInstallProtocolType} | grep -q ",9," || [[ -n "${tuicPort}" ]]; then
-        echoContent skyBlue "\n================================  Tuic TLS [  ]  ================================\n"
+        echoContent skyBlue "\n================================  Tuic TLS [推荐]  ================================\n"
         local path="${configPath}"
         if [[ "${coreInstallType}" == "1" ]]; then
             path="${singBoxConfigPath}"
         fi
         jq -r -c '.inbounds[].users[]' "${path}09_tuic_inbounds.json" | while read -r user; do
-            echoContent skyBlue "\n --->   :$(echo "${user}" | jq -r .name)"
+            echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
             defaultBase64Code tuic "${singBoxTuicPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .uuid)_$(echo "${user}" | jq -r .password)"
         done
@@ -6226,10 +6221,10 @@ showAccounts() {
     fi
     # naive
     if echo ${currentInstallProtocolType} | grep -q ",10," || [[ -n "${singBoxNaivePort}" ]]; then
-        echoContent skyBlue "\n================================  naive TLS [      ClashMeta]  ================================\n"
+        echoContent skyBlue "\n================================  naive TLS [推荐，不支持ClashMeta]  ================================\n"
 
         jq -r -c '.inbounds[]|.users[]' "${configPath}10_naive_inbounds.json" | while read -r user; do
-            echoContent skyBlue "\n --->   :$(echo "${user}" | jq -r .username)"
+            echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .username)"
             echo
             defaultBase64Code naive "${singBoxNaivePort}" "$(echo "${user}" | jq -r .username)" "$(echo "${user}" | jq -r .password)"
         done
@@ -6237,7 +6232,7 @@ showAccounts() {
     fi
     # VMess HTTPUpgrade
     if echo ${currentInstallProtocolType} | grep -q ",11,"; then
-        echoContent skyBlue "\n================================ VMess HTTPUpgrade TLS [ CDN  ]  ================================\n"
+        echoContent skyBlue "\n================================ VMess HTTPUpgrade TLS [仅CDN推荐]  ================================\n"
         local path="${currentPath}vws"
         if [[ ${coreInstallType} == "1" ]]; then
             path="/${currentPath}vws"
@@ -6262,7 +6257,7 @@ showAccounts() {
                 local nodePreference="${cdnNodePreference:-ipv4}"
                 local connectAddress=
                 connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
-                echoContent skyBlue "\n --->   :${email}${count}"
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
                 echo
                 defaultBase64Code vmessHTTPUpgrade "${vmessHTTPUpgradePort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${connectAddress}" "${path}" "${nodePreference}"
                 count=$((count + 1))
@@ -6271,7 +6266,7 @@ showAccounts() {
     fi
     # VLESS XHTTP
     if echo ${currentInstallProtocolType} | grep -q ",12,"; then
-        echoContent skyBlue "\n================================ VLESS XHTTP TLS [ CDN  ] ================================\n"
+        echoContent skyBlue "\n================================ VLESS XHTTP TLS [仅CDN推荐] ================================\n"
 
         jq .inbounds[0].settings.clients//.inbounds[0].users ${configPath}12_VLESS_XHTTP_inbounds.json | jq -c '.[]' | while read -r user; do
             local email=
@@ -6288,7 +6283,7 @@ showAccounts() {
                 local nodePreference="${cdnNodePreference:-ipv4}"
                 local connectAddress=
                 connectAddress=$(getCDNConnectAddress "${cdnNodeAddress}" "${nodePreference}")
-                echoContent skyBlue "\n --->   :${email}${count}"
+                echoContent skyBlue "\n ---> 账号:${email}${count}"
                 defaultBase64Code vlessXHTTP "${xrayVLESSRealityXHTTPort}" "${email}${count}" "$(echo "${user}" | jq -r .id//.uuid)" "${connectAddress}" "${path}" "${nodePreference}"
                 count=$((count + 1))
                 echo
@@ -6300,7 +6295,7 @@ showAccounts() {
         echoContent skyBlue "\n================================  AnyTLS ================================\n"
 
         jq -r -c '.inbounds[]|.users[]' "${configPath}13_anytls_inbounds.json" | while read -r user; do
-            echoContent skyBlue "\n --->   :$(echo "${user}" | jq -r .name)"
+            echoContent skyBlue "\n ---> 账号:$(echo "${user}" | jq -r .name)"
             echo
             defaultBase64Code anytls "${singBoxAnyTLSPort}" "$(echo "${user}" | jq -r .name)" "$(echo "${user}" | jq -r .password)"
         done
@@ -6330,11 +6325,11 @@ checkNginx302() {
         #        local domain302Result=
         #        domain302Result=$(curl -L -s "https://${currentHost}:${currentPort}")
         #        if [[ -n "${domain302Result}" ]]; then
-        echoContent green " ---> 302       "
+        echoContent green " ---> 302重定向设置完毕"
         exit 0
         #        fi
     fi
-    echoContent red " ---> 302                    "
+    echoContent red " ---> 302重定向设置失败，请仔细检查是否和示例相同"
     backupNginxConfig restoreBackup
 }
 
@@ -6342,12 +6337,12 @@ checkNginx302() {
 backupNginxConfig() {
     if [[ "$1" == "backup" ]]; then
         cp ${nginxConfigPath}alone.conf /etc/v2ray-agent/alone_backup.conf
-        echoContent green " ---> nginx        "
+        echoContent green " ---> nginx配置文件备份成功"
     fi
 
     if [[ "$1" == "restoreBackup" ]] && [[ -f "/etc/v2ray-agent/alone_backup.conf" ]]; then
         cp /etc/v2ray-agent/alone_backup.conf ${nginxConfigPath}alone.conf
-        echoContent green " ---> nginx          "
+        echoContent green " ---> nginx配置文件恢复备份成功"
         rm /etc/v2ray-agent/alone_backup.conf
     fi
 
@@ -6364,7 +6359,7 @@ addNginx302() {
             sed "${insertIndex}i return 302 '$1';" ${nginxConfigPath}alone.conf >${nginxConfigPath}tmpfile && mv ${nginxConfigPath}tmpfile ${nginxConfigPath}alone.conf
             count=$((count + 1))
         else
-            echoContent red " ---> 302    "
+            echoContent red " ---> 302添加失败"
             backupNginxConfig restoreBackup
         fi
 
@@ -6374,47 +6369,47 @@ addNginx302() {
 # 更新伪装站
 updateNginxBlog() {
     if [[ "${coreInstallType}" == "2" ]]; then
-        echoContent red "\n --->       Xray-core  "
+        echoContent red "\n ---> 此功能仅支持Xray-core内核"
         exit 0
     fi
 
-    echoContent skyBlue "\nProgress $1/${totalProgress} :       "
+    echoContent skyBlue "\n进度 $1/${totalProgress} : 更换伪装站点"
 
     if ! echo "${currentInstallProtocolType}" | grep -q ",0," || [[ -z "${coreInstallType}" ]]; then
-        echoContent red "\n --->            Xray-core VLESS_TCP_TLS_Vision"
+        echoContent red "\n ---> 由于环境依赖，请先安装Xray-core的VLESS_TCP_TLS_Vision"
         exit 0
     fi
     echoContent red "=============================================================="
-    echoContent yellow "#                  ${nginxStaticPath} \n"
-    echoContent yellow "1.    "
-    echoContent yellow "2.    "
-    echoContent yellow "3.    01"
-    echoContent yellow "4.   "
-    echoContent yellow "5.           [https://github.com/ix64/unlock-music]"
+    echoContent yellow "# 如需自定义，请手动复制模版文件到 ${nginxStaticPath} \n"
+    echoContent yellow "1.新手引导"
+    echoContent yellow "2.游戏网站"
+    echoContent yellow "3.个人博客01"
+    echoContent yellow "4.企业站"
+    echoContent yellow "5.解锁加密的音乐文件模版[https://github.com/ix64/unlock-music]"
     echoContent yellow "6.mikutap[https://github.com/HFIProgramming/mikutap]"
-    echoContent yellow "7.   02"
-    echoContent yellow "8.    02"
-    echoContent yellow "9.404    baidu"
-    echoContent yellow "10.302     "
+    echoContent yellow "7.企业站02"
+    echoContent yellow "8.个人博客02"
+    echoContent yellow "9.404自动跳转baidu"
+    echoContent yellow "10.302重定向网站"
     echoContent red "=============================================================="
-    read -r -p "Please select:" selectInstallNginxBlogType
+    read -r -p "请选择:" selectInstallNginxBlogType
 
     if [[ "${selectInstallNginxBlogType}" == "10" ]]; then
         if [[ "${coreInstallType}" == "2" ]]; then
-            echoContent red "\n --->       Xray-core          "
+            echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
             exit 0
         fi
         echoContent red "\n=============================================================="
-        echoContent yellow "            302                        "
-        echoContent yellow "              302     \n"
-        echoContent yellow "1.  "
-        echoContent yellow "2.  "
+        echoContent yellow "重定向的优先级更高，配置302之后如果更改伪装站点，根路由下伪装站点将不起作用"
+        echoContent yellow "如想要伪装站点实现作用需删除302重定向配置\n"
+        echoContent yellow "1.添加"
+        echoContent yellow "2.删除"
         echoContent red "=============================================================="
-        read -r -p "Please select:" redirectStatus
+        read -r -p "请选择:" redirectStatus
 
         if [[ "${redirectStatus}" == "1" ]]; then
             backupNginxConfig backup
-            read -r -p "          ,   https://www.baidu.com:" redirectDomain
+            read -r -p "请输入要重定向的域名,例如 https://www.baidu.com:" redirectDomain
             removeNginx302
             addNginx302 "${redirectDomain}"
             handleNginx stop
@@ -6429,7 +6424,7 @@ updateNginxBlog() {
         fi
         if [[ "${redirectStatus}" == "2" ]]; then
             removeNginx302
-            echoContent green " --->   302     "
+            echoContent green " ---> 移除302重定向成功"
             exit 0
         fi
     fi
@@ -6444,9 +6439,9 @@ updateNginxBlog() {
 
         unzip -o "${nginxStaticPath}html${selectInstallNginxBlogType}.zip" -d "${nginxStaticPath}" >/dev/null
         rm -f "${nginxStaticPath}html${selectInstallNginxBlogType}.zip*"
-        echoContent green " --->       "
+        echoContent green " ---> 更换伪站成功"
     else
-        echoContent red " --->           "
+        echoContent red " ---> 选择错误，请重新选择"
         updateNginxBlog
     fi
 }
@@ -6455,31 +6450,31 @@ updateNginxBlog() {
 addCorePort() {
 
     if [[ "${coreInstallType}" == "2" ]]; then
-        echoContent red "\n --->       Xray-core  "
+        echoContent red "\n ---> 此功能仅支持Xray-core内核"
         exit 0
     fi
 
-    echoContent skyBlue "\n   1/${totalProgress} :      "
+    echoContent skyBlue "\n功能 1/${totalProgress} : 添加新端口"
     echoContent red "\n=============================================================="
-    echoContent yellow "# Note\n"
-    echoContent yellow "Please follow the on-screen instructions."
-    echoContent yellow "Please follow the on-screen instructions."
-    echoContent yellow "Please follow the on-screen instructions."
-    echoContent yellow "Please follow the on-screen instructions."
-    echoContent yellow "    hysteria      hysteria   "
-    echoContent yellow "    :2053,2083,2087\n"
+    echoContent yellow "# 注意事项\n"
+    echoContent yellow "支持批量添加"
+    echoContent yellow "不影响默认端口的使用"
+    echoContent yellow "查看账号时，只会展示默认端口的账号"
+    echoContent yellow "不允许有特殊字符，注意逗号的格式"
+    echoContent yellow "如已安装hysteria，会同时安装hysteria新端口"
+    echoContent yellow "录入示例:2053,2083,2087\n"
 
-    echoContent yellow "1.       "
-    echoContent yellow "2.    "
-    echoContent yellow "3.    "
+    echoContent yellow "1.查看已添加端口"
+    echoContent yellow "2.添加端口"
+    echoContent yellow "3.删除端口"
     echoContent red "=============================================================="
-    read -r -p "Please select:" selectNewPortType
+    read -r -p "请选择:" selectNewPortType
     if [[ "${selectNewPortType}" == "1" ]]; then
         find ${configPath} -name "*dokodemodoor*" | grep -v "hysteria" | awk -F "[c][o][n][f][/]" '{print $2}' | awk -F "[_]" '{print $4}' | awk -F "[.]" '{print ""NR""":"$1}'
         exit 0
     elif [[ "${selectNewPortType}" == "2" ]]; then
-        read -r -p "      :" newPort
-        read -r -p "                          [  ]  443:" defaultPort
+        read -r -p "请输入端口号:" newPort
+        read -r -p "请输入默认的端口号，同时会更改订阅端口以及节点端口，[回车]默认443:" defaultPort
 
         if [[ -n "${defaultPort}" ]]; then
             rm -rf "$(find ${configPath}* | grep "default")"
@@ -6551,13 +6546,13 @@ EOF
 EOF
             done < <(echo "${newPort}" | tr ',' '\n')
 
-            echoContent green " --->     "
+            echoContent green " ---> 添加完毕"
             reloadCore
             addCorePort
         fi
     elif [[ "${selectNewPortType}" == "3" ]]; then
         find ${configPath} -name "*dokodemodoor*" | grep -v "hysteria" | awk -F "[c][o][n][f][/]" '{print $2}' | awk -F "[_]" '{print $4}' | awk -F "[.]" '{print ""NR""":"$1}'
-        read -r -p "           :" portIndex
+        read -r -p "请输入要删除的端口编号:" portIndex
         local dokoConfig
         dokoConfig=$(find ${configPath} -name "*dokodemodoor*" | grep -v "hysteria" | awk -F "[c][o][n][f][/]" '{print $2}' | awk -F "[_]" '{print $4}' | awk -F "[.]" '{print ""NR""":"$1}' | grep "${portIndex}:")
         if [[ -n "${dokoConfig}" ]]; then
@@ -6572,7 +6567,7 @@ EOF
             reloadCore
             addCorePort
         else
-            echoContent yellow "\n --->             "
+            echoContent yellow "\n ---> 编号输入错误，请重新选择"
             addCorePort
         fi
     fi
@@ -6580,41 +6575,41 @@ EOF
 
 # 卸载脚本
 unInstall() {
-    read -r -p "           [y/n]:" unInstallStatus
+    read -r -p "是否确认卸载安装内容？[y/n]:" unInstallStatus
     if [[ "${unInstallStatus}" != "y" ]]; then
-        echoContent green " --->     "
+        echoContent green " ---> 放弃卸载"
         menu
         exit 0
     fi
     checkBTPanel
-    echoContent yellow " --->       acme             [rm -rf /root/.acme.sh]"
+    echoContent yellow " ---> 脚本不会删除acme相关配置，删除请手动执行 [rm -rf /root/.acme.sh]"
     handleNginx stop
     if [[ -z $(pgrep -f "nginx") ]]; then
-        echoContent green " --->   Nginx  "
+        echoContent green " ---> 停止Nginx成功"
     fi
     if [[ "${release}" == "alpine" ]]; then
         if [[ "${coreInstallType}" == "1" ]]; then
             handleXray stop
             rc-update del xray default
             rm -rf /etc/init.d/xray
-            echoContent green " --->   Xray      "
+            echoContent green " ---> 删除Xray开机自启完成"
         fi
         if [[ "${coreInstallType}" == "2" || -n "${singBoxConfigPath}" ]]; then
             handleSingBox stop
             rc-update del sing-box default
             rm -rf /etc/init.d/sing-box
-            echoContent green " --->   sing-box      "
+            echoContent green " ---> 删除sing-box开机自启完成"
         fi
     else
         if [[ "${coreInstallType}" == "1" ]]; then
             handleXray stop
             rm -rf /etc/systemd/system/xray.service
-            echoContent green " --->   Xray      "
+            echoContent green " ---> 删除Xray开机自启完成"
         fi
         if [[ "${coreInstallType}" == "2" || -n "${singBoxConfigPath}" ]]; then
             handleSingBox stop
             rm -rf /etc/systemd/system/sing-box.service
-            echoContent green " --->   sing-box      "
+            echoContent green " ---> 删除sing-box开机自启完成"
         fi
     fi
 
@@ -6628,36 +6623,36 @@ unInstall() {
 
     if [[ -d "${nginxStaticPath}" && -f "${nginxStaticPath}/check" ]]; then
         rm -rf "${nginxStaticPath}"
-        echoContent green " --->         "
+        echoContent green " ---> 删除伪装网站完成"
     fi
 
     rm -rf /usr/bin/vasma
     rm -rf /usr/sbin/vasma
-    echoContent green " --->         "
-    echoContent green " --->   v2ray-agent    "
+    echoContent green " ---> 卸载快捷方式完成"
+    echoContent green " ---> 卸载v2ray-agent脚本完成"
 }
 
 # CDN节点管理
 manageCDN() {
-    echoContent skyBlue "\nProgress $1/1 : CDN    "
+    echoContent skyBlue "\n进度 $1/1 : CDN节点管理"
     local setCDNDomain=
 
     if echo "${currentInstallProtocolType}" | grep -qE ",1,|,2,|,3,|,5,|,11,"; then
         echoContent red "=============================================================="
-        echoContent yellow "# Note"
-        echoContent yellow "\n    :"
+        echoContent yellow "# 注意事项"
+        echoContent yellow "\n教程地址:"
         echoContent skyBlue "https://www.v2ray-agent.com/archives/cloudflarezi-xuan-ip"
-        echoContent red "\n  Cloudflare           "
+        echoContent red "\n如对Cloudflare优化不了解，请不要使用"
 
         echoContent yellow "1.CNAME www.digitalocean.com"
         echoContent yellow "2.CNAME who.int"
         echoContent yellow "3.CNAME blog.hostmonit.com"
         echoContent yellow "4.CNAME www.visa.com.hk"
-        echoContent yellow "5.    [        : 1.1.1.1,1.1.2.2,cloudflare.com     ]"
-        echoContent yellow "6.  CDN  "
-        echoContent yellow "7.    IPv4/IPv6   "
+        echoContent yellow "5.手动输入[可输入多个，比如: 1.1.1.1,1.1.2.2,cloudflare.com 逗号分隔]"
+        echoContent yellow "6.移除CDN节点"
+        echoContent yellow "7.调整节点IPv4/IPv6优先级"
         echoContent red "=============================================================="
-        read -r -p "Please select:" selectCDNType
+        read -r -p "请选择:" selectCDNType
         case ${selectCDNType} in
         1)
             setCDNDomain="www.digitalocean.com"
@@ -6672,11 +6667,11 @@ manageCDN() {
             setCDNDomain="www.visa.com.hk"
             ;;
         5)
-            read -r -p "        CDN IP    :" setCDNDomain
+            read -r -p "请输入想要自定义CDN IP或者域名:" setCDNDomain
             ;;
         6)
             echo >/etc/v2ray-agent/cdn
-            echoContent green " --->     "
+            echoContent green " ---> 移除成功"
             exit 0
             ;;
         7)
@@ -6691,25 +6686,25 @@ manageCDN() {
             if [[ -n "${cdnWithPreference}" ]]; then
                 echo >/etc/v2ray-agent/cdn
                 echo "${cdnWithPreference}" >"/etc/v2ray-agent/cdn"
-                echoContent green " --->   CDN  "
+                echoContent green " ---> 修改CDN成功"
                 subscribe false false
             else
-                echoContent red " --->            "
+                echoContent red " ---> 不可以为空，请重新输入"
                 manageCDN 1
             fi
         else
-            echoContent red " --->            "
+            echoContent red " ---> 不可以为空，请重新输入"
             manageCDN 1
         fi
     else
-        echoContent yellow "\n    :"
+        echoContent yellow "\n教程地址:"
         echoContent skyBlue "https://www.v2ray-agent.com/archives/cloudflarezi-xuan-ip\n"
-        echoContent red " --->                ws grpc HTTPUpgrade     "
+        echoContent red " ---> 未检测到可以使用的协议，仅支持ws、grpc、HTTPUpgrade相关的协议"
     fi
 }
 # 自定义uuid
 customUUID() {
-    read -r -p "      UUID [  ]  UUID:" currentCustomUUID
+    read -r -p "请输入合法的UUID，[回车]随机UUID:" currentCustomUUID
     echo
     if [[ -z "${currentCustomUUID}" ]]; then
         if [[ "${selectInstallType}" == "1" || "${coreInstallType}" == "1" ]]; then
@@ -6729,7 +6724,7 @@ customUUID() {
         fi
 
         if [[ -n "${checkUUID}" ]]; then
-            echoContent red " ---> UUID    "
+            echoContent red " ---> UUID不可重复"
             exit 0
         fi
     fi
@@ -6737,7 +6732,7 @@ customUUID() {
 
 # 自定义email
 customUserEmail() {
-    read -r -p "      email [  ]  email:" currentCustomEmail
+    read -r -p "请输入合法的email，[回车]随机email:" currentCustomEmail
     echo
     if [[ -z "${currentCustomEmail}" ]]; then
         currentCustomEmail="${currentCustomUUID}"
@@ -6758,7 +6753,7 @@ customUserEmail() {
         fi
 
         if [[ -n "${checkEmail}" ]]; then
-            echoContent red " ---> email    "
+            echoContent red " ---> email不可重复"
             exit 0
         fi
     fi
@@ -6766,10 +6761,10 @@ customUserEmail() {
 
 # 添加用户
 addUser() {
-    read -r -p "           :" userNum
+    read -r -p "请输入要添加的用户数量:" userNum
     echo
     if [[ -z ${userNum} || ${userNum} -le 0 ]]; then
-        echoContent red " --->           "
+        echoContent red " ---> 输入有误，请重新输入"
         exit 0
     fi
     local userConfig=
@@ -6936,7 +6931,7 @@ addUser() {
         fi
     done
     reloadCore
-    echoContent green " --->     "
+    echoContent green " ---> 添加完成"
     subscribe false
     manageAccount 1
 }
@@ -6957,9 +6952,9 @@ removeUser() {
             jq -r -c .inbounds[0].users[].name//.inbounds[0].users[].username ${configPath}${userConfigType}.json | awk '{print NR""":"$0}'
         fi
 
-        read -r -p "           [       ]:" delUserIndex
+        read -r -p "请选择要删除的用户编号[仅支持单个删除]:" delUserIndex
         if [[ $(jq -r '.inbounds[0].settings.clients|length' ${configPath}${userConfigType}.json) -lt ${delUserIndex} && $(jq -r '.inbounds[0].users|length' ${configPath}${userConfigType}.json) -lt ${delUserIndex} ]]; then
-            echoContent red " --->     "
+            echoContent red " ---> 选择错误"
         else
             delUserIndex=$((delUserIndex - 1))
         fi
@@ -7042,37 +7037,23 @@ removeUser() {
 }
 # 更新脚本
 updateV2RayAgent() {
-    echoContent skyBlue "\nProgress  $1/${totalProgress} : Update v2ray-agent script"
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 更新v2ray-agent脚本"
     rm -rf /etc/v2ray-agent/install.sh
     if [[ "${release}" == "alpine" ]]; then
-<<<<<<< HEAD
-        wget -c -q -O /etc/v2ray-agent/install.sh -N --no-check-certificate "https://raw.githubusercontent.com/charleslkx/one-script/master/install_en.sh"
-    else
-        wget -c -q "${wgetShowProgressStatus}" -O /etc/v2ray-agent/install.sh -N --no-check-certificate "https://raw.githubusercontent.com/charleslkx/one-script/master/install_en.sh"
-=======
         wget -c -q -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
     else
         wget -c -q "${wgetShowProgressStatus}" -P /etc/v2ray-agent/ -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh"
->>>>>>> parent of 604df8d (en fix)
     fi
 
     sudo chmod 700 /etc/v2ray-agent/install.sh
     local version
-    version=$(grep 'Current Version: v' "/etc/v2ray-agent/install.sh" | awk -F "[v]" '{print $2}' | tail -n +2 | head -n 1 | awk -F "[\"]" '{print $1}')
+    version=$(grep '当前版本：v' "/etc/v2ray-agent/install.sh" | awk -F "[v]" '{print $2}' | tail -n +2 | head -n 1 | awk -F "[\"]" '{print $1}')
 
-<<<<<<< HEAD
-    echoContent green "\n ---> Update finished"
-    echoContent yellow " ---> Please execute [vasma] manually to open the script"
-    echoContent green " ---> Current Version: ${version}\n"
-    echoContent yellow "If update fails, please execute the following command manually\n"
-    echoContent skyBlue "wget -O /root/install.sh -N --no-check-certificate https://raw.githubusercontent.com/charleslkx/one-script/master/install_en.sh && chmod 700 /root/install.sh && /root/install.sh"
-=======
     echoContent green "\n ---> 更新完毕"
     echoContent yellow " ---> 请手动执行[vasma]打开脚本"
     echoContent green " ---> 当前版本：${version}\n"
     echoContent yellow "如更新不成功，请手动执行下面命令\n"
     echoContent skyBlue "wget -P /root -N --no-check-certificate https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh && chmod 700 /root/install.sh && /root/install.sh"
->>>>>>> parent of 604df8d (en fix)
     echo
     exit 0
 }
@@ -7082,14 +7063,14 @@ handleFirewall() {
     if systemctl status ufw 2>/dev/null | grep -q "active (exited)" && [[ "$1" == "stop" ]]; then
         systemctl stop ufw >/dev/null 2>&1
         systemctl disable ufw >/dev/null 2>&1
-        echoContent green " ---> ufw disabled successfully"
+        echoContent green " ---> ufw关闭成功"
 
     fi
 
     if systemctl status firewalld 2>/dev/null | grep -q "active (running)" && [[ "$1" == "stop" ]]; then
         systemctl stop firewalld >/dev/null 2>&1
         systemctl disable firewalld >/dev/null 2>&1
-        echoContent green " ---> firewalld    "
+        echoContent green " ---> firewalld关闭成功"
     fi
 }
 
@@ -7099,11 +7080,11 @@ handleFirewall() {
 enable_bbr() {
     # 如果仅安装 Hysteria (6)，则跳过
     if [[ "${selectCustomInstallType}" == ",6," ]]; then
-        echoContent yellow "\n --->     Hysteria    BBR     "
+        echoContent yellow "\n ---> 仅安装 Hysteria，跳过 BBR 自动开启"
         return
     fi
     
-    echoContent skyBlue "\nProgress       :       BBR"
+    echoContent skyBlue "\n进度  自动配置 : 检查并开启 BBR"
     
     local bbr_enabled=false
     if sysctl net.ipv4.tcp_congestion_control 2>/dev/null | grep -q "bbr"; then
@@ -7111,7 +7092,7 @@ enable_bbr() {
     fi
     
     if [[ "${bbr_enabled}" == "false" ]]; then
-        echoContent green " --->      BBR..."
+        echoContent green " ---> 正在开启 BBR..."
         if ! grep -q "net.core.default_qdisc" /etc/sysctl.conf; then
             echo "net.core.default_qdisc = fq" >> /etc/sysctl.conf
         else
@@ -7125,9 +7106,9 @@ enable_bbr() {
         fi
         
         sysctl -p >/dev/null 2>&1
-        echoContent green " ---> BBR    "
+        echoContent green " ---> BBR 已开启"
     else
-        echoContent green " ---> BBR     (      )"
+        echoContent green " ---> BBR 已开启 (无需重复配置)"
     fi
 }
 
@@ -7145,27 +7126,27 @@ checkLog() {
         logStatus=true
     fi
 
-    echoContent skyBlue "\n   $1/${totalProgress} :     "
+    echoContent skyBlue "\n功能 $1/${totalProgress} : 查看日志"
     echoContent red "\n=============================================================="
-    echoContent yellow "#         access  \n"
+    echoContent yellow "# 建议仅调试时打开access日志\n"
 
     if [[ "${logStatus}" == "false" ]]; then
-        echoContent yellow "1.  access  "
+        echoContent yellow "1.打开access日志"
     else
-        echoContent yellow "1.  access  "
+        echoContent yellow "1.关闭access日志"
     fi
 
-    echoContent yellow "2.  access  "
-    echoContent yellow "3.  error  "
-    echoContent yellow "4.          "
-    echoContent yellow "5.        "
-    echoContent yellow "6.    "
+    echoContent yellow "2.监听access日志"
+    echoContent yellow "3.监听error日志"
+    echoContent yellow "4.查看证书定时任务日志"
+    echoContent yellow "5.查看证书安装日志"
+    echoContent yellow "6.清空日志"
     if [[ "${coreInstallType}" == "2" ]]; then
-        echoContent red "\n --->       Xray-core  "
+        echoContent red "\n ---> 此功能仅支持Xray-core内核"
         exit 0
     fi
     if [[ -z "${configPath}" && -z "${realityStatus}" ]]; then
-        echoContent red " --->                    "
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
         exit 0
     fi
     local realityLogShow=
@@ -7174,24 +7155,24 @@ checkLog() {
         logStatus=true
     fi
 
-    echoContent skyBlue "\n   $1/${totalProgress} :     "
+    echoContent skyBlue "\n功能 $1/${totalProgress} : 查看日志"
     echoContent red "\n=============================================================="
-    echoContent yellow "#         access  \n"
+    echoContent yellow "# 建议仅调试时打开access日志\n"
 
     if [[ "${logStatus}" == "false" ]]; then
-        echoContent yellow "1.  access  "
+        echoContent yellow "1.打开access日志"
     else
-        echoContent yellow "1.  access  "
+        echoContent yellow "1.关闭access日志"
     fi
 
-    echoContent yellow "2.  access  "
-    echoContent yellow "3.  error  "
-    echoContent yellow "4.          "
-    echoContent yellow "5.        "
-    echoContent yellow "6.    "
+    echoContent yellow "2.监听access日志"
+    echoContent yellow "3.监听error日志"
+    echoContent yellow "4.查看证书定时任务日志"
+    echoContent yellow "5.查看证书安装日志"
+    echoContent yellow "6.清空日志"
     echoContent red "=============================================================="
 
-    read -r -p "Please select:" selectAccessLogType
+    read -r -p "请选择:" selectAccessLogType
     local configPathLog=${configPath//conf\//}
 
     case ${selectAccessLogType} in
@@ -7252,10 +7233,10 @@ EOF
 # BBR/加速管理（外部脚本）
 bbrInstall() {
     echoContent red "\n=============================================================="
-    echoContent green "BBR/       ylx2016/Linux-NetSpeed  https://github.com/ylx2016/Linux-NetSpeed"
-    echoContent yellow "1.      "
-    echoContent yellow "0.  "
-    read -r -p "Please select:" bbrSelect
+    echoContent green "BBR/加速脚本来自 ylx2016/Linux-NetSpeed： https://github.com/ylx2016/Linux-NetSpeed"
+    echoContent yellow "1.运行外部脚本"
+    echoContent yellow "0.返回"
+    read -r -p "请选择:" bbrSelect
     case ${bbrSelect} in
     1)
         bash <(curl -fsSL https://raw.githubusercontent.com/ylx2016/Linux-NetSpeed/master/tcp.sh)
@@ -7288,7 +7269,7 @@ aliasInstall() {
             rm -rf "$HOME/install.sh"
         fi
         if [[ "${vasmaType}" == "true" ]]; then
-            echoContent green "            [vasma]      "
+            echoContent green "快捷方式创建成功，可执行[vasma]重新打开脚本"
         fi
     fi
 }
@@ -7298,7 +7279,7 @@ checkIPv6() {
     currentIPv6IP=$(curl -s -6 -m 4 http://www.cloudflare.com/cdn-cgi/trace | grep "ip" | cut -d "=" -f 2)
 
     if [[ -z "${currentIPv6IP}" ]]; then
-        echoContent red " --->    ipv6"
+        echoContent red " ---> 不支持ipv6"
         exit 0
     fi
 }
@@ -7306,30 +7287,30 @@ checkIPv6() {
 # ipv6 分流
 ipv6Routing() {
     if [[ -z "${configPath}" ]]; then
-        echoContent red " --->            "
+        echoContent red " ---> 未安装，请使用脚本安装"
         menu
         exit 0
     fi
 
     checkIPv6
-    echoContent skyBlue "\n   1/${totalProgress} : IPv6  "
+    echoContent skyBlue "\n功能 1/${totalProgress} : IPv6分流"
     echoContent red "\n=============================================================="
-    echoContent yellow "1.       "
-    echoContent yellow "2.    "
-    echoContent yellow "3.  IPv6  "
-    echoContent yellow "4.  IPv6  "
+    echoContent yellow "1.查看已分流域名"
+    echoContent yellow "2.添加域名"
+    echoContent yellow "3.设置IPv6全局"
+    echoContent yellow "4.卸载IPv6分流"
     echoContent red "=============================================================="
-    read -r -p "Please select:" ipv6Status
+    read -r -p "请选择:" ipv6Status
     if [[ "${ipv6Status}" == "1" ]]; then
         showIPv6Routing
         exit 0
     elif [[ "${ipv6Status}" == "2" ]]; then
         echoContent red "=============================================================="
-        echoContent yellow "# Note\n"
-        echoContent yellow "# Note"
-        echoContent yellow "#      https://www.v2ray-agent.com/archives/1683226921000 \n"
+        echoContent yellow "# 注意事项\n"
+        echoContent yellow "# 注意事项"
+        echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/1683226921000 \n"
 
-        read -r -p "           :" domainList
+        read -r -p "请按照上面示例录入域名:" domainList
         if [[ "${coreInstallType}" == "1" ]]; then
             addInstallRouting IPv6_out outboundTag "${domainList}"
             addXrayOutbound IPv6_out
@@ -7342,15 +7323,15 @@ ipv6Routing() {
             addSingBoxOutbound IPv4_out
         fi
 
-        echoContent green " --->     "
+        echoContent green " ---> 添加完毕"
 
     elif [[ "${ipv6Status}" == "3" ]]; then
 
         echoContent red "=============================================================="
-        echoContent yellow "# Note\n"
-        echoContent yellow "1.            "
-        echoContent yellow "2.   IPv6         \n"
-        read -r -p "       [y/n]:" IPv6OutStatus
+        echoContent yellow "# 注意事项\n"
+        echoContent yellow "1.会删除所有设置的分流规则"
+        echoContent yellow "2.会删除IPv6之外的所有出站规则\n"
+        read -r -p "是否确认设置？[y/n]:" IPv6OutStatus
 
         if [[ "${IPv6OutStatus}" == "y" ]]; then
             if [[ "${coreInstallType}" == "1" ]]; then
@@ -7383,10 +7364,10 @@ ipv6Routing() {
 
             fi
 
-            echoContent green " ---> IPv6        "
+            echoContent green " ---> IPv6全局出站设置完毕"
         else
 
-            echoContent green " --->     "
+            echoContent green " ---> 放弃设置"
             exit 0
         fi
 
@@ -7405,9 +7386,9 @@ ipv6Routing() {
             addSingBoxOutbound "01_direct_outbound"
         fi
 
-        echoContent green " ---> IPv6      "
+        echoContent green " ---> IPv6分流卸载成功"
     else
-        echoContent red " --->     "
+        echoContent red " ---> 选择错误"
         exit 0
     fi
 
@@ -7422,9 +7403,9 @@ showIPv6Routing() {
             jq -r -c '.routing.rules[]|select (.outboundTag=="IPv6_out" and (.domain != null))|.domain' ${configPath}09_routing.json | jq -r
         elif [[ ! -f "${configPath}09_routing.json" && -f "${configPath}IPv6_out.json" ]]; then
             echoContent yellow "Xray-core"
-            echoContent green " --->    IPv6    "
+            echoContent green " ---> 已设置IPv6全局分流"
         else
-            echoContent yellow " --->    IPv6  "
+            echoContent yellow " ---> 未安装IPv6分流"
         fi
 
     fi
@@ -7434,37 +7415,37 @@ showIPv6Routing() {
             jq -r -c '.route.rules[]|select (.outbound=="IPv6_out")' "${singBoxConfigPath}IPv6_route.json" | jq -r
         elif [[ ! -f "${singBoxConfigPath}IPv6_route.json" && -f "${singBoxConfigPath}IPv6_out.json" ]]; then
             echoContent yellow "sing-box"
-            echoContent green " --->    IPv6    "
+            echoContent green " ---> 已设置IPv6全局分流"
         else
-            echoContent yellow " --->    IPv6  "
+            echoContent yellow " ---> 未安装IPv6分流"
         fi
     fi
 }
 # bt下载管理
 btTools() {
     if [[ "${coreInstallType}" == "2" ]]; then
-        echoContent red "\n --->       Xray-core          "
+        echoContent red "\n ---> 此功能仅支持Xray-core内核，请等待后续更新"
         exit 0
     fi
     if [[ -z "${configPath}" ]]; then
-        echoContent red " --->            "
+        echoContent red " ---> 未安装，请使用脚本安装"
         menu
         exit 0
     fi
 
-    echoContent skyBlue "\n   1/${totalProgress} : bt    "
+    echoContent skyBlue "\n功能 1/${totalProgress} : bt下载管理"
     echoContent red "\n=============================================================="
 
     if [[ -f ${configPath}09_routing.json ]] && grep -q bittorrent <${configPath}09_routing.json; then
-        echoContent yellow "    :     BT"
+        echoContent yellow "当前状态:已禁止下载BT"
     else
-        echoContent yellow "    :    BT"
+        echoContent yellow "当前状态:允许下载BT"
     fi
 
-    echoContent yellow "1.    BT"
-    echoContent yellow "2.    BT"
+    echoContent yellow "1.禁止下载BT"
+    echoContent yellow "2.允许下载BT"
     echoContent red "=============================================================="
-    read -r -p "Please select:" btStatus
+    read -r -p "请选择:" btStatus
     if [[ "${btStatus}" == "1" ]]; then
 
         if [[ -f "${configPath}09_routing.json" ]]; then
@@ -7496,7 +7477,7 @@ EOF
         removeXrayOutbound blackhole_out
         addXrayOutbound blackhole_out
 
-        echoContent green " --->   BT  "
+        echoContent green " ---> 禁止BT下载"
 
     elif [[ "${btStatus}" == "2" ]]; then
 
@@ -7504,9 +7485,9 @@ EOF
 
         unInstallRouting blackhole_out outboundTag bittorrent
 
-        echoContent green " --->   BT  "
+        echoContent green " ---> 允许BT下载"
     else
-        echoContent red " --->     "
+        echoContent red " ---> 选择错误"
         exit 0
     fi
 
@@ -7516,32 +7497,32 @@ EOF
 # 域名黑名单
 blacklist() {
     if [[ -z "${configPath}" ]]; then
-        echoContent red " --->            "
+        echoContent red " ---> 未安装，请使用脚本安装"
         menu
         exit 0
     fi
 
-    echoContent skyBlue "\nProgress  $1/${totalProgress} :      "
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 域名黑名单"
     echoContent red "\n=============================================================="
-    echoContent yellow "1.       "
-    echoContent yellow "2.    "
-    echoContent yellow "3.      "
-    echoContent yellow "4.     "
+    echoContent yellow "1.查看已屏蔽域名"
+    echoContent yellow "2.添加域名"
+    echoContent yellow "3.屏蔽大陆域名"
+    echoContent yellow "4.卸载黑名单"
     echoContent red "=============================================================="
 
-    read -r -p "Please select:" blacklistStatus
+    read -r -p "请选择:" blacklistStatus
     if [[ "${blacklistStatus}" == "1" ]]; then
         jq -r -c '.routing.rules[]|select (.outboundTag=="blackhole_out")|.domain' ${configPath}09_routing.json | jq -r
         exit 0
     elif [[ "${blacklistStatus}" == "2" ]]; then
         echoContent red "=============================================================="
-        echoContent yellow "# Note\n"
-        echoContent yellow "1.           [https://github.com/v2fly/domain-list-community]"
-        echoContent yellow "2.         "
-        echoContent yellow "3.    :speedtest,facebook,cn,example.com"
-        echoContent yellow "4.                   geosite:xx                "
-        echoContent yellow "5.                     \n"
-        read -r -p "           :" domainList
+        echoContent yellow "# 注意事项\n"
+        echoContent yellow "1.规则支持预定义域名列表[https://github.com/v2fly/domain-list-community]"
+        echoContent yellow "2.规则支持自定义域名"
+        echoContent yellow "3.录入示例:speedtest,facebook,cn,example.com"
+        echoContent yellow "4.如果域名在预定义域名列表中存在则使用 geosite:xx，如果不存在则默认使用输入的域名"
+        echoContent yellow "5.添加规则为增量配置，不会删除之前设置的内容\n"
+        read -r -p "请按照上面示例录入域名:" domainList
         if [[ "${coreInstallType}" == "1" ]]; then
             addInstallRouting blackhole_out outboundTag "${domainList}"
             addXrayOutbound blackhole_out
@@ -7552,7 +7533,7 @@ blacklist() {
             addSingBoxOutbound "block_domain_outbound"
             addSingBoxOutbound "01_direct_outbound"
         fi
-        echoContent green " --->     "
+        echoContent green " ---> 添加完毕"
 
     elif [[ "${blacklistStatus}" == "3" ]]; then
 
@@ -7574,7 +7555,7 @@ blacklist() {
             addSingBoxOutbound "01_direct_outbound"
         fi
 
-        echoContent green " --->         "
+        echoContent green " ---> 屏蔽大陆域名完毕"
 
     elif [[ "${blacklistStatus}" == "4" ]]; then
         if [[ "${coreInstallType}" == "1" ]]; then
@@ -7590,9 +7571,9 @@ blacklist() {
             removeSingBoxConfig "block_domain_route"
             removeSingBoxConfig "block_domain_outbound"
         fi
-        echoContent green " --->          "
+        echoContent green " ---> 域名黑名单删除完毕"
     else
-        echoContent red " --->     "
+        echoContent red " ---> 选择错误"
         exit 0
     fi
     reloadCore
@@ -7605,7 +7586,7 @@ addInstallRouting() {
     local domain=$3 # 域名
 
     if [[ -z "${tag}" || -z "${type}" || -z "${domain}" ]]; then
-        echoContent red " --->     "
+        echoContent red " ---> 参数错误"
         exit 0
     fi
 
@@ -7636,7 +7617,7 @@ EOF
 
     while read -r line; do
         if echo "${routingRule}" | grep -q "${line}"; then
-            echoContent yellow " ---> ${line}      "
+            echoContent yellow " ---> ${line}已存在，跳过"
         else
             local geositeStatus
             geositeStatus=$(curl -s "https://api.github.com/repos/v2fly/domain-list-community/contents/data/${line}" | jq .message)
@@ -7721,11 +7702,11 @@ readConfigWarpReg() {
 installWarpReg() {
     if [[ ! -f "/etc/v2ray-agent/warp/warp-reg" ]]; then
         echo
-        echoContent yellow "# Note"
-        echoContent yellow "#                "
-        echoContent yellow "#      https://github.com/badafans/warp-reg \n"
+        echoContent yellow "# 注意事项"
+        echoContent yellow "# 依赖第三方程序，请熟知其中风险"
+        echoContent yellow "# 项目地址：https://github.com/badafans/warp-reg \n"
 
-        read -r -p "warp-reg          [y/n]:" installWarpRegStatus
+        read -r -p "warp-reg未安装，是否安装 ？[y/n]:" installWarpRegStatus
 
         if [[ "${installWarpRegStatus}" == "y" ]]; then
 
@@ -7733,7 +7714,7 @@ installWarpReg() {
             chmod 655 /etc/v2ray-agent/warp/warp-reg
 
         else
-            echoContent yellow " --->     "
+            echoContent yellow " ---> 放弃安装"
             exit 0
         fi
     fi
@@ -7749,9 +7730,9 @@ showWireGuardDomain() {
             jq -r -c '.routing.rules[]|select (.outboundTag=="wireguard_out_'"${type}"'")|.domain' ${configPath}09_routing.json | jq -r
         elif [[ ! -f "${configPath}09_routing.json" && -f "${configPath}wireguard_out_${type}.json" ]]; then
             echoContent yellow "Xray-core"
-            echoContent green " --->    warp ${type}    "
+            echoContent green " ---> 已设置warp ${type}全局分流"
         else
-            echoContent yellow " --->    warp ${type}  "
+            echoContent yellow " ---> 未安装warp ${type}分流"
         fi
     fi
 
@@ -7762,9 +7743,9 @@ showWireGuardDomain() {
             jq -r -c '.route.rules[]' "${singBoxConfigPath}wireguard_endpoints_${type}_route.json" | jq -r
         elif [[ ! -f "${singBoxConfigPath}wireguard_endpoints_${type}_route.json" && -f "${singBoxConfigPath}wireguard_endpoints_${type}.json" ]]; then
             echoContent yellow "sing-box"
-            echoContent green " --->    warp ${type}    "
+            echoContent green " ---> 已设置warp ${type}全局分流"
         else
-            echoContent yellow " --->    warp ${type}  "
+            echoContent yellow " ---> 未安装warp ${type}分流"
         fi
     fi
 
@@ -7842,15 +7823,15 @@ removeWireGuardRoute() {
 # warp分流-第三方IPv4
 warpRoutingReg() {
     local type=$2
-    echoContent skyBlue "\nProgress  $1/${totalProgress} : WARP  [   ]"
+    echoContent skyBlue "\n进度  $1/${totalProgress} : WARP分流[第三方]"
     echoContent red "=============================================================="
 
-    echoContent yellow "1.       "
-    echoContent yellow "2.    "
-    echoContent yellow "3.  WARP  "
-    echoContent yellow "4.  WARP  "
+    echoContent yellow "1.查看已分流域名"
+    echoContent yellow "2.添加域名"
+    echoContent yellow "3.设置WARP全局"
+    echoContent yellow "4.卸载WARP分流"
     echoContent red "=============================================================="
-    read -r -p "Please select:" warpStatus
+    read -r -p "请选择:" warpStatus
     installWarpReg
     readConfigWarpReg
     local address=
@@ -7859,28 +7840,28 @@ warpRoutingReg() {
     elif [[ ${type} == "IPv6" ]]; then
         address="${addressWarpReg}/128"
     else
-        echoContent red " ---> IP         "
+        echoContent red " ---> IP获取失败，退出安装"
     fi
 
     if [[ "${warpStatus}" == "1" ]]; then
         showWireGuardDomain "${type}"
         exit 0
     elif [[ "${warpStatus}" == "2" ]]; then
-        echoContent yellow "# Note"
-        echoContent yellow "#   sing-box Xray-core"
-        echoContent yellow "#      https://www.v2ray-agent.com/archives/1683226921000 \n"
+        echoContent yellow "# 注意事项"
+        echoContent yellow "# 支持sing-box、Xray-core"
+        echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/1683226921000 \n"
 
-        read -r -p "           :" domainList
+        read -r -p "请按照上面示例录入域名:" domainList
         addWireGuardRoute "${type}" outboundTag "${domainList}"
-        echoContent green " --->     "
+        echoContent green " ---> 添加完毕"
 
     elif [[ "${warpStatus}" == "3" ]]; then
 
         echoContent red "=============================================================="
-        echoContent yellow "# Note\n"
-        echoContent yellow "1.            "
-        echoContent yellow "2.    WARP[   ]         \n"
-        read -r -p "       [y/n]:" warpOutStatus
+        echoContent yellow "# 注意事项\n"
+        echoContent yellow "1.会删除所有设置的分流规则"
+        echoContent yellow "2.会删除除WARP[第三方]之外的所有出站规则\n"
+        read -r -p "是否确认设置？[y/n]:" warpOutStatus
 
         if [[ "${warpOutStatus}" == "y" ]]; then
             readConfigWarpReg
@@ -7927,9 +7908,9 @@ warpRoutingReg() {
 
             fi
 
-            echoContent green " ---> WARP        "
+            echoContent green " ---> WARP全局出站设置完毕"
         else
-            echoContent green " --->     "
+            echoContent green " ---> 放弃设置"
             exit 0
         fi
 
@@ -7949,10 +7930,10 @@ warpRoutingReg() {
             addSingBoxOutbound "01_direct_outbound"
         fi
 
-        echoContent green " --->   WARP ${type}    "
+        echoContent green " ---> 卸载WARP ${type}分流完毕"
     else
 
-        echoContent red " --->     "
+        echoContent red " ---> 选择错误"
         exit 0
     fi
     reloadCore
@@ -7960,20 +7941,20 @@ warpRoutingReg() {
 
 # 分流工具
 routingToolsMenu() {
-    echoContent skyBlue "\n   1/${totalProgress} :     "
+    echoContent skyBlue "\n功能 1/${totalProgress} : 分流工具"
     echoContent red "\n=============================================================="
-    echoContent yellow "# Note"
-    echoContent yellow "#                 ChatGPT         \n"
+    echoContent yellow "# 注意事项"
+    echoContent yellow "# 用于服务端的流量分流，可用于解锁ChatGPT、流媒体等相关内容\n"
 
-    echoContent yellow "1.WARP       IPv4 "
-    echoContent yellow "2.WARP       IPv6 "
-    echoContent yellow "3.IPv6  "
-    echoContent yellow "4.Socks5           "
-    echoContent yellow "5.DNS  "
-    #    echoContent yellow "6.VMess+WS+TLS  "
-    echoContent yellow "7.SNI      "
+    echoContent yellow "1.WARP分流【第三方 IPv4】"
+    echoContent yellow "2.WARP分流【第三方 IPv6】"
+    echoContent yellow "3.IPv6分流"
+    echoContent yellow "4.Socks5分流【替换任意门分流】"
+    echoContent yellow "5.DNS分流"
+    #    echoContent yellow "6.VMess+WS+TLS分流"
+    echoContent yellow "7.SNI反向代理分流"
 
-    read -r -p "Please select:" selectType
+    read -r -p "请选择:" selectType
 
     case ${selectType} in
     1)
@@ -7993,13 +7974,13 @@ routingToolsMenu() {
         ;;
         #    6)
         #        if [[ -n "${singBoxConfigPath}" ]]; then
-        #            echoContent red "\n --->       Hysteria2 Tuic"
+        #            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
         #        fi
         #        vmessWSRouting 1
         #        ;;
     7)
         if [[ -n "${singBoxConfigPath}" ]]; then
-            echoContent red "\n --->       Hysteria2 Tuic"
+            echoContent red "\n ---> 此功能不支持Hysteria2、Tuic"
         fi
         sniRouting 1
         ;;
@@ -8009,14 +7990,14 @@ routingToolsMenu() {
 
 # VMess+WS+TLS 分流
 vmessWSRouting() {
-    echoContent skyBlue "\n   1/${totalProgress} : VMess+WS+TLS   "
+    echoContent skyBlue "\n功能 1/${totalProgress} : VMess+WS+TLS 分流"
     echoContent red "\n=============================================================="
-    echoContent yellow "# Note"
-    echoContent yellow "#      https://www.v2ray-agent.com/archives/1683226921000 \n"
+    echoContent yellow "# 注意事项"
+    echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/1683226921000 \n"
 
-    echoContent yellow "1.    "
-    echoContent yellow "2.  "
-    read -r -p "Please select:" selectType
+    echoContent yellow "1.添加出站"
+    echoContent yellow "2.卸载"
+    read -r -p "请选择:" selectType
 
     case ${selectType} in
     1)
@@ -8030,21 +8011,21 @@ vmessWSRouting() {
 # Socks5分流
 socks5Routing() {
     if [[ -z "${coreInstallType}" ]]; then
-        echoContent red " --->             1.Install    2.Custom Install        "
+        echoContent red " ---> 未安装任意协议，请使用 1.安装 或者 2.任意组合安装 进行安装后使用"
         exit 0
     fi
-    echoContent skyBlue "\n   1/${totalProgress} : Socks5  "
+    echoContent skyBlue "\n功能 1/${totalProgress} : Socks5分流"
     echoContent red "\n=============================================================="
-    echoContent red "# Note"
-    echoContent yellow "#       "
+    echoContent red "# 注意事项"
+    echoContent yellow "# 流量明文访问"
 
-    echoContent yellow "#                           "
-    echoContent yellow "#      https://www.v2ray-agent.com/archives/1683226921000#heading-5 \n"
+    echoContent yellow "# 仅限正常网络环境下设备间流量转发，禁止用于代理访问。"
+    echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/1683226921000#heading-5 \n"
 
-    echoContent yellow "1.Socks5  "
-    echoContent yellow "2.Socks5  "
-    echoContent yellow "3.  "
-    read -r -p "Please select:" selectType
+    echoContent yellow "1.Socks5出站"
+    echoContent yellow "2.Socks5入站"
+    echoContent yellow "3.卸载"
+    read -r -p "请选择:" selectType
 
     case ${selectType} in
     1)
@@ -8061,14 +8042,14 @@ socks5Routing() {
 # Socks5入站菜单
 socks5InboundRoutingMenu() {
     readInstallType
-    echoContent skyBlue "\n   1/1 : Socks5  "
+    echoContent skyBlue "\n功能 1/1 : Socks5入站"
     echoContent red "\n=============================================================="
 
-    echoContent yellow "1.InstallSocks5  "
-    echoContent yellow "2.      "
-    echoContent yellow "3.      "
-    echoContent yellow "4.      "
-    read -r -p "Please select:" selectType
+    echoContent yellow "1.安装Socks5入站"
+    echoContent yellow "2.查看分流规则"
+    echoContent yellow "3.添加分流规则"
+    echoContent yellow "4.查看入站配置"
+    read -r -p "请选择:" selectType
     case ${selectType} in
     1)
         totalProgress=1
@@ -8090,12 +8071,12 @@ socks5InboundRoutingMenu() {
         ;;
     4)
         if [[ -f "${singBoxConfigPath}20_socks5_inbounds.json" ]]; then
-            echoContent yellow "\n --->                           \n"
-            echoContent green "    $(jq .inbounds[0].listen_port ${singBoxConfigPath}20_socks5_inbounds.json)"
-            echoContent green "      $(jq -r .inbounds[0].users[0].username ${singBoxConfigPath}20_socks5_inbounds.json)"
-            echoContent green "      $(jq -r .inbounds[0].users[0].password ${singBoxConfigPath}20_socks5_inbounds.json)"
+            echoContent yellow "\n ---> 下列内容需要配置到其他机器的出站，请不要进行代理行为\n"
+            echoContent green " 端口：$(jq .inbounds[0].listen_port ${singBoxConfigPath}20_socks5_inbounds.json)"
+            echoContent green " 用户名称：$(jq -r .inbounds[0].users[0].username ${singBoxConfigPath}20_socks5_inbounds.json)"
+            echoContent green " 用户密码：$(jq -r .inbounds[0].users[0].password ${singBoxConfigPath}20_socks5_inbounds.json)"
         else
-            echoContent red " --->        "
+            echoContent red " ---> 未安装相应功能"
             socks5InboundRoutingMenu
         fi
         ;;
@@ -8105,14 +8086,14 @@ socks5InboundRoutingMenu() {
 
 # Socks5出站菜单
 socks5OutboundRoutingMenu() {
-    echoContent skyBlue "\n   1/1 : Socks5  "
+    echoContent skyBlue "\n功能 1/1 : Socks5出站"
     echoContent red "\n=============================================================="
 
-    echoContent yellow "1.InstallSocks5  "
-    echoContent yellow "2.  Socks5    "
-    echoContent yellow "3.      "
-    echoContent yellow "4.      "
-    read -r -p "Please select:" selectType
+    echoContent yellow "1.安装Socks5出站"
+    echoContent yellow "2.设置Socks5全局转发"
+    echoContent yellow "3.查看分流规则"
+    echoContent yellow "4.添加分流规则"
+    read -r -p "请选择:" selectType
     case ${selectType} in
     1)
         setSocks5Outbound
@@ -8144,10 +8125,10 @@ socks5OutboundRoutingMenu() {
 setSocks5OutboundRoutingAll() {
 
     echoContent red "=============================================================="
-    echoContent yellow "# Note\n"
-    echoContent yellow "1.                      warp IPv6  "
-    echoContent yellow "2.   Socks5         \n"
-    read -r -p "       [y/n]:" socksOutStatus
+    echoContent yellow "# 注意事项\n"
+    echoContent yellow "1.会删除所有已经设置的分流规则，包括其他分流（warp、IPv6等）"
+    echoContent yellow "2.会删除Socks5之外的所有出站规则\n"
+    read -r -p "是否确认设置？[y/n]:" socksOutStatus
 
     if [[ "${socksOutStatus}" == "y" ]]; then
         if [[ "${coreInstallType}" == "1" ]]; then
@@ -8174,7 +8155,7 @@ setSocks5OutboundRoutingAll() {
             removeSingBoxConfig 01_direct_outbound
         fi
 
-        echoContent green " ---> Socks5        "
+        echoContent green " ---> Socks5全局出站设置完毕"
     fi
 }
 # socks5 分流规则
@@ -8183,12 +8164,12 @@ showSingBoxRoutingRules() {
         if [[ -f "${singBoxConfigPath}$1.json" ]]; then
             jq .route.rules "${singBoxConfigPath}$1.json"
         elif [[ "$1" == "socks5_outbound_route" && -f "${singBoxConfigPath}socks5_outbound.json" ]]; then
-            echoContent yellow "    sing-box socks5      "
-            echoContent yellow "\n       "
+            echoContent yellow "已安装 sing-box socks5全局出站分流"
+            echoContent yellow "\n出站分流配置："
             echoContent skyBlue "$(jq .outbounds[0] ${singBoxConfigPath}socks5_outbound.json)"
         elif [[ "$1" == "socks5_inbound_route" && -f "${singBoxConfigPath}20_socks5_inbounds.json" ]]; then
-            echoContent yellow "    sing-box socks5      "
-            echoContent yellow "\n       "
+            echoContent yellow "已安装 sing-box socks5全局入站分流"
+            echoContent yellow "\n出站分流配置："
             echoContent skyBlue "$(jq .outbounds[0] ${singBoxConfigPath}socks5_outbound.json)"
         fi
     fi
@@ -8200,13 +8181,13 @@ showXrayRoutingRules() {
         if [[ -f "${configPath}09_routing.json" ]]; then
             jq ".routing.rules[]|select(.outboundTag==\"$1\")" "${configPath}09_routing.json"
 
-            echoContent yellow "\n    xray-core socks5      "
-            echoContent yellow "\n       "
+            echoContent yellow "\n已安装 xray-core socks5全局出站分流"
+            echoContent yellow "\n出站分流配置："
             echoContent skyBlue "$(jq .outbounds[0].settings.servers[0] ${configPath}socks5_outbound.json)"
 
         elif [[ "$1" == "socks5_outbound" && -f "${configPath}socks5_outbound.json" ]]; then
-            echoContent yellow "\n    xray-core socks5      "
-            echoContent yellow "\n       "
+            echoContent yellow "\n已安装 xray-core socks5全局出站分流"
+            echoContent yellow "\n出站分流配置："
             echoContent skyBlue "$(jq .outbounds[0].settings.servers[0] ${configPath}socks5_outbound.json)"
         fi
     fi
@@ -8214,13 +8195,13 @@ showXrayRoutingRules() {
 
 # 卸载Socks5分流
 removeSocks5Routing() {
-    echoContent skyBlue "\n   1/1 :   Socks5  "
+    echoContent skyBlue "\n功能 1/1 : 卸载Socks5分流"
     echoContent red "\n=============================================================="
 
-    echoContent yellow "1.  Socks5  "
-    echoContent yellow "2.  Socks5  "
-    echoContent yellow "3.    "
-    read -r -p "Please select:" unInstallSocks5RoutingStatus
+    echoContent yellow "1.卸载Socks5出站"
+    echoContent yellow "2.卸载Socks5入站"
+    echoContent yellow "3.卸载全部"
+    read -r -p "请选择:" unInstallSocks5RoutingStatus
     if [[ "${unInstallSocks5RoutingStatus}" == "1" ]]; then
         if [[ "${coreInstallType}" == "1" ]]; then
             removeXrayOutbound socks5_outbound
@@ -8259,23 +8240,23 @@ removeSocks5Routing() {
 
         handleSingBox stop
     else
-        echoContent red " --->     "
+        echoContent red " ---> 选择错误"
         exit 0
     fi
-    echoContent green " --->     "
+    echoContent green " ---> 卸载完毕"
     reloadCore
 }
 # Socks5入站
 setSocks5Inbound() {
 
-    echoContent yellow "\n====================    Socks5   (       ) =====================\n"
-    echoContent skyBlue "\n    Socks5      "
+    echoContent yellow "\n==================== 配置 Socks5 入站(解锁机、落地机) =====================\n"
+    echoContent skyBlue "\n开始配置Socks5协议入站端口"
     echo
     mapfile -t result < <(initSingBoxPort "${singBoxSocks5Port}")
-    echoContent green "\n --->   Socks5   ${result[-1]}"
-    echoContent green "\n --->                         "
+    echoContent green "\n ---> 入站Socks5端口：${result[-1]}"
+    echoContent green "\n ---> 此端口需要配置到其他机器出站，请不要进行代理行为"
 
-    echoContent yellow "\n      UUID[   ] [  ]  UUID"
+    echoContent yellow "\n请输入自定义UUID[需合法]，[回车]随机UUID"
     read -r -p 'UUID:' socks5RoutingUUID
     if [[ -z "${socks5RoutingUUID}" ]]; then
         if [[ "${coreInstallType}" == "1" ]]; then
@@ -8285,22 +8266,22 @@ setSocks5Inbound() {
         fi
     fi
     echo
-    echoContent green "     ${socks5RoutingUUID}"
-    echoContent green "     ${socks5RoutingUUID}"
+    echoContent green "用户名称：${socks5RoutingUUID}"
+    echoContent green "用户密码：${socks5RoutingUUID}"
 
-    echoContent yellow "\n       DNS    "
-    echoContent yellow "# Note     vps     DNS  "
-    echoContent yellow "1.IPv4[    ]"
+    echoContent yellow "\n请选择分流域名DNS解析类型"
+    echoContent yellow "# 注意事项：需要保证vps支持相应的DNS解析"
+    echoContent yellow "1.IPv4[回车默认]"
     echoContent yellow "2.IPv6"
 
-    read -r -p 'IP  :' socks5InboundDomainStrategyStatus
+    read -r -p 'IP类型:' socks5InboundDomainStrategyStatus
     local domainStrategy=
     if [[ -z "${socks5InboundDomainStrategyStatus}" || "${socks5InboundDomainStrategyStatus}" == "1" ]]; then
         domainStrategy="ipv4_only"
     elif [[ "${socks5InboundDomainStrategyStatus}" == "2" ]]; then
         domainStrategy="ipv6_only"
     else
-        echoContent red " --->       "
+        echoContent red " ---> 选择类型错误"
         exit 0
     fi
     cat <<EOF >/etc/v2ray-agent/sing-box/conf/config/20_socks5_inbounds.json
@@ -8348,8 +8329,8 @@ setSocks5InboundRouting() {
     singBoxConfigPath=/etc/v2ray-agent/sing-box/conf/config/
 
     if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_inbound_route.json" && ! -f "${configPath}09_routing.json" ]]; then
-        echoContent red " --->                "
-        echoContent red " --->                        "
+        echoContent red " ---> 请安装入站分流后再添加分流规则"
+        echoContent red " ---> 如已选择允许所有网站，请重新安装分流后设置规则"
         exit 0
     fi
     local socks5InboundRoutingIPs=
@@ -8357,24 +8338,24 @@ setSocks5InboundRouting() {
         socks5InboundRoutingIPs=$(jq .route.rules[0].source_ip_cidr "${singBoxConfigPath}socks5_inbound_route.json")
     else
         echoContent red "=============================================================="
-        echoContent skyBlue "        IP     IP         :1.1.1.1,2.2.2.2\n"
+        echoContent skyBlue "请输入允许访问的IP地址，多个IP英文逗号隔开。例如:1.1.1.1,2.2.2.2\n"
         read -r -p "IP:" socks5InboundRoutingIPs
 
         if [[ -z "${socks5InboundRoutingIPs}" ]]; then
-            echoContent red " ---> IP    "
+            echoContent red " ---> IP不可为空"
             exit 0
         fi
         socks5InboundRoutingIPs=$(echo "\"${socks5InboundRoutingIPs}"\" | jq -c '.|split(",")')
     fi
 
     echoContent red "=============================================================="
-    echoContent skyBlue "         \n"
-    echoContent yellow "  Xray-core geosite     sing-box1.8+ rule_set  \n"
-    echoContent yellow "             \n"
-    echoContent yellow "         geosite  rule_set         \n"
-    echoContent yellow "          domain    \n"
+    echoContent skyBlue "请输入要分流的域名\n"
+    echoContent yellow "支持Xray-core geosite匹配，支持sing-box1.8+ rule_set匹配\n"
+    echoContent yellow "非增量添加，会替换原有规则\n"
+    echoContent yellow "当输入的规则匹配到geosite或者rule_set后会使用相应的规则\n"
+    echoContent yellow "如无法匹配则，则使用domain精确匹配\n"
 
-    read -r -p "            [y/n]:" socks5InboundRoutingDomainStatus
+    read -r -p "是否允许所有网站？请选择[y/n]:" socks5InboundRoutingDomainStatus
     if [[ "${socks5InboundRoutingDomainStatus}" == "y" ]]; then
         addSingBoxRouteRule "01_direct_outbound" "" "socks5_inbound_route"
         local route=
@@ -8385,10 +8366,10 @@ setSocks5InboundRouting() {
         addSingBoxOutbound block
         addSingBoxOutbound "01_direct_outbound"
     else
-        echoContent yellow "    :netflix,openai,v2ray-agent.com\n"
-        read -r -p "  :" socks5InboundRoutingDomain
+        echoContent yellow "录入示例:netflix,openai,v2ray-agent.com\n"
+        read -r -p "域名:" socks5InboundRoutingDomain
         if [[ -z "${socks5InboundRoutingDomain}" ]]; then
-            echoContent red " --->       "
+            echoContent red " ---> 域名不可为空"
             exit 0
         fi
         addSingBoxRouteRule "01_direct_outbound" "${socks5InboundRoutingDomain}" "socks5_inbound_route"
@@ -8406,29 +8387,29 @@ setSocks5InboundRouting() {
 # socks5 出站
 setSocks5Outbound() {
 
-    echoContent yellow "\n====================    Socks5             =====================\n"
+    echoContent yellow "\n==================== 配置 Socks5 出站（转发机、代理机） =====================\n"
     echo
-    read -r -p "      IP  :" socks5RoutingOutboundIP
+    read -r -p "请输入落地机IP地址:" socks5RoutingOutboundIP
     if [[ -z "${socks5RoutingOutboundIP}" ]]; then
-        echoContent red " ---> IP    "
+        echoContent red " ---> IP不可为空"
         exit 0
     fi
     echo
-    read -r -p "        :" socks5RoutingOutboundPort
+    read -r -p "请输入落地机端口:" socks5RoutingOutboundPort
     if [[ -z "${socks5RoutingOutboundPort}" ]]; then
-        echoContent red " --->       "
+        echoContent red " ---> 端口不可为空"
         exit 0
     fi
     echo
-    read -r -p "      :" socks5RoutingOutboundUserName
+    read -r -p "请输入用户名:" socks5RoutingOutboundUserName
     if [[ -z "${socks5RoutingOutboundUserName}" ]]; then
-        echoContent red " --->        "
+        echoContent red " ---> 用户名不可为空"
         exit 0
     fi
     echo
-    read -r -p "       :" socks5RoutingOutboundPassword
+    read -r -p "请输入用户密码:" socks5RoutingOutboundPassword
     if [[ -z "${socks5RoutingOutboundPassword}" ]]; then
-        echoContent red " --->         "
+        echoContent red " ---> 用户密码不可为空"
         exit 0
     fi
     echo
@@ -8458,20 +8439,20 @@ EOF
 setSocks5OutboundRouting() {
 
     if [[ "$1" == "addRules" && ! -f "${singBoxConfigPath}socks5_outbound_route.json" && ! -f "${configPath}09_routing.json" ]]; then
-        echoContent red " --->                "
+        echoContent red " ---> 请安装出站分流后再添加分流规则"
         exit 0
     fi
 
     echoContent red "=============================================================="
-    echoContent skyBlue "         \n"
-    echoContent yellow "  Xray-core geosite     sing-box1.8+ rule_set  \n"
-    echoContent yellow "             \n"
-    echoContent yellow "         geosite  rule_set         \n"
-    echoContent yellow "          domain    \n"
-    echoContent yellow "    :netflix,openai,v2ray-agent.com\n"
-    read -r -p "  :" socks5RoutingOutboundDomain
+    echoContent skyBlue "请输入要分流的域名\n"
+    echoContent yellow "支持Xray-core geosite匹配，支持sing-box1.8+ rule_set匹配\n"
+    echoContent yellow "非增量添加，会替换原有规则\n"
+    echoContent yellow "当输入的规则匹配到geosite或者rule_set后会使用相应的规则\n"
+    echoContent yellow "如无法匹配则，则使用domain精确匹配\n"
+    echoContent yellow "录入示例:netflix,openai,v2ray-agent.com\n"
+    read -r -p "域名:" socks5RoutingOutboundDomain
     if [[ -z "${socks5RoutingOutboundDomain}" ]]; then
-        echoContent red " ---> IP    "
+        echoContent red " ---> IP不可为空"
         exit 0
     fi
     addSingBoxRouteRule "socks5_outbound" "${socks5RoutingOutboundDomain}" "socks5_outbound_route"
@@ -8483,7 +8464,7 @@ setSocks5OutboundRouting() {
         local domainRules=[]
         while read -r line; do
             if echo "${routingRule}" | grep -q "${line}"; then
-                echoContent yellow " ---> ${line}      "
+                echoContent yellow " ---> ${line}已存在，跳过"
             else
                 local geositeStatus
                 geositeStatus=$(curl -s "https://api.github.com/repos/v2fly/domain-list-community/contents/data/${line}" | jq .message)
@@ -8511,13 +8492,13 @@ EOF
 
 # 设置VMess+WS+TLS【仅出站】
 setVMessWSRoutingOutbounds() {
-    read -r -p "   VMess+WS+TLS   :" setVMessWSTLSAddress
+    read -r -p "请输入VMess+WS+TLS的地址:" setVMessWSTLSAddress
     echoContent red "=============================================================="
-    echoContent yellow "    :netflix,openai\n"
-    read -r -p "           :" domainList
+    echoContent yellow "录入示例:netflix,openai\n"
+    read -r -p "请按照上面示例录入域名:" domainList
 
     if [[ -z ${domainList} ]]; then
-        echoContent red " --->       "
+        echoContent red " ---> 域名不可为空"
         setVMessWSRoutingOutbounds
     fi
 
@@ -8525,32 +8506,32 @@ setVMessWSRoutingOutbounds() {
         removeXrayOutbound VMess-out
 
         echo
-        read -r -p "   VMess+WS+TLS   :" setVMessWSTLSPort
+        read -r -p "请输入VMess+WS+TLS的端口:" setVMessWSTLSPort
         echo
         if [[ -z "${setVMessWSTLSPort}" ]]; then
-            echoContent red " --->       "
+            echoContent red " ---> 端口不可为空"
         fi
 
-        read -r -p "   VMess+WS+TLS UUID:" setVMessWSTLSUUID
+        read -r -p "请输入VMess+WS+TLS的UUID:" setVMessWSTLSUUID
         echo
         if [[ -z "${setVMessWSTLSUUID}" ]]; then
-            echoContent red " ---> UUID    "
+            echoContent red " ---> UUID不可为空"
         fi
 
-        read -r -p "   VMess+WS+TLS Path  :" setVMessWSTLSPath
+        read -r -p "请输入VMess+WS+TLS的Path路径:" setVMessWSTLSPath
         echo
         if [[ -z "${setVMessWSTLSPath}" ]]; then
-            echoContent red " --->       "
+            echoContent red " ---> 路径不可为空"
         elif ! echo "${setVMessWSTLSPath}" | grep -q "/"; then
             setVMessWSTLSPath="/${setVMessWSTLSPath}"
         fi
         addXrayOutbound "VMess-out"
         addInstallRouting VMess-out outboundTag "${domainList}"
         reloadCore
-        echoContent green " --->       "
+        echoContent green " ---> 添加分流成功"
         exit 0
     fi
-    echoContent red " --->       "
+    echoContent red " ---> 地址不可为空"
     setVMessWSRoutingOutbounds
 }
 
@@ -8561,7 +8542,7 @@ removeVMessWSRouting() {
     unInstallRouting VMess-out outboundTag
 
     reloadCore
-    echoContent green " --->     "
+    echoContent green " ---> 卸载成功"
 }
 
 # 重启核心
@@ -8582,18 +8563,18 @@ reloadCore() {
 dnsRouting() {
 
     if [[ -z "${configPath}" ]]; then
-        echoContent red " --->            "
+        echoContent red " ---> 未安装，请使用脚本安装"
         menu
         exit 0
     fi
-    echoContent skyBlue "\n   1/${totalProgress} : DNS  "
+    echoContent skyBlue "\n功能 1/${totalProgress} : DNS分流"
     echoContent red "\n=============================================================="
-    echoContent yellow "# Note"
-    echoContent yellow "#      https://www.v2ray-agent.com/archives/1683226921000 \n"
+    echoContent yellow "# 注意事项"
+    echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/1683226921000 \n"
 
-    echoContent yellow "1.  "
-    echoContent yellow "2.  "
-    read -r -p "Please select:" selectType
+    echoContent yellow "1.添加"
+    echoContent yellow "2.卸载"
+    read -r -p "请选择:" selectType
 
     case ${selectType} in
     1)
@@ -8609,18 +8590,18 @@ dnsRouting() {
 sniRouting() {
 
     if [[ -z "${configPath}" ]]; then
-        echoContent red " --->            "
+        echoContent red " ---> 未安装，请使用脚本安装"
         menu
         exit 0
     fi
-    echoContent skyBlue "\n   1/${totalProgress} : SNI      "
+    echoContent skyBlue "\n功能 1/${totalProgress} : SNI反向代理分流"
     echoContent red "\n=============================================================="
-    echoContent yellow "# Note"
-    echoContent yellow "#      https://www.v2ray-agent.com/archives/1683226921000 \n"
+    echoContent yellow "# 注意事项"
+    echoContent yellow "# 使用教程：https://www.v2ray-agent.com/archives/1683226921000 \n"
 
-    echoContent yellow "1.  "
-    echoContent yellow "2.  "
-    read -r -p "Please select:" selectType
+    echoContent yellow "1.添加"
+    echoContent yellow "2.卸载"
+    read -r -p "请选择:" selectType
 
     case ${selectType} in
     1)
@@ -8633,11 +8614,11 @@ sniRouting() {
 }
 # 设置SNI分流
 setUnlockSNI() {
-    read -r -p "      SNI IP:" setSNIP
+    read -r -p "请输入分流的SNI IP:" setSNIP
     if [[ -n ${setSNIP} ]]; then
         echoContent red "=============================================================="
-        echoContent yellow "    :netflix,disney,hulu"
-        read -r -p "           :" domainList
+        echoContent yellow "录入示例:netflix,disney,hulu"
+        read -r -p "请按照上面示例录入域名:" domainList
 
         if [[ -n "${domainList}" ]]; then
             local hosts={}
@@ -8655,15 +8636,15 @@ setUnlockSNI() {
     }
 }
 EOF
-            echoContent red " ---> SNI        "
+            echoContent red " ---> SNI反向代理分流成功"
             reloadCore
         else
-            echoContent red " --->       "
+            echoContent red " ---> 域名不可为空"
         fi
 
     else
 
-        echoContent red " ---> SNI IP    "
+        echoContent red " ---> SNI IP不可为空"
     fi
     exit 0
 }
@@ -8754,11 +8735,11 @@ EOF
 }
 # 设置dns
 setUnlockDNS() {
-    read -r -p "      DNS:" setDNS
+    read -r -p "请输入分流的DNS:" setDNS
     if [[ -n ${setDNS} ]]; then
         echoContent red "=============================================================="
-        echoContent yellow "    :netflix,disney,hulu"
-        read -r -p "           :" domainList
+        echoContent yellow "录入示例:netflix,disney,hulu"
+        read -r -p "请按照上面示例录入域名:" domainList
 
         if [[ "${coreInstallType}" == "1" ]]; then
             addXrayDNSConfig "${setDNS}" "${domainList}"
@@ -8771,11 +8752,11 @@ setUnlockDNS() {
 
         reloadCore
 
-        echoContent yellow "\n --->                 "
-        echoContent yellow " 1.  vps"
-        echoContent yellow " 2.  dns         [/etc/resolv.conf]DNS     vps\n"
+        echoContent yellow "\n ---> 如还无法观看可以尝试以下两种方案"
+        echoContent yellow " 1.重启vps"
+        echoContent yellow " 2.卸载dns解锁后，修改本地的[/etc/resolv.conf]DNS设置并重启vps\n"
     else
-        echoContent red " ---> dns    "
+        echoContent red " ---> dns不可为空"
     fi
     exit 0
 }
@@ -8810,7 +8791,7 @@ EOF
 
     reloadCore
 
-    echoContent green " --->     "
+    echoContent green " ---> 卸载成功"
 
     exit 0
 }
@@ -8828,18 +8809,18 @@ removeUnlockSNI() {
 EOF
     reloadCore
 
-    echoContent green " --->     "
+    echoContent green " ---> 卸载成功"
 
     exit 0
 }
 
 # sing-box 个性化安装
 customSingBoxInstall() {
-    echoContent skyBlue "\n========================     ============================"
+    echoContent skyBlue "\n========================个性化安装============================"
     echoContent yellow "0.VLESS+Vision+TCP"
-    echoContent yellow "1.VLESS+TLS+WS[ CDN  ]"
-    echoContent yellow "3.VMess+TLS+WS[ CDN  ]"
-    echoContent yellow "4.Trojan+TLS[   ]"
+    echoContent yellow "1.VLESS+TLS+WS[仅CDN推荐]"
+    echoContent yellow "3.VMess+TLS+WS[仅CDN推荐]"
+    echoContent yellow "4.Trojan+TLS[不推荐]"
     echoContent yellow "6.Hysteria2"
     echoContent yellow "7.VLESS+Reality+Vision"
     echoContent yellow "8.VLESS+Reality+gRPC"
@@ -8848,14 +8829,14 @@ customSingBoxInstall() {
     echoContent yellow "11.VMess+TLS+HTTPUpgrade"
     echoContent yellow "13.anytls"
 
-    read -r -p "   [  ] [  :1,2,3]:" selectCustomInstallType
+    read -r -p "请选择[多选]，[例如:1,2,3]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
     if echo "${selectCustomInstallType}" | grep -q "，"; then
-        echoContent red " --->          "
+        echoContent red " ---> 请使用英文逗号分隔"
         exit 0
     fi
     if [[ "${selectCustomInstallType}" != "10" ]] && [[ "${selectCustomInstallType}" != "11" ]] && [[ "${selectCustomInstallType}" != "13" ]] && ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
-        echoContent red " --->            "
+        echoContent red " ---> 多选请使用英文逗号分隔"
         exit 0
     fi
     if [[ "${selectCustomInstallType: -1}" != "," ]]; then
@@ -8887,37 +8868,37 @@ customSingBoxInstall() {
         handleNginx stop
         handleNginx start
         # 开启BBR
-        enable_bbr
+        enable_bbr_feature
         # 生成账号
         checkGFWStatue 8
         showAccounts 9
     else
-        echoContent red " --->      "
+        echoContent red " ---> 输入不合法"
         customSingBoxInstall
     fi
 }
 
 # Xray-core个性化安装
 customXrayInstall() {
-    echoContent skyBlue "\n========================     ============================"
-    echoContent yellow "VLESS       0      Reality   7  "
-    echoContent yellow "0.VLESS+TLS_Vision+TCP[  ]"
-    echoContent yellow "1.VLESS+TLS+WS[ CDN  ]"
-    #    echoContent yellow "2.Trojan+TLS+gRPC[ CDN  ]"
-    echoContent yellow "3.VMess+TLS+WS[ CDN  ]"
-    echoContent yellow "4.Trojan+TLS[   ]"
-    echoContent yellow "5.VLESS+TLS+gRPC[ CDN  ]"
-    echoContent yellow "7.VLESS+Reality+uTLS+Vision[  ]"
+    echoContent skyBlue "\n========================个性化安装============================"
+    echoContent yellow "VLESS前置，默认安装0，无域名安装Reality只选择7即可"
+    echoContent yellow "0.VLESS+TLS_Vision+TCP[推荐]"
+    echoContent yellow "1.VLESS+TLS+WS[仅CDN推荐]"
+    #    echoContent yellow "2.Trojan+TLS+gRPC[仅CDN推荐]"
+    echoContent yellow "3.VMess+TLS+WS[仅CDN推荐]"
+    echoContent yellow "4.Trojan+TLS[不推荐]"
+    echoContent yellow "5.VLESS+TLS+gRPC[仅CDN推荐]"
+    echoContent yellow "7.VLESS+Reality+uTLS+Vision[推荐]"
     # echoContent yellow "8.VLESS+Reality+gRPC"
     echoContent yellow "12.VLESS+XHTTP+TLS"
-    read -r -p "   [  ] [  :1,2,3]:" selectCustomInstallType
+    read -r -p "请选择[多选]，[例如:1,2,3]:" selectCustomInstallType
     echoContent skyBlue "--------------------------------------------------------------"
     if echo "${selectCustomInstallType}" | grep -q "，"; then
-        echoContent red " --->          "
+        echoContent red " ---> 请使用英文逗号分隔"
         exit 0
     fi
     if [[ "${selectCustomInstallType}" != "12" ]] && ((${#selectCustomInstallType} >= 2)) && ! echo "${selectCustomInstallType}" | grep -q ","; then
-        echoContent red " --->            "
+        echoContent red " ---> 多选请使用英文逗号分隔"
         exit 0
     fi
 
@@ -8942,7 +8923,7 @@ customXrayInstall() {
         totalProgress=12
         installTools 1
         if [[ -n "${btDomain}" ]]; then
-            echoContent skyBlue "\nProgress  3/${totalProgress} :        /1Panel     TLS  "
+            echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板/1Panel，跳过申请TLS步骤"
             handleXray stop
             if [[ "${selectCustomInstallType}" != ",7," ]]; then
                 customPortFunction
@@ -8954,7 +8935,7 @@ customXrayInstall() {
                 handleXray stop
                 installTLS 3
             else
-                echoContent skyBlue "\nProgress  2/${totalProgress} :       Reality   TLS    "
+                echoContent skyBlue "\n进度  2/${totalProgress} : 检测到仅安装Reality，跳过TLS证书步骤"
             fi
         fi
 
@@ -8964,7 +8945,7 @@ customXrayInstall() {
             randomPathFunction 4
         fi
         if [[ -n "${btDomain}" ]]; then
-            echoContent skyBlue "\nProgress  6/${totalProgress} :        /1Panel       "
+            echoContent skyBlue "\n进度  6/${totalProgress} : 检测到宝塔面板/1Panel，跳过伪装网站"
         else
             nginxBlog 6
         fi
@@ -8985,24 +8966,24 @@ customXrayInstall() {
         handleXray stop
         handleXray start
         # 开启BBR
-        enable_bbr
+        enable_bbr_feature
         # 生成账号
         checkGFWStatue 11
         showAccounts 12
     else
-        echoContent red " --->      "
+        echoContent red " ---> 输入不合法"
         customXrayInstall
     fi
 }
 
 # 选择核心安装sing-box、xray-core
 selectCoreInstall() {
-    echoContent skyBlue "\n   1/${totalProgress} :       "
+    echoContent skyBlue "\n功能 1/${totalProgress} : 选择核心安装"
     echoContent red "\n=============================================================="
     echoContent yellow "1.Xray-core"
     echoContent yellow "2.sing-box"
     echoContent red "=============================================================="
-    read -r -p "Please select:" selectCoreType
+    read -r -p "请选择:" selectCoreType
     case ${selectCoreType} in
     1)
         if [[ "${selectInstallType}" == "2" ]]; then
@@ -9019,7 +9000,7 @@ selectCoreInstall() {
         fi
         ;;
     *)
-        echoContent red ' --->          '
+        echoContent red ' ---> 选择错误，重新选择'
         selectCoreInstall
         ;;
     esac
@@ -9035,7 +9016,7 @@ xrayCoreInstall() {
     totalProgress=12
     installTools 2
     if [[ -n "${btDomain}" ]]; then
-        echoContent skyBlue "\nProgress  3/${totalProgress} :        /1Panel     TLS  "
+        echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板/1Panel，跳过申请TLS步骤"
         handleXray stop
         customPortFunction
     else
@@ -9055,7 +9036,7 @@ xrayCoreInstall() {
     cleanUp singBoxDel
     installCronTLS 9
     if [[ -n "${btDomain}" ]]; then
-        echoContent skyBlue "\nProgress  11/${totalProgress} :        /1Panel       "
+        echoContent skyBlue "\n进度  11/${totalProgress} : 检测到宝塔面板/1Panel，跳过伪装网站"
     else
         nginxBlog 10
     fi
@@ -9066,7 +9047,7 @@ xrayCoreInstall() {
 
     handleNginx start
     # 开启BBR
-    enable_bbr
+    enable_bbr_feature
     # 生成账号
     checkGFWStatue 11
     showAccounts 12
@@ -9083,7 +9064,7 @@ singBoxInstall() {
     installTools 2
 
     if [[ -n "${btDomain}" ]]; then
-        echoContent skyBlue "\nProgress  3/${totalProgress} :        /1Panel     TLS  "
+        echoContent skyBlue "\n进度  3/${totalProgress} : 检测到宝塔面板/1Panel，跳过申请TLS步骤"
         handleXray stop
         customPortFunction
     else
@@ -9107,7 +9088,7 @@ singBoxInstall() {
     handleNginx stop
     handleNginx start
     # 开启BBR
-    enable_bbr
+    enable_bbr_feature
     # 生成账号
     showAccounts 9
 }
@@ -9115,7 +9096,7 @@ singBoxInstall() {
 # Hysteria安装
 hysteriaCoreInstall() {
     if ! echo "${currentInstallProtocolType}" | grep -q ",0," || [[ -z "${coreInstallType}" ]]; then
-        echoContent red "\n --->           hysteria     Xray-core VLESS_TCP_TLS_Vision"
+        echoContent red "\n ---> 由于环境依赖，如安装hysteria，请先安装Xray-core的VLESS_TCP_TLS_Vision"
         exit 0
     fi
     totalProgress=5
@@ -9128,14 +9109,14 @@ hysteriaCoreInstall() {
 # 卸载 hysteria
 unInstallHysteriaCore() {
     if [[ -n "${hysteriaConfigPath}" ]]; then
-        echoContent yellow " --->      sing-box       hysteria       "
+        echoContent yellow " ---> 新版本依赖sing-box，检测到旧版本hysteria，执行卸载操作"
 
         deleteHysteriaPortHoppingRules
         handleHysteria stop
         rm -rf /etc/v2ray-agent/hysteria/*
         rm ${configPath}02_socks_inbounds_hysteria.json
         rm -rf /etc/systemd/system/hysteria.service
-        echoContent green " --->     "
+        echoContent green " ---> 卸载完成"
     fi
 }
 
@@ -9143,45 +9124,45 @@ unInstallHysteriaCore() {
 unInstallTuicCore() {
 
     if [[ -n "${tuicConfigPath}" ]]; then
-        echoContent yellow " --->      sing-box       Tuic       "
+        echoContent yellow " ---> 新版本依赖sing-box，检测到旧版本Tuic，执行卸载操作"
 
         handleTuic stop
         rm -rf /etc/v2ray-agent/tuic/*
         rm -rf /etc/systemd/system/tuic.service
-        echoContent green " --->     "
+        echoContent green " ---> 卸载完成"
     fi
 
 }
 unInstallXrayCoreReality() {
 
     if [[ -z "${realityStatus}" ]]; then
-        echoContent red "\n --->    "
+        echoContent red "\n ---> 未安装"
         exit 0
     fi
-    echoContent skyBlue "\n   1/1 : reality  "
+    echoContent skyBlue "\n功能 1/1 : reality卸载"
     echoContent red "\n=============================================================="
-    echoContent yellow "#    VLESS Reality              "
-    echoContent yellow "#                   "
+    echoContent yellow "# 仅删除VLESS Reality相关配置，不会删除其他内容。"
+    echoContent yellow "# 如果需要卸载其他内容，请卸载脚本功能"
     handleXray stop
     rm /etc/v2ray-agent/xray/conf/07_VLESS_vision_reality_inbounds.json
     rm /etc/v2ray-agent/xray/conf/08_VLESS_vision_gRPC_inbounds.json
-    echoContent green " --->     "
+    echoContent green " ---> 卸载完成"
 }
 
 # 核心管理
 coreVersionManageMenu() {
 
     if [[ -z "${coreInstallType}" ]]; then
-        echoContent red "\n --->                    "
+        echoContent red "\n ---> 没有检测到安装目录，请执行脚本安装内容"
         menu
         exit 0
     fi
-    echoContent skyBlue "\n   1/1 :      "
+    echoContent skyBlue "\n功能 1/1 : 请选择核心"
     echoContent red "\n=============================================================="
     echoContent yellow "1.Xray-core"
     echoContent yellow "2.sing-box"
     echoContent red "=============================================================="
-    read -r -p "   :" selectCore
+    read -r -p "请输入:" selectCore
 
     if [[ "${selectCore}" == "1" ]]; then
         xrayVersionManageMenu 1
@@ -9196,28 +9177,28 @@ cronFunction() {
         exit 0
     elif [[ "${cronName}" == "UpdateGeo" ]]; then
         updateGeoSite >>/etc/v2ray-agent/crontab_updateGeoSite.log
-        echoContent green " ---> geo    :$(date "+%F %H:%M:%S")" >>/etc/v2ray-agent/crontab_updateGeoSite.log
+        echoContent green " ---> geo更新日期:$(date "+%F %H:%M:%S")" >>/etc/v2ray-agent/crontab_updateGeoSite.log
         exit 0
     fi
 }
 # 账号管理
 manageAccount() {
-    echoContent skyBlue "\n   1/${totalProgress} :     "
+    echoContent skyBlue "\n功能 1/${totalProgress} : 账号管理"
     if [[ -z "${configPath}" ]]; then
-        echoContent red " --->    "
+        echoContent red " ---> 未安装"
         exit 0
     fi
 
     echoContent red "\n=============================================================="
-    echoContent yellow "#            email uuid"
-    echoContent yellow "#     Hysteria  Tuic                \n"
-    echoContent yellow "1.    "
-    echoContent yellow "2.    "
-    echoContent yellow "3.      "
-    echoContent yellow "4.    "
-    echoContent yellow "5.    "
+    echoContent yellow "# 添加单个用户时可自定义email和uuid"
+    echoContent yellow "# 如安装了Hysteria或者Tuic，账号会同时添加到相应的类型下面\n"
+    echoContent yellow "1.查看账号"
+    echoContent yellow "2.查看订阅"
+    echoContent yellow "3.管理其他订阅"
+    echoContent yellow "4.添加用户"
+    echoContent yellow "5.删除用户"
     echoContent red "=============================================================="
-    read -r -p "   :" manageAccountStatus
+    read -r -p "请输入:" manageAccountStatus
     if [[ "${manageAccountStatus}" == "1" ]]; then
         showAccounts 1
     elif [[ "${manageAccountStatus}" == "2" ]]; then
@@ -9229,7 +9210,7 @@ manageAccount() {
     elif [[ "${manageAccountStatus}" == "5" ]]; then
         removeUser
     else
-        echoContent red " --->     "
+        echoContent red " ---> 选择错误"
     fi
 }
 
@@ -9246,20 +9227,20 @@ installSubscribe() {
         nginxVersion=$(nginx -v 2>&1)
 
         if echo "${nginxVersion}" | grep -q "not found" || [[ -z "${nginxVersion}" ]]; then
-            echoContent yellow "    nginx         \n"
-            read -r -p "    [y/n] " installNginxStatus
+            echoContent yellow "未检测到nginx，无法使用订阅服务\n"
+            read -r -p "是否安装[y/n]？" installNginxStatus
             if [[ "${installNginxStatus}" == "y" ]]; then
                 installNginxTools
             else
-                echoContent red " --->     nginx\n"
+                echoContent red " ---> 放弃安装nginx\n"
                 exit 0
             fi
         fi
-        echoContent yellow "               \n"
+        echoContent yellow "开始配置订阅，请输入订阅的端口\n"
 
         mapfile -t result < <(initSingBoxPort "${subscribePort}")
         echo
-        echoContent yellow " --->            \n"
+        echoContent yellow " ---> 开始配置订阅的伪装站点\n"
         nginxBlog
         echo
         local httpSubscribeStatus=
@@ -9270,12 +9251,12 @@ installSubscribe() {
 
         if [[ "${httpSubscribeStatus}" == "true" ]]; then
 
-            echoContent yellow "   tls                          "
+            echoContent yellow "未发现tls证书，使用无加密订阅，可能被运营商拦截，请注意风险。"
             echo
-            read -r -p "    http  [y/n] " addNginxSubscribeStatus
+            read -r -p "是否使用http订阅[y/n]？" addNginxSubscribeStatus
             echo
             if [[ "${addNginxSubscribeStatus}" != "y" ]]; then
-                echoContent yellow " --->     "
+                echoContent yellow " ---> 退出安装"
                 exit
             fi
         else
@@ -9335,50 +9316,50 @@ unInstallSubscribe() {
 
 # 添加订阅
 addSubscribeMenu() {
-    echoContent skyBlue "\n=====================          ======================="
-    echoContent yellow "1.  "
-    echoContent yellow "2.  "
+    echoContent skyBlue "\n===================== 添加其他机器订阅 ======================="
+    echoContent yellow "1.添加"
+    echoContent yellow "2.移除"
     echoContent red "=============================================================="
-    read -r -p "Please select:" addSubscribeStatus
+    read -r -p "请选择:" addSubscribeStatus
     if [[ "${addSubscribeStatus}" == "1" ]]; then
         addOtherSubscribe
     elif [[ "${addSubscribeStatus}" == "2" ]]; then
         if [[ ! -f "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" ]]; then
-            echoContent green " --->        "
+            echoContent green " ---> 未安装其他订阅"
             exit 0
         fi
         grep -v '^$' "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" | awk '{print NR""":"$0}'
-        read -r -p "           [       ]:" delSubscribeIndex
+        read -r -p "请选择要删除的订阅编号[仅支持单个删除]:" delSubscribeIndex
         if [[ -z "${delSubscribeIndex}" ]]; then
-            echoContent green " --->      "
+            echoContent green " ---> 不可以为空"
             exit 0
         fi
 
         sed -i "$((delSubscribeIndex))d" "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" >/dev/null 2>&1
 
-        echoContent green " --->           "
+        echoContent green " ---> 其他机器订阅删除成功"
         subscribe
     fi
 }
 # 添加其他机器clashMeta订阅
 addOtherSubscribe() {
-    echoContent yellow "#Note:"
-    echoContent yellow "           https://www.v2ray-agent.com/archives/1681804748677"
-    echoContent skyBlue "     www.v2ray-agent.com:443:vps1\n"
-    read -r -p "             :" remoteSubscribeUrl
+    echoContent yellow "#注意事项:"
+    echoContent yellow "请仔细阅读以下文章： https://www.v2ray-agent.com/archives/1681804748677"
+    echoContent skyBlue "录入示例：www.v2ray-agent.com:443:vps1\n"
+    read -r -p "请输入域名 端口 机器别名:" remoteSubscribeUrl
     if [[ -z "${remoteSubscribeUrl}" ]]; then
-        echoContent red " --->     "
+        echoContent red " ---> 不可为空"
         addOtherSubscribe
     elif ! echo "${remoteSubscribeUrl}" | grep -q ":"; then
-        echoContent red " --->      "
+        echoContent red " ---> 规则不合法"
     else
 
         if [[ -f "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" ]] && grep -q "${remoteSubscribeUrl}" /etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl; then
-            echoContent red " --->       "
+            echoContent red " ---> 此订阅已添加"
             exit 0
         fi
         echo
-        read -r -p "   HTTP   [y/n]" httpSubscribeStatus
+        read -r -p "是否是HTTP订阅？[y/n]" httpSubscribeStatus
         if [[ "${httpSubscribeStatus}" == "y" ]]; then
             remoteSubscribeUrl="${remoteSubscribeUrl}:http"
         fi
@@ -9470,12 +9451,12 @@ proxy-providers:
       interval: 300
 
 proxy-groups:
-  - name: Manual Select
+  - name: 手动切换
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies: null
-  - name: Auto Select
+  - name: 自动选择
     type: url-test
     url: http://www.gstatic.com/generate_204
     interval: 36000
@@ -9484,28 +9465,28 @@ proxy-groups:
       - ${subscribeSalt}_provider
     proxies: null
 
-  - name: Global Proxy
+  - name: 全球代理
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Manual Select
-      - Auto Select
+      - 手动切换
+      - 自动选择
 
-  - name: Streaming
+  - name: 流媒体
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Manual Select
-      - Auto Select
+      - 手动切换
+      - 自动选择
       - DIRECT
   - name: DNS_Proxy
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Auto Select
+      - 自动选择
       - DIRECT
 
   - name: Telegram
@@ -9513,106 +9494,106 @@ proxy-groups:
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Manual Select
-      - Auto Select
+      - 手动切换
+      - 自动选择
   - name: Google
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Manual Select
-      - Auto Select
+      - 手动切换
+      - 自动选择
       - DIRECT
   - name: YouTube
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Manual Select
-      - Auto Select
+      - 手动切换
+      - 自动选择
   - name: Netflix
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Streaming
-      - Manual Select
-      - Auto Select
+      - 流媒体
+      - 手动切换
+      - 自动选择
   - name: Spotify
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Streaming
-      - Manual Select
-      - Auto Select
+      - 流媒体
+      - 手动切换
+      - 自动选择
       - DIRECT
   - name: HBO
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Streaming
-      - Manual Select
-      - Auto Select
+      - 流媒体
+      - 手动切换
+      - 自动选择
   - name: Bing
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Auto Select
+      - 自动选择
   - name: OpenAI
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Auto Select
-      - Manual Select
+      - 自动选择
+      - 手动切换
   - name: ClaudeAI
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Auto Select
-      - Manual Select
+      - 自动选择
+      - 手动切换
   - name: Disney
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Streaming
-      - Manual Select
-      - Auto Select
+      - 流媒体
+      - 手动切换
+      - 自动选择
   - name: GitHub
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
-      - Manual Select
-      - Auto Select
+      - 手动切换
+      - 自动选择
       - DIRECT
 
-  - name: Domestic Media
+  - name: 国内媒体
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
       - DIRECT
-  - name: Direct
+  - name: 本地直连
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
       - DIRECT
-      - Auto Select
-  - name: Final
+      - 自动选择
+  - name: 漏网之鱼
     type: select
     use:
       - ${subscribeSalt}_provider
     proxies:
       - DIRECT
-      - Manual Select
-      - Auto Select
+      - 手动切换
+      - 自动选择
 rule-providers:
   lan:
     type: http
@@ -9758,14 +9739,14 @@ rules:
   - RULE-SET,OpenAI,OpenAI
   - RULE-SET,ClaudeAI,ClaudeAI
   - RULE-SET,Disney,Disney
-  - RULE-SET,proxy,Global Proxy
-  - RULE-SET,gfw,Global Proxy
-  - RULE-SET,applications,Direct
-  - RULE-SET,ChinaMaxDomain,Direct
-  - RULE-SET,ChinaMaxIPNoIPv6,Direct,no-resolve
-  - RULE-SET,lan,Direct,no-resolve
-  - GEOIP,CN,Direct
-  - MATCH,Final
+  - RULE-SET,proxy,全球代理
+  - RULE-SET,gfw,全球代理
+  - RULE-SET,applications,本地直连
+  - RULE-SET,ChinaMaxDomain,本地直连
+  - RULE-SET,ChinaMaxIPNoIPv6,本地直连,no-resolve
+  - RULE-SET,lan,本地直连,no-resolve
+  - GEOIP,CN,本地直连
+  - MATCH,漏网之鱼
 EOF
 
 }
@@ -9789,24 +9770,24 @@ subscribe() {
     local showStatus=$2
     if [[ "${coreInstallType}" == "1" || "${coreInstallType}" == "2" ]]; then
 
-        echoContent skyBlue "-------------------------  ---------------------------------"
-        echoContent yellow "#                 "
-        echoContent red "#       md5   salt             "
-        echoContent yellow "#               \n"
+        echoContent skyBlue "-------------------------备注---------------------------------"
+        echoContent yellow "# 查看订阅会重新生成本地账号的订阅"
+        echoContent red "# 需要手动输入md5加密的salt值，如果不了解使用随机即可"
+        echoContent yellow "# 不影响已添加的远程订阅的内容\n"
 
         if [[ -f "/etc/v2ray-agent/subscribe_local/subscribeSalt" && -n $(cat "/etc/v2ray-agent/subscribe_local/subscribeSalt") ]]; then
             if [[ -z "${renewSalt}" ]]; then
-                read -r -p "          Salt          Salt  [y/n]:" historySaltStatus
+                read -r -p "读取到上次安装设置的Salt，是否使用上次生成的Salt ？[y/n]:" historySaltStatus
                 if [[ "${historySaltStatus}" == "y" ]]; then
                     subscribeSalt=$(cat /etc/v2ray-agent/subscribe_local/subscribeSalt)
                 else
-                    read -r -p "   salt , [  ]    :" subscribeSalt
+                    read -r -p "请输入salt值, [回车]使用随机:" subscribeSalt
                 fi
             else
                 subscribeSalt=$(cat /etc/v2ray-agent/subscribe_local/subscribeSalt)
             fi
         else
-            read -r -p "   salt , [  ]    :" subscribeSalt
+            read -r -p "请输入salt值, [回车]使用随机:" subscribeSalt
             showStatus=
         fi
 
@@ -9826,7 +9807,7 @@ subscribe() {
         if [[ -n $(ls /etc/v2ray-agent/subscribe_local/default/) ]]; then
             if [[ -f "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl" && -n $(cat "/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl") ]]; then
                 if [[ -z "${renewSalt}" ]]; then
-                    read -r -p "             [y/n]" updateOtherSubscribeStatus
+                    read -r -p "读取到其他订阅，是否更新？[y/n]" updateOtherSubscribeStatus
                 else
                     updateOtherSubscribeStatus=y
                 fi
@@ -9859,10 +9840,10 @@ subscribe() {
                     fi
                 fi
                 if [[ -z "${showStatus}" ]]; then
-                    echoContent skyBlue "\n----------    ----------\n"
+                    echoContent skyBlue "\n----------默认订阅----------\n"
                     echoContent green "email:${email}\n"
                     echoContent yellow "url:${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
-                    echoContent yellow "     :https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
+                    echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/default/${emailMd5}\n"
                     if [[ "${release}" != "alpine" ]]; then
                         echo "${subscribeType}://${currentDomain}/s/default/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                     fi
@@ -9876,9 +9857,9 @@ subscribe() {
 
                         local clashProxyUrl="${subscribeType}://${currentDomain}/s/clashMeta/${emailMd5}"
                         clashMetaConfig "${clashProxyUrl}" "${emailMd5}"
-                        echoContent skyBlue "\n----------clashMeta  ----------\n"
+                        echoContent skyBlue "\n----------clashMeta订阅----------\n"
                         echoContent yellow "url:${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
-                        echoContent yellow "     :https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
+                        echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}\n"
                         if [[ "${release}" != "alpine" ]]; then
                             echo "${subscribeType}://${currentDomain}/s/clashMetaProfiles/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                         fi
@@ -9888,7 +9869,7 @@ subscribe() {
                     if [[ -f "/etc/v2ray-agent/subscribe_local/sing-box/${email}" ]]; then
                         cp "/etc/v2ray-agent/subscribe_local/sing-box/${email}" "/etc/v2ray-agent/subscribe/sing-box_profiles/${emailMd5}"
 
-                        echoContent skyBlue " --->    sing-box       "
+                        echoContent skyBlue " ---> 下载 sing-box 通用配置文件"
                         if [[ "${release}" == "alpine" ]]; then
                             wget -O "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" -q "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/documents/sing-box.json"
                         else
@@ -9898,9 +9879,9 @@ subscribe() {
                         jq ".outbounds=$(jq ".outbounds|map(if has(\"outbounds\") then .outbounds += $(jq ".|map(.tag)" "/etc/v2ray-agent/subscribe_local/sing-box/${email}") else . end)" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
                         jq ".outbounds += $(jq '.' "/etc/v2ray-agent/subscribe_local/sing-box/${email}")" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}" >"/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" && mv "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}_tmp" "/etc/v2ray-agent/subscribe/sing-box/${emailMd5}"
 
-                        echoContent skyBlue "\n----------sing-box  ----------\n"
+                        echoContent skyBlue "\n----------sing-box订阅----------\n"
                         echoContent yellow "url:${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
-                        echoContent yellow "     :https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
+                        echoContent yellow "在线二维码:https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}\n"
                         if [[ "${release}" != "alpine" ]]; then
                             echo "${subscribeType}://${currentDomain}/s/sing-box/${emailMd5}" | qrencode -s 10 -m 1 -t UTF8
                         fi
@@ -9909,13 +9890,13 @@ subscribe() {
 
                     echoContent skyBlue "--------------------------------------------------------------"
                 else
-                    echoContent green " ---> email:${email}                 "
+                    echoContent green " ---> email:${email}，订阅已更新，请使用客户端重新拉取"
                 fi
 
             done
         fi
     else
-        echoContent red " --->                 "
+        echoContent red " ---> 未安装伪装站点，无法使用订阅服务"
     fi
 }
 
@@ -9946,9 +9927,9 @@ updateRemoteSubscribe() {
 
         if ! echo "${clashMetaProxies}" | grep -q "nginx" && [[ -n "${clashMetaProxies}" ]]; then
             echo "${clashMetaProxies}" >>"/etc/v2ray-agent/subscribe/clashMeta/${emailMD5}"
-            echoContent green " ---> clashMeta   ${remoteUrl}:${email}     "
+            echoContent green " ---> clashMeta订阅 ${remoteUrl}:${email} 更新成功"
         else
-            echoContent red " ---> clashMeta   ${remoteUrl}:${email}   "
+            echoContent red " ---> clashMeta订阅 ${remoteUrl}:${email}不存在"
         fi
 
         local default=
@@ -9958,9 +9939,9 @@ updateRemoteSubscribe() {
             default=$(echo "${default}" | base64 -d | sed "s/#${email}/#${email}_${serverAlias}/g")
             echo "${default}" >>"/etc/v2ray-agent/subscribe/default/${emailMD5}"
 
-            echoContent green " --->      ${remoteUrl}:${email}     "
+            echoContent green " ---> 通用订阅 ${remoteUrl}:${email} 更新成功"
         else
-            echoContent red " --->      ${remoteUrl}:${email}    "
+            echoContent red " ---> 通用订阅 ${remoteUrl}:${email} 不存在"
         fi
 
         local singBoxSubscribe=
@@ -9971,9 +9952,9 @@ updateRemoteSubscribe() {
             singBoxSubscribe=$(jq ". +=${singBoxSubscribe}" "/etc/v2ray-agent/subscribe_local/sing-box/${email}")
             echo "${singBoxSubscribe}" | jq . >"/etc/v2ray-agent/subscribe_local/sing-box/${email}"
 
-            echoContent green " --->      ${remoteUrl}:${email}     "
+            echoContent green " ---> 通用订阅 ${remoteUrl}:${email} 更新成功"
         else
-            echoContent red " --->      ${remoteUrl}:${email}    "
+            echoContent red " ---> 通用订阅 ${remoteUrl}:${email} 不存在"
         fi
 
     done < <(grep -v '^$' <"/etc/v2ray-agent/subscribe_remote/remoteSubscribeUrl")
@@ -9981,30 +9962,30 @@ updateRemoteSubscribe() {
 
 # 切换alpn
 switchAlpn() {
-    echoContent skyBlue "\n   1/${totalProgress} :   alpn"
+    echoContent skyBlue "\n功能 1/${totalProgress} : 切换alpn"
     if [[ -z ${currentAlpn} ]]; then
-        echoContent red " --->     alpn        "
+        echoContent red " ---> 无法读取alpn，请检查是否安装"
         exit 0
     fi
 
     echoContent red "\n=============================================================="
-    echoContent green "  alpn   :${currentAlpn}"
-    echoContent yellow "  1. http/1.1    trojan   gRPC                 alpn    "
-    echoContent yellow "  2. h2    gRPC   trojan                 alpn    "
-    echoContent yellow "  3.           alpn             alpn           "
+    echoContent green "当前alpn首位为:${currentAlpn}"
+    echoContent yellow "  1.当http/1.1首位时，trojan可用，gRPC部分客户端可用【客户端支持手动选择alpn的可用】"
+    echoContent yellow "  2.当h2首位时，gRPC可用，trojan部分客户端可用【客户端支持手动选择alpn的可用】"
+    echoContent yellow "  3.如客户端不支持手动更换alpn，建议使用此功能更改服务端alpn顺序，来使用相应的协议"
     echoContent red "=============================================================="
 
     if [[ "${currentAlpn}" == "http/1.1" ]]; then
-        echoContent yellow "1.  alpn h2   "
+        echoContent yellow "1.切换alpn h2 首位"
     elif [[ "${currentAlpn}" == "h2" ]]; then
-        echoContent yellow "1.  alpn http/1.1   "
+        echoContent yellow "1.切换alpn http/1.1 首位"
     else
-        echoContent red 'Please follow the on-screen instructions.'
+        echoContent red '不符合'
     fi
 
     echoContent red "=============================================================="
 
-    read -r -p "Please select:" selectSwitchAlpnType
+    read -r -p "请选择:" selectSwitchAlpnType
     if [[ "${selectSwitchAlpnType}" == "1" && "${currentAlpn}" == "http/1.1" ]]; then
 
         local frontingTypeJSON
@@ -10016,7 +9997,7 @@ switchAlpn() {
         frontingTypeJSON=$(jq -r ".inbounds[0].streamSettings.tlsSettings.alpn =[\"http/1.1\",\"h2\"]" ${configPath}${frontingType}.json)
         echo "${frontingTypeJSON}" | jq . >${configPath}${frontingType}.json
     else
-        echoContent red " --->     "
+        echoContent red " ---> 选择错误"
         exit 0
     fi
     reloadCore
@@ -10024,9 +10005,9 @@ switchAlpn() {
 
 # 初始化realityKey
 initRealityKey() {
-    echoContent skyBlue "\n  Reality key\n"
+    echoContent skyBlue "\n生成Reality key\n"
     if [[ -n "${currentRealityPublicKey}" && -z "${lastInstallationConfig}" ]]; then
-        read -r -p "                    PublicKey/PrivateKey  [y/n]:" historyKeyStatus
+        read -r -p "读取到上次安装记录，是否使用上次安装时的PublicKey/PrivateKey ？[y/n]:" historyKeyStatus
         if [[ "${historyKeyStatus}" == "y" ]]; then
             realityPrivateKey=${currentRealityPrivateKey}
             realityPublicKey=${currentRealityPublicKey}
@@ -10052,13 +10033,13 @@ initRealityKey() {
 }
 # 初始化 mldsa65Seed
 initRealityMldsa65() {
-    echoContent skyBlue "\n  Reality mldsa65\n"
+    echoContent skyBlue "\n生成Reality mldsa65\n"
     if /etc/v2ray-agent/xray/xray tls ping "${realityServerName}:${realityDomainPort}" 2>/dev/null | grep -q "X25519MLKEM768"; then
         length=$(/etc/v2ray-agent/xray/xray tls ping "${realityServerName}:${realityDomainPort}" | grep "Certificate chain's total length:" | awk '{print $5}' | head -1)
 
         if [ "$length" -gt 3500 ]; then
             if [[ -n "${currentRealityMldsa65}" && -z "${lastInstallationConfig}" ]]; then
-                read -r -p "                    Seed/Verify  [y/n]:" historyMldsa65Status
+                read -r -p "读取到上次安装记录，是否使用上次安装时的Seed/Verify ？[y/n]:" historyMldsa65Status
                 if [[ "${historyMldsa65Status}" == "y" ]]; then
                     realityMldsa65Seed=${currentRealityMldsa65Seed}
                     realityMldsa65Verify=${currentRealityMldsa65Verify}
@@ -10083,7 +10064,7 @@ initRealityMldsa65() {
             #    echoContent green "\n Verify:${realityMldsa65Verify}"
         fi
     else
-        echoContent green "        X25519MLKEM768   ML-DSA-65 "
+        echoContent green " 目标域名不支持X25519MLKEM768，忽略ML-DSA-65。"
     fi
 }
 # 检查reality域名是否符合
@@ -10091,12 +10072,12 @@ checkRealityDest() {
     local traceResult=
     traceResult=$(curl -s "https://$(echo "${realityDestDomain}" | cut -d ':' -f 1)/cdn-cgi/trace" | grep "visit_scheme=https")
     if [[ -n "${traceResult}" ]]; then
-        echoContent red "\n --->             cloudflare                  VPS        [     ]\n"
-        read -r -p "      [y/n]" setRealityDestStatus
+        echoContent red "\n ---> 检测到使用的域名，托管在cloudflare并开启了代理，使用此类型域名可能导致VPS流量被其他人使用[不建议使用]\n"
+        read -r -p "是否继续 ？[y/n]" setRealityDestStatus
         if [[ "${setRealityDestStatus}" != 'y' ]]; then
             exit 0
         fi
-        echoContent yellow "\n --->          "
+        echoContent yellow "\n ---> 忽略风险，继续使用"
     fi
 }
 
@@ -10105,7 +10086,7 @@ initRealityClientServersName() {
     local realityDestDomainList="gateway.icloud.com,itunes.apple.com,swdist.apple.com,swcdn.apple.com,updates.cdn-apple.com,mensura.cdn-apple.com,osxapps.itunes.apple.com,aod.itunes.apple.com,download-installer.cdn.mozilla.net,addons.mozilla.org,s0.awsstatic.com,d1.awsstatic.com,images-na.ssl-images-amazon.com,m.media-amazon.com,player.live-video.net,one-piece.com,lol.secure.dyn.riotcdn.net,www.lovelive-anime.jp,www.swift.com,academy.nvidia.com,www.cisco.com,www.asus.com,www.samsung.com,www.amd.com,cdn-dynmedia-1.microsoft.com,software.download.prss.microsoft.com,dl.google.com,www.google-analytics.com"
     if [[ -n "${realityServerName}" && -z "${lastInstallationConfig}" ]]; then
         if echo ${realityDestDomainList} | grep -q "${realityServerName}"; then
-            read -r -p "          Reality        [y/n]:" realityServerNameStatus
+            read -r -p "读取到上次安装设置的Reality域名，是否使用？[y/n]:" realityServerNameStatus
             if [[ "${realityServerNameStatus}" != "y" ]]; then
                 realityServerName=
                 realityDomainPort=
@@ -10122,7 +10103,7 @@ initRealityClientServersName() {
     if [[ -z "${realityServerName}" ]]; then
         if [[ -n "${domain}" ]]; then
             echo
-            read -r -p "     ${domain}      Reality      [y/n]:" realityServerNameCurrentDomainStatus
+            read -r -p "是否使用 ${domain} 此域名作为Reality目标域名 ？[y/n]:" realityServerNameCurrentDomainStatus
             if [[ "${realityServerNameCurrentDomainStatus}" == "y" ]]; then
                 realityServerName="${domain}"
                 if [[ "${selectCoreType}" == "1" ]]; then
@@ -10149,11 +10130,11 @@ initRealityClientServersName() {
         fi
         if [[ -z "${realityServerName}" ]]; then
             realityDomainPort=443
-            echoContent skyBlue "\n================         serverNames ===============\n"
-            echoContent yellow "#Note"
-            echoContent green "Reality         https://www.v2ray-agent.com/archives/1689439383686#heading-3\n"
-            echoContent yellow "    :addons.mozilla.org:443\n"
-            read -r -p "        [  ]         443:" realityServerName
+            echoContent skyBlue "\n================ 配置客户端可用的serverNames ===============\n"
+            echoContent yellow "#注意事项"
+            echoContent green "Reality目标可用域名列表：https://www.v2ray-agent.com/archives/1689439383686#heading-3\n"
+            echoContent yellow "录入示例:addons.mozilla.org:443\n"
+            read -r -p "请输入目标域名，[回车]随机域名，默认端口443:" realityServerName
             if [[ -z "${realityServerName}" ]]; then
                 randomNum=$(randomNum 1 27)
                 realityServerName=$(echo "${realityDestDomainList}" | awk -F ',' -v randomNum="$randomNum" '{print $randomNum}')
@@ -10165,12 +10146,12 @@ initRealityClientServersName() {
         fi
     fi
 
-    echoContent yellow "\n --->        : ${realityServerName}:${realityDomainPort}\n"
+    echoContent yellow "\n ---> 客户端可用域名: ${realityServerName}:${realityDomainPort}\n"
 }
 # 初始化reality端口
 initXrayRealityPort() {
     if [[ -n "${xrayVLESSRealityPort}" && -z "${lastInstallationConfig}" ]]; then
-        read -r -p "                        [y/n]:" historyRealityPortStatus
+        read -r -p "读取到上次安装记录，是否使用上次安装时的端口 ？[y/n]:" historyRealityPortStatus
         if [[ "${historyRealityPortStatus}" == "y" ]]; then
             realityPort=${xrayVLESSRealityPort}
         fi
@@ -10180,15 +10161,15 @@ initXrayRealityPort() {
 
     if [[ -z "${realityPort}" ]]; then
         #        if [[ -n "${port}" ]]; then
-        #            read -r -p "    TLS+Vision    [y/n]:" realityPortTLSVisionStatus
+        #            read -r -p "是否使用TLS+Vision端口 ？[y/n]:" realityPortTLSVisionStatus
         #            if [[ "${realityPortTLSVisionStatus}" == "y" ]]; then
         #                realityPort=${port}
         #            fi
         #        fi
         #        if [[ -z "${realityPort}" ]]; then
-        echoContent yellow "     [    10000-30000]"
+        echoContent yellow "请输入端口[回车随机10000-30000]"
 
-        read -r -p "  :" realityPort
+        read -r -p "端口:" realityPort
         if [[ -z "${realityPort}" ]]; then
             realityPort=$((RANDOM % 20001 + 10000))
         fi
@@ -10203,14 +10184,14 @@ initXrayRealityPort() {
         initXrayRealityPort
     else
         allowPort "${realityPort}"
-        echoContent yellow "\n --->   : ${realityPort}"
+        echoContent yellow "\n ---> 端口: ${realityPort}"
     fi
 
 }
 # 初始化XHTTP端口
 initXrayXHTTPort() {
     if [[ -n "${xrayVLESSRealityXHTTPort}" && -z "${lastInstallationConfig}" ]]; then
-        read -r -p "                        [y/n]:" historyXHTTPortStatus
+        read -r -p "读取到上次安装记录，是否使用上次安装时的端口 ？[y/n]:" historyXHTTPortStatus
         if [[ "${historyXHTTPortStatus}" == "y" ]]; then
             xHTTPort=${xrayVLESSRealityXHTTPort}
         fi
@@ -10220,8 +10201,8 @@ initXrayXHTTPort() {
 
     if [[ -z "${xHTTPort}" ]]; then
 
-        echoContent yellow "     [    10000-30000]"
-        read -r -p "  :" xHTTPort
+        echoContent yellow "请输入端口[回车随机10000-30000]"
+        read -r -p "端口:" xHTTPort
         if [[ -z "${xHTTPort}" ]]; then
             xHTTPort=$((RANDOM % 20001 + 10000))
         fi
@@ -10236,12 +10217,12 @@ initXrayXHTTPort() {
     else
         allowPort "${xHTTPort}"
         allowPort "${xHTTPort}" "udp"
-        echoContent yellow "\n --->   : ${xHTTPort}"
+        echoContent yellow "\n ---> 端口: ${xHTTPort}"
     fi
 }
 # 初始化 reality 配置
 initXrayRealityConfig() {
-    echoContent skyBlue "\nProgress  $1/${totalProgress} :     Xray-core reality  "
+    echoContent skyBlue "\n进度  $1/${totalProgress} : 初始化 Xray-core reality配置"
     initXrayRealityPort
     initRealityKey
     initRealityClientServersName
@@ -10258,7 +10239,7 @@ updateXrayRealityConfig() {
     realityVisionResult=$(echo "${realityVisionResult}" | jq -r ".inbounds[0].streamSettings.realitySettings.publicKey = \"${realityPublicKey}\"")
     echo "${realityVisionResult}" | jq . >${configPath}07_VLESS_vision_reality_inbounds.json
     reloadCore
-    echoContent green " --->     "
+    echoContent green " ---> 修改完成"
 }
 # xray-core Reality 安装
 xrayCoreRealityInstall() {
@@ -10290,7 +10271,7 @@ manageReality() {
     readSingBoxConfig
 
     if ! echo "${currentInstallProtocolType}" | grep -q -E "7,|8," || [[ -z "${coreInstallType}" ]]; then
-        echoContent red "\n --->     Reality        https://www.v2ray-agent.com/archives/1680104902581#heading-11"
+        echoContent red "\n ---> 请先安装Reality协议，参考教程 https://www.v2ray-agent.com/archives/1680104902581#heading-11"
         exit 0
     fi
 
@@ -10321,15 +10302,15 @@ installRealityScanner() {
 }
 # reality scanner
 realityScanner() {
-    echoContent skyBlue "\nProgress 1/1 :   Reality  "
+    echoContent skyBlue "\n进度 1/1 : 扫描Reality域名"
     echoContent red "\n=============================================================="
-    echoContent yellow "# Note"
-    echoContent yellow "Please follow the on-screen instructions."
-    echoContent red "  IDC                       \n"
-    echoContent yellow "1.  IPv4"
-    echoContent yellow "2.  IPv6"
+    echoContent yellow "# 注意事项"
+    echoContent yellow "扫描完成后，请自行检查扫描网站结果内容是否合规，需个人承担风险"
+    echoContent red "某些IDC不允许扫描操作，比如搬瓦工，其中风险请自行承担\n"
+    echoContent yellow "1.扫描IPv4"
+    echoContent yellow "2.扫描IPv6"
     echoContent red "=============================================================="
-    read -r -p "Please select:" realityScannerStatus
+    read -r -p "请选择:" realityScannerStatus
     local type=
     if [[ "${realityScannerStatus}" == "1" ]]; then
         type=4
@@ -10337,7 +10318,7 @@ realityScanner() {
         type=6
     fi
 
-    read -r -p "  IDC                             [y/n]:" scanStatus
+    read -r -p "某些IDC不允许扫描操作，比如搬瓦工，其中风险请自行承担，是否继续？[y/n]:" scanStatus
 
     if [[ "${scanStatus}" != "y" ]]; then
         exit 0
@@ -10346,36 +10327,36 @@ realityScanner() {
     publicIP=$(getPublicIP "${type}")
     echoContent yellow "IP:${publicIP}"
     if [[ -z "${publicIP}" ]]; then
-        echoContent red " --->     IP"
+        echoContent red " ---> 无法获取IP"
         exit 0
     fi
 
-    read -r -p "IP     [y/n]:" ipStatus
+    read -r -p "IP是否正确？[y/n]:" ipStatus
     if [[ "${ipStatus}" == "y" ]]; then
-        echoContent yellow "      /etc/v2ray-agent/xray/reality_scan/result.log    \n"
+        echoContent yellow "结果存储在 /etc/v2ray-agent/xray/reality_scan/result.log 文件中\n"
         /etc/v2ray-agent/xray/reality_scan/RealiTLScanner-linux-64 -addr "${publicIP}" | tee /etc/v2ray-agent/xray/reality_scan/result.log
     else
-        echoContent red " --->       IP"
+        echoContent red " ---> 无法读取正确IP"
     fi
 }
 # hysteria管理
 manageHysteria() {
-    echoContent skyBlue "\nProgress  1/1 : Hysteria2   "
+    echoContent skyBlue "\n进度  1/1 : Hysteria2 管理"
     echoContent red "\n=============================================================="
     local hysteria2Status=
     if [[ -n "${singBoxConfigPath}" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config/06_hysteria2_inbounds.json" ]]; then
-        echoContent yellow "     sing-box\n"
-        echoContent yellow "1.    "
-        echoContent yellow "2.  "
-        echoContent yellow "3.      "
+        echoContent yellow "依赖第三方sing-box\n"
+        echoContent yellow "1.重新安装"
+        echoContent yellow "2.卸载"
+        echoContent yellow "3.端口跳跃管理"
         hysteria2Status=true
     else
-        echoContent yellow "  sing-box  \n"
-        echoContent yellow "1.Install"
+        echoContent yellow "依赖sing-box内核\n"
+        echoContent yellow "1.安装"
     fi
 
     echoContent red "=============================================================="
-    read -r -p "Please select:" installHysteria2Status
+    read -r -p "请选择:" installHysteria2Status
     if [[ "${installHysteria2Status}" == "1" ]]; then
         singBoxHysteria2Install
     elif [[ "${installHysteria2Status}" == "2" && "${hysteria2Status}" == "true" ]]; then
@@ -10387,22 +10368,22 @@ manageHysteria() {
 
 # tuic管理
 manageTuic() {
-    echoContent skyBlue "\nProgress  1/1 : Tuic  "
+    echoContent skyBlue "\n进度  1/1 : Tuic管理"
     echoContent red "\n=============================================================="
     local tuicStatus=
     if [[ -n "${singBoxConfigPath}" ]] && [[ -f "/etc/v2ray-agent/sing-box/conf/config/09_tuic_inbounds.json" ]]; then
-        echoContent yellow "  sing-box  \n"
-        echoContent yellow "1.    "
-        echoContent yellow "2.  "
-        echoContent yellow "3.      "
+        echoContent yellow "依赖sing-box内核\n"
+        echoContent yellow "1.重新安装"
+        echoContent yellow "2.卸载"
+        echoContent yellow "3.端口跳跃管理"
         tuicStatus=true
     else
-        echoContent yellow "  sing-box  \n"
-        echoContent yellow "1.Install"
+        echoContent yellow "依赖sing-box内核\n"
+        echoContent yellow "1.安装"
     fi
 
     echoContent red "=============================================================="
-    read -r -p "Please select:" installTuicStatus
+    read -r -p "请选择:" installTuicStatus
     if [[ "${installTuicStatus}" == "1" ]]; then
         singBoxTuicInstall
     elif [[ "${installTuicStatus}" == "2" && "${tuicStatus}" == "true" ]]; then
@@ -10429,20 +10410,20 @@ EOF
 }
 # hysteria版本管理
 hysteriaVersionManageMenu() {
-    echoContent skyBlue "\nProgress  $1/${totalProgress} : Hysteria    "
+    echoContent skyBlue "\n进度  $1/${totalProgress} : Hysteria版本管理"
     if [[ ! -d "/etc/v2ray-agent/hysteria/" ]]; then
-        echoContent red " --->                    "
+        echoContent red " ---> 没有检测到安装目录，请执行脚本安装内容"
         menu
         exit 0
     fi
     echoContent red "\n=============================================================="
-    echoContent yellow "1.  Hysteria"
-    echoContent yellow "2.  Hysteria"
-    echoContent yellow "3.  Hysteria"
-    echoContent yellow "4.  Hysteria"
+    echoContent yellow "1.升级Hysteria"
+    echoContent yellow "2.关闭Hysteria"
+    echoContent yellow "3.打开Hysteria"
+    echoContent yellow "4.重启Hysteria"
     echoContent red "=============================================================="
 
-    read -r -p "Please select:" selectHysteriaType
+    read -r -p "请选择:" selectHysteriaType
     if [[ "${selectHysteriaType}" == "1" ]]; then
         installHysteria 1
         handleHysteria start
@@ -10458,31 +10439,31 @@ hysteriaVersionManageMenu() {
 
 # sing-box 版本管理
 singBoxVersionManageMenu() {
-    echoContent skyBlue "\nProgress  $1/${totalProgress} : sing-box     "
+    echoContent skyBlue "\n进度  $1/${totalProgress} : sing-box 版本管理"
     if [[ -z "${singBoxConfigPath}" ]]; then
-        echoContent red " --->                    "
+        echoContent red " ---> 没有检测到安装程序，请执行脚本安装内容"
         menu
         exit 0
     fi
     echoContent red "\n=============================================================="
-    echoContent yellow "1.   sing-box"
-    echoContent yellow "2.   sing-box"
-    echoContent yellow "3.   sing-box"
-    echoContent yellow "4.   sing-box"
+    echoContent yellow "1.升级 sing-box"
+    echoContent yellow "2.关闭 sing-box"
+    echoContent yellow "3.打开 sing-box"
+    echoContent yellow "4.重启 sing-box"
     echoContent yellow "=============================================================="
     local logStatus=
     if [[ -n "${singBoxConfigPath}" && -f "${singBoxConfigPath}log.json" && "$(jq -r .log.disabled "${singBoxConfigPath}log.json")" == "false" ]]; then
-        echoContent yellow "5.    "
+        echoContent yellow "5.关闭日志"
         logStatus=true
     else
-        echoContent yellow "5.    "
+        echoContent yellow "5.启用日志"
         logStatus=false
     fi
 
-    echoContent yellow "6.    "
+    echoContent yellow "6.查看日志"
     echoContent red "=============================================================="
 
-    read -r -p "Please select:" selectSingBoxType
+    read -r -p "请选择:" selectSingBoxType
     if [[ ! -f "${singBoxConfigPath}../box.log" ]]; then
         touch "${singBoxConfigPath}../box.log" >/dev/null 2>&1
     fi
@@ -10511,43 +10492,43 @@ singBoxVersionManageMenu() {
 menu() {
     cd "$HOME" || exit
     echoContent red "\n=============================================================="
-    echoContent green "Author: mack-a"
-    echoContent green "Current Version: v3.4.26"
+    echoContent green "作者：mack-a"
+    echoContent green "当前版本：v3.4.26"
     echoContent green "Github：https://github.com/mack-a/v2ray-agent"
-    echoContent green "Description: 8-in-1 Coexistence Script\c"
+    echoContent green "描述：八合一共存脚本\c"
     showInstallStatus
     checkWgetShowProgress
     echoContent red "=============================================================="
     if [[ -n "${coreInstallType}" ]]; then
-        echoContent yellow "1.    "
+        echoContent yellow "1.重新安装"
     else
-        echoContent yellow "1.Install"
+        echoContent yellow "1.安装"
     fi
 
-    echoContent yellow "2.Custom Install"
-    echoContent yellow "4.Hysteria2 Management"
-    echoContent yellow "5.REALITY Management"
-    echoContent yellow "6.Tuic Management"
+    echoContent yellow "2.任意组合安装"
+    echoContent yellow "4.Hysteria2管理"
+    echoContent yellow "5.REALITY管理"
+    echoContent yellow "6.Tuic管理"
 
-    echoContent skyBlue "-------------------------    -----------------------------"
-    echoContent yellow "7.User Management"
-    echoContent yellow "8.Camouflage Site Management"
-    echoContent yellow "9.Certificate Management"
-    echoContent yellow "10.CDN Node Management"
-    echoContent yellow "11.Routing Tools"
-    echoContent yellow "12.Add New Port"
-    echoContent yellow "13.BT Download Management"
-    echoContent yellow "15.Domain Blacklist"
-    echoContent skyBlue "-------------------------    -----------------------------"
-    echoContent yellow "16.Core Management"
-    echoContent yellow "17.Update Script"
-    echoContent yellow "18.Install BBR/DD Script"
-    echoContent skyBlue "-------------------------    -----------------------------"
-    echoContent yellow "20.Uninstall Script"
+    echoContent skyBlue "-------------------------工具管理-----------------------------"
+    echoContent yellow "7.用户管理"
+    echoContent yellow "8.伪装站管理"
+    echoContent yellow "9.证书管理"
+    echoContent yellow "10.CDN节点管理"
+    echoContent yellow "11.分流工具"
+    echoContent yellow "12.添加新端口"
+    echoContent yellow "13.BT下载管理"
+    echoContent yellow "15.域名黑名单"
+    echoContent skyBlue "-------------------------版本管理-----------------------------"
+    echoContent yellow "16.core管理"
+    echoContent yellow "17.更新脚本"
+    echoContent yellow "18.安装BBR、DD脚本"
+    echoContent skyBlue "-------------------------脚本管理-----------------------------"
+    echoContent yellow "20.卸载脚本"
     echoContent red "=============================================================="
     mkdirTools
     aliasInstall
-    read -r -p "Please select:" selectInstallType
+    read -r -p "请选择:" selectInstallType
     case ${selectInstallType} in
     1)
         selectCoreInstall
