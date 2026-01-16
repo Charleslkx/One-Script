@@ -1,0 +1,68 @@
+# Systemd 服务模板 - 实例 A
+# 路径: /etc/systemd/system/proxy-a.service
+
+[Unit]
+Description=Proxy Instance A (VLESS+Reality Blue-Green Deployment)
+After=network-online.target
+Wants=network-online.target
+Documentation=https://github.com/charleslkx/one-script
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+
+# 核心配置文件路径（根据实际代理软件修改）
+# 示例：Xray
+ExecStart=/usr/local/bin/xray run -c /etc/v2ray-agent/xray/conf/config_a.json
+# 示例：sing-box
+# ExecStart=/usr/local/bin/sing-box run -c /etc/v2ray-agent/sing-box/conf/config_a.json
+
+# 自愈配置 - 仅在异常时重启
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# 资源隔离 - 防止单个实例拖垮整机
+# 内存限制（512MB 机器建议 200-220MB，1GB 机器可调整为 400-450MB）
+MemoryMax=220M
+MemoryHigh=200M
+
+# CPU 权重（避免抢占其他服务）
+CPUWeight=80
+
+# 文件描述符限制
+LimitNOFILE=1048576
+
+# Nice 值（进程优先级，越高优先级越低）
+Nice=5
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+
+# 日志目录写权限
+ReadWritePaths=/var/log/xray
+# 如果使用 sing-box，修改为：
+# ReadWritePaths=/var/log/sing-box
+
+# 工作目录
+WorkingDirectory=/etc/v2ray-agent/xray
+# 如果使用 sing-box，修改为：
+# WorkingDirectory=/etc/v2ray-agent/sing-box
+
+# 标准输出和错误输出
+StandardOutput=journal
+StandardError=journal
+
+# 日志标识
+SyslogIdentifier=proxy-a
+
+[Install]
+WantedBy=multi-user.target

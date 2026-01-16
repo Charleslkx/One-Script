@@ -847,7 +847,8 @@ show_script_menu() {
     lang_echo "${Yellow}7.${Font} 快速切换节点IPv4/IPv6优先级" "${Yellow}7.${Font} Quick IPv4/IPv6 preference switch"
     lang_echo "${Yellow}8.${Font} 内核安装脚本 (BBR/BBR Plus)" "${Yellow}8.${Font} Kernel installer (BBR/BBR Plus)"
     lang_echo "${Yellow}9.${Font} 查询核心配置路径" "${Yellow}9.${Font} Show core config paths"
-    lang_echo "${Yellow}10.${Font} 退出" "${Yellow}10.${Font} Exit"
+    lang_echo "${Yellow}10.${Font} ${Green}蓝绿部署管理 ${Blue}(零中断重启方案)${Font}" "${Yellow}10.${Font} ${Green}Blue-Green deployment ${Blue}(zero-downtime restart)${Font}"
+    lang_echo "${Yellow}11.${Font} 退出" "${Yellow}11.${Font} Exit"
     echo
     echo -e "${Blue}============================================${Font}"
 }
@@ -886,8 +887,38 @@ execute_script() {
                 bash "$temp_script"
                 lang_echo "${Green}V2Ray 脚本执行完成${Font}" "${Green}V2Ray install script finished${Font}"
                 rm -f "$temp_script"
-                # 添加定时重启任务
-                add_crontab_reboot
+                
+                # 询问是否配置蓝绿部署
+                echo
+                lang_echo "${Blue}============================================${Font}" "${Blue}============================================${Font}"
+                lang_echo "${Green}V2Ray 安装完成！${Font}" "${Green}V2Ray installation completed!${Font}"
+                lang_echo "${Blue}============================================${Font}" "${Blue}============================================${Font}"
+                echo
+                lang_echo "${Yellow}推荐配置蓝绿部署实现零中断重启：${Font}" "${Yellow}Recommend Blue-Green deployment for zero-downtime restart:${Font}"
+                lang_echo "${Green}  • 双实例热备 (A/B 实例)${Font}" "${Green}  • Dual-instance hot standby${Font}"
+                lang_echo "${Green}  • 极短中断切换 (毫秒级)${Font}" "${Green}  • Near-zero interruption switching${Font}"
+                lang_echo "${Green}  • 资源隔离保护${Font}" "${Green}  • Resource isolation${Font}"
+                lang_echo "${Green}  • 自动故障恢复${Font}" "${Green}  • Auto failure recovery${Font}"
+                echo
+                read -p "$(lang_text "是否立即配置蓝绿部署? (推荐) (y/n): " "Configure Blue-Green deployment now? (Recommended) (y/n): ")" setup_bg
+                
+                if [[ "$setup_bg" == "y" || "$setup_bg" == "Y" ]]; then
+                    echo
+                    setup_blue_green_deployment
+                else
+                    lang_echo "${Yellow}已跳过蓝绿部署配置${Font}" "${Yellow}Blue-Green deployment skipped${Font}"
+                    lang_echo "${Yellow}可稍后在主菜单选项 10 中配置${Font}" "${Yellow}You can configure it later in main menu option 10${Font}"
+                    echo
+                    lang_echo "${Yellow}注意：如需定时重启，请考虑以下影响：${Font}" "${Yellow}Note: If you need scheduled restart:${Font}"
+                    lang_echo "${Red}  • 定时重启会造成服务中断${Font}" "${Red}  • Scheduled reboot causes service interruption${Font}"
+                    lang_echo "${Red}  • 可能在业务高峰期重启${Font}" "${Red}  • May restart during peak hours${Font}"
+                    lang_echo "${Green}  • 蓝绿部署可避免上述问题${Font}" "${Green}  • Blue-Green deployment avoids these issues${Font}"
+                    echo
+                    read -p "$(lang_text "是否仍要添加定时重启? (不推荐) (y/n): " "Still add scheduled reboot? (Not recommended) (y/n): ")" add_cron
+                    if [[ "$add_cron" == "y" || "$add_cron" == "Y" ]]; then
+                        add_crontab_reboot
+                    fi
+                fi
             else
                 lang_echo "${Red}错误：无法从远程仓库获取 V2Ray 安装脚本！${Font}" "${Red}Error: unable to download V2Ray installer!${Font}"
                 lang_echo "${Yellow}请检查网络连接或稍后重试${Font}" "${Yellow}Check your network connection or try again later${Font}"
@@ -976,24 +1007,38 @@ execute_script() {
             show_config_paths
             ;;
         10)
+            lang_echo "${Green}进入蓝绿部署管理...${Font}" "${Green}Opening Blue-Green deployment manager...${Font}"
+            blue_green_menu
+            ;;
+        11)
             lang_echo "${Green}感谢使用，再见！${Font}" "${Green}Thanks for using, bye!${Font}"
             exit 0
             ;;
         *)
-            lang_echo "${Red}无效选择，请输入 1-10${Font}" "${Red}Invalid choice, please enter 1-10${Font}"
+            lang_echo "${Red}无效选择，请输入 1-11${Font}" "${Red}Invalid choice, please enter 1-11${Font}"
             sleep 2
             main_menu
             ;;
     esac
 }
 
-# 添加定时重启任务
+# 添加定时重启任务（已弃用，推荐使用蓝绿部署）
 add_crontab_reboot() {
-    echo -e "${Blue}正在配置系统定时重启任务...${Font}"
+    lang_echo "${Yellow}警告：定时重启会导致服务中断${Font}" "${Yellow}Warning: Scheduled reboot causes service interruption${Font}"
+    lang_echo "${Yellow}建议使用蓝绿部署实现零中断重启${Font}" "${Yellow}Recommend using Blue-Green deployment for zero-downtime restart${Font}"
+    echo
+    
+    read -p "$(lang_text "是否继续添加定时重启? (y/n): " "Continue with scheduled reboot? (y/n): ")" confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        lang_echo "${Yellow}已取消${Font}" "${Yellow}Cancelled${Font}"
+        return 0
+    fi
+    
+    lang_echo "${Blue}正在配置系统定时重启任务...${Font}" "${Blue}Configuring scheduled reboot...${Font}"
     
     # 检查是否已存在重启任务
     if crontab -l 2>/dev/null | grep -q "0 5 \* \* \* /sbin/reboot"; then
-        echo -e "${Yellow}检测到已存在定时重启任务，跳过添加。${Font}"
+        lang_echo "${Yellow}检测到已存在定时重启任务，跳过添加。${Font}" "${Yellow}Scheduled reboot already exists, skipping.${Font}"
         return 0
     fi
     
@@ -1005,27 +1050,456 @@ add_crontab_reboot() {
     
     # 应用新的crontab
     if crontab /tmp/current_crontab; then
-        echo -e "${Green}定时重启任务添加成功！${Font}"
-        echo -e "${Green}系统将在每日凌晨5:00自动重启${Font}"
+        lang_echo "${Green}定时重启任务添加成功！${Font}" "${Green}Scheduled reboot added successfully!${Font}"
+        lang_echo "${Green}系统将在每日凌晨5:00自动重启${Font}" "${Green}System will reboot daily at 5:00 AM${Font}"
         rm -f /tmp/current_crontab
     else
-        echo -e "${Red}定时重启任务添加失败！${Font}"
+        lang_echo "${Red}定时重启任务添加失败！${Font}" "${Red}Failed to add scheduled reboot!${Font}"
         rm -f /tmp/current_crontab
     fi
     
-    echo -e "${Blue}当前定时任务：${Font}"
-    crontab -l 2>/dev/null | grep -v "^#" | grep -v "^$" || echo -e "${Yellow}暂无定时任务${Font}"
+    lang_echo "${Blue}当前定时任务：${Font}" "${Blue}Current cron jobs:${Font}"
+    crontab -l 2>/dev/null | grep -v "^#" | grep -v "^$" || lang_echo "${Yellow}暂无定时任务${Font}" "${Yellow}No cron jobs${Font}"
     echo
+}
+
+# ============================================
+# 蓝绿部署相关函数
+# ============================================
+
+# 检测代理软件类型和配置路径
+detect_proxy_software() {
+    local proxy_type=""
+    local config_dir=""
+    local bin_path=""
+    
+    # 检测 Xray
+    if [[ -f "/usr/local/bin/xray" ]]; then
+        proxy_type="xray"
+        bin_path="/usr/local/bin/xray"
+        config_dir="/etc/v2ray-agent/xray/conf"
+    # 检测 sing-box
+    elif [[ -f "/usr/local/bin/sing-box" ]]; then
+        proxy_type="sing-box"
+        bin_path="/usr/local/bin/sing-box"
+        config_dir="/etc/v2ray-agent/sing-box/conf"
+    # 检测 v2ray
+    elif [[ -f "/usr/local/bin/v2ray" ]]; then
+        proxy_type="v2ray"
+        bin_path="/usr/local/bin/v2ray"
+        config_dir="/etc/v2ray-agent/v2ray/conf"
+    fi
+    
+    echo "${proxy_type}|${config_dir}|${bin_path}"
+}
+
+# 检查蓝绿部署是否已安装
+check_blue_green_installed() {
+    if [[ -f "/etc/systemd/system/proxy-a.service" ]] && \
+       [[ -f "/etc/systemd/system/proxy-b.service" ]] && \
+       [[ -f "/usr/local/bin/blue-green" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# 配置蓝绿部署
+setup_blue_green_deployment() {
+    lang_echo "${Blue}============================================${Font}" "${Blue}============================================${Font}"
+    lang_echo "${Green}    配置双实例蓝绿热备部署${Font}" "${Green}    Setup Blue-Green Deployment${Font}"
+    lang_echo "${Blue}============================================${Font}" "${Blue}============================================${Font}"
+    echo
+    
+    # 检查是否已安装
+    if check_blue_green_installed; then
+        lang_echo "${Yellow}检测到已安装蓝绿部署，是否重新配置？${Font}" "${Yellow}Blue-Green deployment detected. Reconfigure?${Font}"
+        read -p "$(lang_text "(y/n): " "(y/n): ")" confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            lang_echo "${Yellow}已取消${Font}" "${Yellow}Cancelled${Font}"
+            return 0
+        fi
+    fi
+    
+    lang_echo "${Yellow}[1/7]${Font} $(lang_text "检测代理软件..." "Detecting proxy software...")"
+    
+    # 检测代理软件
+    local detection=$(detect_proxy_software)
+    local proxy_type=$(echo "$detection" | cut -d'|' -f1)
+    local config_dir=$(echo "$detection" | cut -d'|' -f2)
+    local bin_path=$(echo "$detection" | cut -d'|' -f3)
+    
+    if [[ -z "$proxy_type" ]]; then
+        lang_echo "${Red}错误：未检测到支持的代理软件 (xray/sing-box/v2ray)${Font}" "${Red}Error: No supported proxy software found${Font}"
+        lang_echo "${Yellow}请先安装代理软件后再配置蓝绿部署${Font}" "${Yellow}Please install proxy software first${Font}"
+        return 1
+    fi
+    
+    lang_echo "${Green}  检测到: ${proxy_type}${Font}" "${Green}  Detected: ${proxy_type}${Font}"
+    lang_echo "${Green}  二进制: ${bin_path}${Font}" "${Green}  Binary: ${bin_path}${Font}"
+    lang_echo "${Green}  配置目录: ${config_dir}${Font}" "${Green}  Config dir: ${config_dir}${Font}"
+    echo
+    
+    # 检查原配置文件
+    lang_echo "${Yellow}[2/7]${Font} $(lang_text "检查配置文件..." "Checking config files...")"
+    local original_config=""
+    
+    if [[ -f "${config_dir}/config.json" ]]; then
+        original_config="${config_dir}/config.json"
+    else
+        lang_echo "${Red}错误：未找到配置文件 ${config_dir}/config.json${Font}" "${Red}Error: Config file not found${Font}"
+        return 1
+    fi
+    
+    lang_echo "${Green}  原配置文件: ${original_config}${Font}" "${Green}  Original config: ${original_config}${Font}"
+    echo
+    
+    # 备份原配置并创建双实例配置
+    lang_echo "${Yellow}[3/7]${Font} $(lang_text "创建双实例配置..." "Creating dual-instance configs...")"
+    
+    # 备份原配置
+    if [[ ! -f "${original_config}.backup" ]]; then
+        cp "${original_config}" "${original_config}.backup"
+        lang_echo "${Green}  已备份原配置${Font}" "${Green}  Original config backed up${Font}"
+    fi
+    
+    # 读取原配置中的端口（如果存在）
+    local original_port="443"
+    if command -v jq >/dev/null 2>&1; then
+        original_port=$(jq -r '.inbounds[0].port // 443' "${original_config}" 2>/dev/null || echo "443")
+    fi
+    
+    # 创建实例 A 配置（端口 10080）
+    if [[ "$proxy_type" == "xray" || "$proxy_type" == "v2ray" ]]; then
+        # 对于 xray/v2ray，修改端口
+        if command -v jq >/dev/null 2>&1; then
+            jq ".inbounds[0].port = 10080" "${original_config}" > "${config_dir}/config_a.json"
+            jq ".inbounds[0].port = 10081" "${original_config}" > "${config_dir}/config_b.json"
+        else
+            # 简单复制（用户需要手动修改端口）
+            cp "${original_config}" "${config_dir}/config_a.json"
+            cp "${original_config}" "${config_dir}/config_b.json"
+            lang_echo "${Yellow}  警告：未安装 jq，请手动修改端口为 10080 和 10081${Font}" "${Yellow}  Warning: jq not installed, please manually change ports to 10080 and 10081${Font}"
+        fi
+    else
+        # sing-box 配置
+        cp "${original_config}" "${config_dir}/config_a.json"
+        cp "${original_config}" "${config_dir}/config_b.json"
+    fi
+    
+    lang_echo "${Green}  配置 A: ${config_dir}/config_a.json (端口 10080)${Font}" "${Green}  Config A: ${config_dir}/config_a.json (port 10080)${Font}"
+    lang_echo "${Green}  配置 B: ${config_dir}/config_b.json (端口 10081)${Font}" "${Green}  Config B: ${config_dir}/config_b.json (port 10081)${Font}"
+    echo
+    
+    # 创建 systemd 服务文件
+    lang_echo "${Yellow}[4/7]${Font} $(lang_text "创建 systemd 服务..." "Creating systemd services...")"
+    
+    # 检测系统内存
+    local total_mem_kb=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+    local mem_limit="220M"
+    
+    if [[ $total_mem_kb -gt 900000 ]]; then
+        mem_limit="400M"
+    fi
+    
+    lang_echo "${Green}  检测到内存: $(($total_mem_kb / 1024)) MB${Font}" "${Green}  Detected memory: $(($total_mem_kb / 1024)) MB${Font}"
+    lang_echo "${Green}  设置内存限制: ${mem_limit}${Font}" "${Green}  Memory limit: ${mem_limit}${Font}"
+    
+    # 创建服务 A
+    cat > /etc/systemd/system/proxy-a.service << EOF
+[Unit]
+Description=Proxy Instance A (VLESS+Reality Blue-Green Deployment)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+ExecStart=${bin_path} run -c ${config_dir}/config_a.json
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# 资源隔离
+MemoryMax=${mem_limit}
+MemoryHigh=$((${mem_limit%M} - 20))M
+CPUWeight=80
+LimitNOFILE=1048576
+Nice=5
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/${proxy_type}
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=proxy-a
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    # 创建服务 B
+    cat > /etc/systemd/system/proxy-b.service << EOF
+[Unit]
+Description=Proxy Instance B (VLESS+Reality Blue-Green Deployment)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+ExecStart=${bin_path} run -c ${config_dir}/config_b.json
+Restart=on-failure
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# 资源隔离
+MemoryMax=${mem_limit}
+MemoryHigh=$((${mem_limit%M} - 20))M
+CPUWeight=80
+LimitNOFILE=1048576
+Nice=5
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/${proxy_type}
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=proxy-b
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    lang_echo "${Green}  服务文件已创建${Font}" "${Green}  Service files created${Font}"
+    echo
+    
+    # 安装管理脚本
+    lang_echo "${Yellow}[5/7]${Font} $(lang_text "安装蓝绿管理脚本..." "Installing Blue-Green manager...")"
+    
+    local base_url="https://raw.githubusercontent.com/charleslkx/one-script/master"
+    local manager_script="/usr/local/bin/blue-green"
+    
+    if wget -qO "${manager_script}" "${base_url}/blue_green_manager.sh" 2>/dev/null || \
+       curl -fsSL "${base_url}/blue_green_manager.sh" -o "${manager_script}" 2>/dev/null; then
+        chmod +x "${manager_script}"
+        lang_echo "${Green}  管理脚本已安装: blue-green${Font}" "${Green}  Manager installed: blue-green${Font}"
+    else
+        lang_echo "${Red}错误：无法下载管理脚本${Font}" "${Red}Error: Failed to download manager${Font}"
+        return 1
+    fi
+    echo
+    
+    # 重载 systemd
+    lang_echo "${Yellow}[6/7]${Font} $(lang_text "重载 systemd 守护进程..." "Reloading systemd daemon...")"
+    systemctl daemon-reload
+    systemctl enable proxy-a.service proxy-b.service
+    lang_echo "${Green}  服务已启用${Font}" "${Green}  Services enabled${Font}"
+    echo
+    
+    # 初始化部署
+    lang_echo "${Yellow}[7/7]${Font} $(lang_text "初始化蓝绿部署..." "Initializing Blue-Green deployment...")"
+    echo
+    
+    # 停止可能存在的原服务
+    systemctl stop xray 2>/dev/null
+    systemctl stop sing-box 2>/dev/null
+    systemctl stop v2ray 2>/dev/null
+    
+    # 使用管理脚本初始化
+    if "${manager_script}" init; then
+        echo
+        lang_echo "${Green}============================================${Font}" "${Green}============================================${Font}"
+        lang_echo "${Green}  蓝绿部署配置完成！${Font}" "${Green}  Blue-Green deployment configured!${Font}"
+        lang_echo "${Green}============================================${Font}" "${Green}============================================${Font}"
+        echo
+        lang_echo "${Yellow}使用方法：${Font}" "${Yellow}Usage:${Font}"
+        lang_echo "${Green}  blue-green${Font}          $(lang_text "- 打开管理菜单" "- Open management menu")"
+        lang_echo "${Green}  blue-green status${Font}   $(lang_text "- 查看状态" "- View status")"
+        lang_echo "${Green}  blue-green restart${Font}  $(lang_text "- 零中断重启" "- Zero-downtime restart")"
+        echo
+        
+        # 移除旧的定时重启
+        if crontab -l 2>/dev/null | grep -q "/sbin/reboot"; then
+            lang_echo "${Yellow}检测到旧的定时重启任务，是否移除？${Font}" "${Yellow}Old scheduled reboot detected. Remove?${Font}"
+            read -p "$(lang_text "(y/n): " "(y/n): ")" remove_cron
+            if [[ "$remove_cron" == "y" || "$remove_cron" == "Y" ]]; then
+                crontab -l 2>/dev/null | grep -v "/sbin/reboot" | crontab -
+                lang_echo "${Green}已移除定时重启任务${Font}" "${Green}Scheduled reboot removed${Font}"
+            fi
+        fi
+        
+        return 0
+    else
+        lang_echo "${Red}初始化失败，请检查日志${Font}" "${Red}Initialization failed${Font}"
+        return 1
+    fi
+}
+
+# 卸载蓝绿部署
+uninstall_blue_green_deployment() {
+    lang_echo "${Blue}============================================${Font}" "${Blue}============================================${Font}"
+    lang_echo "${Yellow}    卸载双实例蓝绿部署${Font}" "${Yellow}    Uninstall Blue-Green Deployment${Font}"
+    lang_echo "${Blue}============================================${Font}" "${Blue}============================================${Font}"
+    echo
+    
+    if ! check_blue_green_installed; then
+        lang_echo "${Yellow}未检测到蓝绿部署${Font}" "${Yellow}Blue-Green deployment not found${Font}"
+        return 0
+    fi
+    
+    lang_echo "${Red}警告：卸载将停止所有代理服务！${Font}" "${Red}Warning: This will stop all proxy services!${Font}"
+    read -p "$(lang_text "确认卸载? (y/n): " "Confirm uninstall? (y/n): ")" confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        lang_echo "${Yellow}已取消${Font}" "${Yellow}Cancelled${Font}"
+        return 0
+    fi
+    
+    echo
+    lang_echo "${Yellow}[1/5]${Font} $(lang_text "停止服务..." "Stopping services...")"
+    systemctl stop proxy-a.service proxy-b.service 2>/dev/null
+    systemctl disable proxy-a.service proxy-b.service 2>/dev/null
+    lang_echo "${Green}  服务已停止${Font}" "${Green}  Services stopped${Font}"
+    
+    lang_echo "${Yellow}[2/5]${Font} $(lang_text "清理 iptables 规则..." "Cleaning iptables rules...")"
+    iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-ports 10080 2>/dev/null
+    iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-ports 10081 2>/dev/null
+    iptables -t nat -D OUTPUT -p tcp --dport 443 -o lo -j REDIRECT --to-ports 10080 2>/dev/null
+    iptables -t nat -D OUTPUT -p tcp --dport 443 -o lo -j REDIRECT --to-ports 10081 2>/dev/null
+    
+    if command -v netfilter-persistent >/dev/null 2>&1; then
+        netfilter-persistent save >/dev/null 2>&1
+    fi
+    lang_echo "${Green}  iptables 规则已清理${Font}" "${Green}  iptables rules cleaned${Font}"
+    
+    lang_echo "${Yellow}[3/5]${Font} $(lang_text "删除服务文件..." "Removing service files...")"
+    rm -f /etc/systemd/system/proxy-a.service
+    rm -f /etc/systemd/system/proxy-b.service
+    systemctl daemon-reload
+    lang_echo "${Green}  服务文件已删除${Font}" "${Green}  Service files removed${Font}"
+    
+    lang_echo "${Yellow}[4/5]${Font} $(lang_text "删除管理脚本..." "Removing manager script...")"
+    rm -f /usr/local/bin/blue-green
+    lang_echo "${Green}  管理脚本已删除${Font}" "${Green}  Manager script removed${Font}"
+    
+    lang_echo "${Yellow}[5/5]${Font} $(lang_text "清理配置文件..." "Cleaning config files...")"
+    read -p "$(lang_text "是否删除双实例配置文件 (config_a.json, config_b.json)? (y/n): " "Delete dual configs? (y/n): ")" del_config
+    
+    if [[ "$del_config" == "y" || "$del_config" == "Y" ]]; then
+        local detection=$(detect_proxy_software)
+        local config_dir=$(echo "$detection" | cut -d'|' -f2)
+        
+        if [[ -n "$config_dir" ]]; then
+            rm -f "${config_dir}/config_a.json"
+            rm -f "${config_dir}/config_b.json"
+            lang_echo "${Green}  配置文件已删除${Font}" "${Green}  Config files removed${Font}"
+            
+            # 恢复原配置
+            if [[ -f "${config_dir}/config.json.backup" ]]; then
+                cp "${config_dir}/config.json.backup" "${config_dir}/config.json"
+                lang_echo "${Green}  已恢复原配置文件${Font}" "${Green}  Original config restored${Font}"
+            fi
+        fi
+    else
+        lang_echo "${Yellow}  配置文件保留${Font}" "${Yellow}  Config files kept${Font}"
+    fi
+    
+    echo
+    lang_echo "${Green}============================================${Font}" "${Green}============================================${Font}"
+    lang_echo "${Green}  蓝绿部署已完全卸载${Font}" "${Green}  Blue-Green deployment uninstalled${Font}"
+    lang_echo "${Green}============================================${Font}" "${Green}============================================${Font}"
+    echo
+}
+
+# 蓝绿部署管理菜单
+blue_green_menu() {
+    while true; do
+        echo -e "${Blue}============================================${Font}"
+        lang_echo "${Green}       蓝绿部署管理${Font}" "${Green}       Blue-Green Management${Font}"
+        echo -e "${Blue}============================================${Font}"
+        echo
+        
+        if check_blue_green_installed; then
+            lang_echo "${Green}状态: 已安装${Font}" "${Green}Status: Installed${Font}"
+        else
+            lang_echo "${Yellow}状态: 未安装${Font}" "${Yellow}Status: Not installed${Font}"
+        fi
+        echo
+        
+        lang_echo "${Yellow}1.${Font} $(lang_text "配置/重新配置蓝绿部署" "Setup/Reconfigure Blue-Green")"
+        lang_echo "${Yellow}2.${Font} $(lang_text "查看部署状态" "View deployment status")"
+        lang_echo "${Yellow}3.${Font} $(lang_text "执行零中断重启" "Execute zero-downtime restart")"
+        lang_echo "${Yellow}4.${Font} $(lang_text "打开完整管理菜单" "Open full management menu")"
+        lang_echo "${Yellow}5.${Font} $(lang_text "卸载蓝绿部署" "Uninstall Blue-Green")"
+        lang_echo "${Yellow}6.${Font} $(lang_text "返回主菜单" "Back to main menu")"
+        echo
+        echo -e "${Blue}============================================${Font}"
+        
+        read -p "$(lang_text "请选择操作 [1-6]: " "Choose [1-6]: ")" choice
+        echo
+        
+        case $choice in
+            1)
+                setup_blue_green_deployment
+                ;;
+            2)
+                if check_blue_green_installed; then
+                    /usr/local/bin/blue-green status
+                else
+                    lang_echo "${Yellow}请先安装蓝绿部署${Font}" "${Yellow}Please install Blue-Green first${Font}"
+                fi
+                ;;
+            3)
+                if check_blue_green_installed; then
+                    /usr/local/bin/blue-green restart
+                else
+                    lang_echo "${Yellow}请先安装蓝绿部署${Font}" "${Yellow}Please install Blue-Green first${Font}"
+                fi
+                ;;
+            4)
+                if check_blue_green_installed; then
+                    /usr/local/bin/blue-green
+                else
+                    lang_echo "${Yellow}请先安装蓝绿部署${Font}" "${Yellow}Please install Blue-Green first${Font}"
+                fi
+                ;;
+            5)
+                uninstall_blue_green_deployment
+                ;;
+            6)
+                return 0
+                ;;
+            *)
+                lang_echo "${Red}无效选择${Font}" "${Red}Invalid choice${Font}"
+                ;;
+        esac
+        
+        echo
+        read -p "$(lang_text "按回车键继续..." "Press Enter to continue...")"
+        clear
+    done
 }
 
 # 主菜单
 main_menu() {
     while true; do
         show_script_menu
-        read -p "$(lang_text "请输入您的选择 [1-10]: " "Choose an option [1-10]: ")" choice
+        read -p "$(lang_text "请输入您的选择 [1-11]: " "Choose an option [1-11]: ")" choice
         execute_script "$choice"
         echo
-        if [[ "$choice" != "10" ]]; then
+        if [[ "$choice" != "11" ]]; then
             read -p "$(lang_text "脚本执行完毕，按回车键返回主菜单..." "Script finished. Press Enter to return to the main menu...")"
         fi
     done
