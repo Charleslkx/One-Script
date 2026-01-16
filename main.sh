@@ -1192,7 +1192,11 @@ setup_blue_green_deployment() {
     # 读取原配置中的端口（如果存在）
     local original_port="443"
     if command -v jq >/dev/null 2>&1; then
-        original_port=$(jq -r '.inbounds[0].port // 443' "${original_config}" 2>/dev/null || echo "443")
+        if [[ "$proxy_type" == "sing-box" ]]; then
+            original_port=$(jq -r '.inbounds[0].listen_port // 443' "${original_config}" 2>/dev/null || echo "443")
+        else
+            original_port=$(jq -r '.inbounds[0].port // 443' "${original_config}" 2>/dev/null || echo "443")
+        fi
     fi
     
     # 创建实例 A 配置（端口 10080）
@@ -1227,7 +1231,7 @@ setup_blue_green_deployment() {
     cat > /etc/v2ray-agent/blue_green_ports.conf << EOF
 PORT_A=${port_a}
 PORT_B=${port_b}
-EXTERNAL_PORT=443
+EXTERNAL_PORT=${original_port}
 EOF
     
     # 确保日志目录存在，避免 systemd namespace 失败
