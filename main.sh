@@ -1053,6 +1053,14 @@ is_zram_active() {
     return 1
 }
 
+is_disk_swap_active() {
+    if command -v swapon >/dev/null 2>&1; then
+        swapon --show --noheadings 2>/dev/null | awk '{print $1}' | grep -qv "/dev/zram0"
+        return $?
+    fi
+    return 1
+}
+
 apply_memory_tuning() {
     local swappiness="$1"
     local vfs_cache_pressure="$2"
@@ -1277,6 +1285,13 @@ prompt_hybrid_memory_setup() {
     echo -e "${Blue}============================================${Font}"
     echo -e "${Yellow}适合小内存 VPS：优先使用内存压缩 (zram)，再使用磁盘 swap${Font}"
     echo
+
+    if [[ "${mode}" != "force" ]] && is_zram_active && is_disk_swap_active; then
+        show_zram_swap_status
+        echo -e "${Green}已检测到 ZRAM 与 Swap 均已配置，继续后续初始化...${Font}"
+        return 0
+    fi
+
     if [[ "${mode}" != "force" ]]; then
         read -r -p "是否配置混合方案？[Y/n]: " enable_choice
         enable_choice=${enable_choice:-Y}
