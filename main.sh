@@ -2083,6 +2083,8 @@ initialize() {
     echo -e "${Green}      One-Script 环境初始化${Font}"
     echo -e "${Blue}============================================${Font}"
     echo
+    echo -e "${Green}当前渠道：${Font}${CHANNEL}"
+    echo
     
     # 检查权限和环境
     check_root
