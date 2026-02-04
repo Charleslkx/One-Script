@@ -48,11 +48,11 @@ parse_channel_args() {
 
 run_remote_script() {
     if command -v wget >/dev/null 2>&1; then
-        bash <(wget -qO- "${BASE_URL}/main.sh" 2>/dev/null) "${REMAINING_ARGS[@]}"
+        ONE_SCRIPT_CHANNEL="${CHANNEL}" bash <(wget -qO- "${BASE_URL}/main.sh" 2>/dev/null) "${REMAINING_ARGS[@]}"
         return $?
     fi
     if command -v curl >/dev/null 2>&1; then
-        bash <(curl -fsSL "${BASE_URL}/main.sh" 2>/dev/null) "${REMAINING_ARGS[@]}"
+        ONE_SCRIPT_CHANNEL="${CHANNEL}" bash <(curl -fsSL "${BASE_URL}/main.sh" 2>/dev/null) "${REMAINING_ARGS[@]}"
         return $?
     fi
     echo "错误：未找到 wget 或 curl 工具" >&2
