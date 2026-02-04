@@ -19,6 +19,9 @@ installType=""
 upgrade=""
 removeType=""
 updateReleaseInfoChange=""
+ZRAM_SERVICE_FILE="/etc/systemd/system/one-script-zram.service"
+ZRAM_SCRIPT_PATH="/usr/local/bin/one-script-zram"
+ZRAM_ENV_FILE="/etc/one-script/zram.env"
 
 normalize_channel() {
     local channel
@@ -1001,6 +1004,538 @@ get_memory_size() {
     echo $mem_mb
 }
 
+get_disk_available_mb() {
+    local available_kb
+    available_kb=$(df -k / | tail -1 | awk '{print $4}')
+    echo $((available_kb / 1024))
+}
+
+ensure_zram_swap_dependencies() {
+    if [[ "${release}" != "debian" && "${release}" != "ubuntu" ]]; then
+        return 0
+    fi
+
+    local packages=()
+
+    if ! command -v modprobe >/dev/null 2>&1; then
+        packages+=("kmod")
+    fi
+    if ! command -v mkswap >/dev/null 2>&1 || ! command -v swapon >/dev/null 2>&1; then
+        packages+=("util-linux")
+    fi
+
+    if [[ ${#packages[@]} -gt 0 ]]; then
+        echo -e "${Yellow}检测到缺失依赖，正在安装: ${packages[*]}${Font}"
+        ${installType} "${packages[@]}" >/dev/null 2>&1
+    fi
+}
+
+systemd_available() {
+    [[ -d /run/systemd/system ]] && command -v systemctl >/dev/null 2>&1
+}
+
+set_sysctl_value() {
+    local key="$1"
+    local value="$2"
+    if grep -q "^${key}=" /etc/sysctl.conf 2>/dev/null; then
+        sed -i "s/^${key}=.*/${key}=${value}/" /etc/sysctl.conf
+    else
+        echo "${key}=${value}" >> /etc/sysctl.conf
+    fi
+    sysctl "${key}=${value}" >/dev/null 2>&1
+}
+
+is_zram_active() {
+    if [[ -f /proc/swaps ]]; then
+        grep -q "/dev/zram0" /proc/swaps
+        return $?
+    fi
+    return 1
+}
+
+apply_memory_tuning() {
+    local swappiness="$1"
+    local vfs_cache_pressure="$2"
+
+    set_sysctl_value "vm.swappiness" "${swappiness}"
+    set_sysctl_value "vm.vfs_cache_pressure" "${vfs_cache_pressure}"
+}
+
+write_zram_runtime_files() {
+    local zram_mb="$1"
+    local zram_algo="$2"
+    local zram_priority="$3"
+
+    mkdir -p /etc/one-script
+    cat >"${ZRAM_ENV_FILE}" <<EOF
+ZRAM_SIZE_MB=${zram_mb}
+ZRAM_ALGO=${zram_algo}
+ZRAM_PRIORITY=${zram_priority}
+EOF
+
+    cat >"${ZRAM_SCRIPT_PATH}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+ZRAM_ENV="/etc/one-script/zram.env"
+if [[ -f "${ZRAM_ENV}" ]]; then
+    # shellcheck disable=SC1090
+    source "${ZRAM_ENV}"
+fi
+
+ZRAM_SIZE_MB="${ZRAM_SIZE_MB:-512}"
+ZRAM_ALGO="${ZRAM_ALGO:-lz4}"
+ZRAM_PRIORITY="${ZRAM_PRIORITY:-100}"
+
+start_zram() {
+    modprobe zram num_devices=1
+
+    swapoff /dev/zram0 2>/dev/null || true
+
+    if [[ -e /sys/block/zram0/reset ]]; then
+        echo 1 > /sys/block/zram0/reset || true
+    fi
+
+    if [[ -n "${ZRAM_ALGO}" && -w /sys/block/zram0/comp_algorithm ]]; then
+        echo "${ZRAM_ALGO}" > /sys/block/zram0/comp_algorithm || true
+    fi
+
+    echo "$((ZRAM_SIZE_MB * 1024 * 1024))" > /sys/block/zram0/disksize
+
+    mkswap /dev/zram0 >/dev/null
+    swapon -p "${ZRAM_PRIORITY}" /dev/zram0
+}
+
+stop_zram() {
+    swapoff /dev/zram0 2>/dev/null || true
+    if [[ -e /sys/block/zram0/reset ]]; then
+        echo 1 > /sys/block/zram0/reset || true
+    fi
+}
+
+case "${1:-start}" in
+    start)
+        start_zram
+        ;;
+    stop)
+        stop_zram
+        ;;
+    *)
+        echo "Usage: $0 {start|stop}"
+        exit 1
+        ;;
+esac
+EOF
+
+    chmod +x "${ZRAM_SCRIPT_PATH}"
+}
+
+enable_zram_service() {
+    cat >"${ZRAM_SERVICE_FILE}" <<EOF
+[Unit]
+Description=One-Script ZRAM Swap
+DefaultDependencies=no
+After=local-fs.target
+Before=swap.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=${ZRAM_SCRIPT_PATH} start
+ExecStop=${ZRAM_SCRIPT_PATH} stop
+
+[Install]
+WantedBy=swap.target
+EOF
+
+    if systemd_available; then
+        systemctl daemon-reload
+        systemctl enable --now "$(basename "${ZRAM_SERVICE_FILE}")" >/dev/null 2>&1
+    fi
+}
+
+configure_zram_swap() {
+    local zram_mb="$1"
+    local zram_algo="${2:-lz4}"
+    local zram_priority="${3:-100}"
+
+    ensure_zram_swap_dependencies
+
+    if systemd_available; then
+        if systemctl list-unit-files 2>/dev/null | grep -q "^zramswap.service"; then
+            systemctl disable --now zramswap.service >/dev/null 2>&1 || true
+            echo -e "${Yellow}检测到 zramswap 服务，已禁用以避免冲突${Font}"
+        fi
+        systemctl stop "$(basename "${ZRAM_SERVICE_FILE}")" >/dev/null 2>&1 || true
+    else
+        swapoff /dev/zram0 2>/dev/null || true
+    fi
+
+    write_zram_runtime_files "${zram_mb}" "${zram_algo}" "${zram_priority}"
+    enable_zram_service
+    apply_memory_tuning "100" "50"
+
+    if systemd_available; then
+        if systemctl is-active --quiet "$(basename "${ZRAM_SERVICE_FILE}")"; then
+            echo -e "${Green}ZRAM 已启用并设置开机自启${Font}"
+        else
+            echo -e "${Red}ZRAM 服务启动失败，请检查 systemd 日志${Font}"
+        fi
+    else
+        "${ZRAM_SCRIPT_PATH}" start
+        echo -e "${Yellow}未检测到 systemd，ZRAM 仅在当前会话生效${Font}"
+    fi
+}
+
+recommend_hybrid_sizes() {
+    local memory_mb="$1"
+    local zram_mb=$((memory_mb / 2))
+
+    if [[ $zram_mb -lt 256 ]]; then
+        zram_mb=256
+    elif [[ $zram_mb -gt 1024 ]]; then
+        zram_mb=1024
+    fi
+
+    local swap_mb
+    if [[ $memory_mb -le 512 ]]; then
+        swap_mb=1024
+    elif [[ $memory_mb -le 1024 ]]; then
+        swap_mb=2048
+    elif [[ $memory_mb -le 2048 ]]; then
+        swap_mb=2048
+    else
+        swap_mb=1024
+    fi
+
+    echo "${zram_mb} ${swap_mb}"
+}
+
+prompt_custom_hybrid_sizes() {
+    local memory_mb="$1"
+    local max_swap_mb="$2"
+    local max_zram_mb=$((memory_mb * 2))
+    local zram_mb
+    local swap_mb
+
+    while true; do
+        echo -e "${Green}请输入 zram 大小（单位：MB，输入 0 表示跳过）：${Font}"
+        echo -e "${Yellow}建议范围：256MB - ${memory_mb}MB（最高可到 ${max_zram_mb}MB）${Font}"
+        read -p "zram 大小: " zram_mb
+        if [[ $zram_mb =~ ^[0-9]+$ ]]; then
+            if [[ $zram_mb -eq 0 ]]; then
+                break
+            elif [[ $zram_mb -lt 128 ]]; then
+                echo -e "${Red}zram 太小，建议至少 128MB${Font}"
+            elif [[ $zram_mb -gt $max_zram_mb ]]; then
+                echo -e "${Red}zram 过大，最大允许 ${max_zram_mb}MB${Font}"
+            else
+                break
+            fi
+        else
+            echo -e "${Red}请输入有效数字${Font}"
+        fi
+    done
+
+    if [[ $max_swap_mb -lt 128 ]]; then
+        echo -e "${Yellow}磁盘空间不足，跳过 swap 文件创建${Font}"
+        swap_mb=0
+    else
+        while true; do
+            echo -e "${Green}请输入 swap 大小（单位：MB，输入 0 表示跳过）：${Font}"
+            echo -e "${Yellow}可用范围：128MB - ${max_swap_mb}MB${Font}"
+            read -p "swap 大小: " swap_mb
+            if [[ $swap_mb =~ ^[0-9]+$ ]]; then
+                if [[ $swap_mb -eq 0 ]]; then
+                    break
+                elif [[ $swap_mb -lt 128 ]]; then
+                    echo -e "${Red}swap 太小，建议至少 128MB${Font}"
+                elif [[ $swap_mb -gt $max_swap_mb ]]; then
+                    echo -e "${Red}swap 超过可用磁盘空间限制，最大 ${max_swap_mb}MB${Font}"
+                else
+                    break
+                fi
+            else
+                echo -e "${Red}请输入有效数字${Font}"
+            fi
+        done
+    fi
+
+    echo "${zram_mb} ${swap_mb}"
+}
+
+prompt_hybrid_memory_setup() {
+    local mode="${1:-}"
+    if [[ "${release}" != "debian" && "${release}" != "ubuntu" ]]; then
+        echo -e "${Yellow}当前系统非 Debian/Ubuntu，跳过混合内存方案配置${Font}"
+        return 0
+    fi
+
+    echo
+    echo -e "${Blue}============================================${Font}"
+    echo -e "${Green}混合虚拟内存方案（ZRAM + Swap）${Font}"
+    echo -e "${Blue}============================================${Font}"
+    echo -e "${Yellow}适合小内存 VPS：优先使用内存压缩 (zram)，再使用磁盘 swap${Font}"
+    echo
+    if [[ "${mode}" != "force" ]]; then
+        read -r -p "是否配置混合方案？[Y/n]: " enable_choice
+        enable_choice=${enable_choice:-Y}
+        if [[ ! $enable_choice =~ ^[Yy]$ ]]; then
+            echo -e "${Yellow}已跳过混合方案配置${Font}"
+            return 0
+        fi
+    fi
+
+    local memory_mb
+    memory_mb=$(get_memory_size)
+    local available_space_mb
+    available_space_mb=$(get_disk_available_mb)
+    local max_swap_mb=$((available_space_mb - 1024))
+    if [[ $max_swap_mb -lt 0 ]]; then
+        max_swap_mb=0
+    fi
+
+    echo -e "${Green}当前系统内存：${memory_mb}MB${Font}"
+    echo -e "${Green}根分区可用空间：${available_space_mb}MB${Font}"
+
+    local rec_zram rec_swap
+    read -r rec_zram rec_swap < <(recommend_hybrid_sizes "${memory_mb}")
+
+    if [[ $max_swap_mb -lt 128 ]]; then
+        rec_swap=0
+        echo -e "${Yellow}磁盘空间不足，将仅配置 zram${Font}"
+    elif [[ $rec_swap -gt $max_swap_mb ]]; then
+        rec_swap=$max_swap_mb
+        echo -e "${Yellow}根据磁盘空间调整推荐 swap 大小为：${rec_swap}MB${Font}"
+    fi
+
+    local existing_swap=""
+    if command -v swapon >/dev/null 2>&1; then
+        existing_swap=$(swapon --show --noheadings 2>/dev/null | awk '{print $1}')
+    fi
+    if [[ -n "${existing_swap}" ]]; then
+        echo -e "${Yellow}检测到已有 swap：${Font}"
+        echo -e "${Yellow}${existing_swap}${Font}"
+    fi
+
+    echo
+    echo -e "${Green}推荐方案：zram ${rec_zram}MB + swap ${rec_swap}MB${Font}"
+    echo -e "${Yellow}1.${Font} 使用推荐方案"
+    echo -e "${Yellow}2.${Font} 自定义大小"
+    echo -e "${Yellow}3.${Font} 跳过配置"
+
+    local choice
+    while true; do
+        read -p "请选择 [1-3]: " choice
+        case $choice in
+            1)
+                if [[ -n "${existing_swap}" && $rec_swap -gt 0 ]]; then
+                    read -r -p "检测到已有 swap，是否仍创建/替换 /swapfile？[y/N]: " replace_choice
+                    replace_choice=${replace_choice:-N}
+                    if [[ ! $replace_choice =~ ^[Yy]$ ]]; then
+                        rec_swap=0
+                    fi
+                fi
+
+                if [[ $rec_zram -gt 0 ]]; then
+                    configure_zram_swap "${rec_zram}" "lz4" "100"
+                fi
+
+                if [[ $rec_swap -gt 0 ]]; then
+                    ensure_zram_swap_dependencies
+                    create_swap_file "${rec_swap}"
+                else
+                    echo -e "${Yellow}未创建新的 swap 文件${Font}"
+                fi
+                break
+                ;;
+            2)
+                local custom_zram custom_swap
+                read -r custom_zram custom_swap < <(prompt_custom_hybrid_sizes "${memory_mb}" "${max_swap_mb}")
+
+                if [[ $custom_zram -gt 0 ]]; then
+                    configure_zram_swap "${custom_zram}" "lz4" "100"
+                else
+                    echo -e "${Yellow}跳过 zram 配置${Font}"
+                fi
+
+                if [[ $custom_swap -gt 0 ]]; then
+                    ensure_zram_swap_dependencies
+                    create_swap_file "${custom_swap}"
+                else
+                    echo -e "${Yellow}未创建新的 swap 文件${Font}"
+                fi
+                break
+                ;;
+            3)
+                echo -e "${Yellow}已跳过混合方案配置${Font}"
+                return 0
+                ;;
+            *)
+                echo -e "${Red}无效选择，请输入 1-3${Font}"
+                ;;
+        esac
+    done
+}
+
+show_zram_swap_status() {
+    echo -e "${Blue}============================================${Font}"
+    echo -e "${Green}ZRAM / Swap 状态${Font}"
+    echo -e "${Blue}============================================${Font}"
+    echo
+
+    if command -v swapon >/dev/null 2>&1; then
+        echo -e "${Green}当前 Swap 设备：${Font}"
+        swapon --show 2>/dev/null || echo "无"
+    else
+        echo -e "${Yellow}系统未提供 swapon 命令${Font}"
+    fi
+    echo
+
+    if [[ -d /sys/block/zram0 ]]; then
+        local zram_size_bytes
+        local zram_size_mb
+        zram_size_bytes=$(cat /sys/block/zram0/disksize 2>/dev/null || echo 0)
+        zram_size_mb=$((zram_size_bytes / 1024 / 1024))
+        local algo
+        algo=$(cat /sys/block/zram0/comp_algorithm 2>/dev/null || echo "未知")
+
+        echo -e "${Green}ZRAM 设备：/dev/zram0${Font}"
+        echo -e "${Yellow}  容量：${zram_size_mb}MB${Font}"
+        echo -e "${Yellow}  压缩算法：${algo}${Font}"
+
+        if [[ -f /sys/block/zram0/orig_data_size ]]; then
+            local orig_size
+            local compr_size
+            orig_size=$(cat /sys/block/zram0/orig_data_size 2>/dev/null || echo 0)
+            compr_size=$(cat /sys/block/zram0/compr_data_size 2>/dev/null || echo 0)
+            echo -e "${Yellow}  原始数据：$((orig_size / 1024 / 1024))MB${Font}"
+            echo -e "${Yellow}  压缩数据：$((compr_size / 1024 / 1024))MB${Font}"
+        fi
+    else
+        echo -e "${Yellow}未检测到 zram 设备${Font}"
+    fi
+    echo
+
+    if [[ -f "${ZRAM_ENV_FILE}" ]]; then
+        echo -e "${Green}当前配置文件：${Font}${ZRAM_ENV_FILE}"
+        cat "${ZRAM_ENV_FILE}"
+        echo
+    else
+        echo -e "${Yellow}未发现 ZRAM 配置文件${Font}"
+        echo
+    fi
+
+    if systemd_available; then
+        if [[ -f "${ZRAM_SERVICE_FILE}" ]]; then
+            echo -e "${Green}服务状态：${Font}"
+            systemctl is-enabled "$(basename "${ZRAM_SERVICE_FILE}")" >/dev/null 2>&1 && \
+                echo -e "${Yellow}  开机自启：已启用${Font}" || \
+                echo -e "${Yellow}  开机自启：未启用${Font}"
+            systemctl is-active "$(basename "${ZRAM_SERVICE_FILE}")" >/dev/null 2>&1 && \
+                echo -e "${Yellow}  运行状态：运行中${Font}" || \
+                echo -e "${Yellow}  运行状态：未运行${Font}"
+        else
+            echo -e "${Yellow}未发现 ZRAM systemd 服务文件${Font}"
+        fi
+    else
+        echo -e "${Yellow}系统未启用 systemd，ZRAM 可能仅当前会话生效${Font}"
+    fi
+
+    echo -e "${Blue}============================================${Font}"
+}
+
+prompt_zram_config() {
+    local memory_mb
+    memory_mb=$(get_memory_size)
+    local max_zram_mb=$((memory_mb * 2))
+    local zram_mb
+    local zram_algo
+    local zram_priority
+
+    while true; do
+        echo -e "${Green}请输入 zram 大小（单位：MB）：${Font}"
+        echo -e "${Yellow}建议范围：256MB - ${memory_mb}MB（最高可到 ${max_zram_mb}MB）${Font}"
+        read -p "zram 大小: " zram_mb
+        if [[ $zram_mb =~ ^[0-9]+$ ]]; then
+            if [[ $zram_mb -lt 128 ]]; then
+                echo -e "${Red}zram 太小，建议至少 128MB${Font}"
+            elif [[ $zram_mb -gt $max_zram_mb ]]; then
+                echo -e "${Red}zram 过大，最大允许 ${max_zram_mb}MB${Font}"
+            else
+                break
+            fi
+        else
+            echo -e "${Red}请输入有效数字${Font}"
+        fi
+    done
+
+    read -r -p "压缩算法 (默认 lz4): " zram_algo
+    zram_algo=${zram_algo:-lz4}
+
+    read -r -p "zram 优先级 (1-32767, 默认 100): " zram_priority
+    zram_priority=${zram_priority:-100}
+    if [[ ! $zram_priority =~ ^[0-9]+$ ]] || [[ $zram_priority -lt 1 ]] || [[ $zram_priority -gt 32767 ]]; then
+        zram_priority=100
+    fi
+
+    echo "${zram_mb} ${zram_algo} ${zram_priority}"
+}
+
+disable_zram_swap() {
+    if systemd_available && [[ -f "${ZRAM_SERVICE_FILE}" ]]; then
+        systemctl disable --now "$(basename "${ZRAM_SERVICE_FILE}")" >/dev/null 2>&1 || true
+    fi
+    swapoff /dev/zram0 2>/dev/null || true
+    echo -e "${Green}已停止 ZRAM（配置保留，可随时重新启用）${Font}"
+}
+
+hybrid_memory_management() {
+    if [[ "${release}" != "debian" && "${release}" != "ubuntu" ]]; then
+        echo -e "${Yellow}当前系统非 Debian/Ubuntu，无法使用混合内存管理${Font}"
+        read -p "按回车键返回..."
+        system_tools_menu
+        return
+    fi
+
+    while true; do
+        clear
+        show_zram_swap_status
+        echo
+        echo -e "${Green}混合内存管理选项：${Font}"
+        echo -e "${Yellow}1.${Font} 重新运行混合方案向导"
+        echo -e "${Yellow}2.${Font} 调整 ZRAM 大小/算法"
+        echo -e "${Yellow}3.${Font} 停用 ZRAM"
+        echo -e "${Yellow}4.${Font} 返回系统工具"
+
+        local choice
+        read -p "请选择操作 [1-4]: " choice
+        case $choice in
+            1)
+                prompt_hybrid_memory_setup "force"
+                ;;
+            2)
+                local zram_mb zram_algo zram_priority
+                read -r zram_mb zram_algo zram_priority < <(prompt_zram_config)
+                configure_zram_swap "${zram_mb}" "${zram_algo}" "${zram_priority}"
+                ;;
+            3)
+                disable_zram_swap
+                ;;
+            4)
+                system_tools_menu
+                return
+                ;;
+            *)
+                echo -e "${Red}无效选择，请输入 1-4${Font}"
+                ;;
+        esac
+
+        echo
+        read -p "按回车键继续..."
+    done
+}
+
 # 自动创建swap（优化版）
 auto_create_swap() {
     echo -e "${Blue}正在检查系统内存和swap状态...${Font}"
@@ -1172,16 +1707,15 @@ create_swap_file() {
                 
                 # 优化swap使用策略
                 echo -e "${Blue}正在优化swap参数...${Font}"
-                
-                # 设置swappiness（建议值10-60，默认60）
+
                 local swappiness=10
-                echo "vm.swappiness=${swappiness}" >> /etc/sysctl.conf
-                sysctl vm.swappiness=${swappiness} >/dev/null 2>&1
-                
-                # 设置vfs_cache_pressure（建议值50-100，默认100）
                 local vfs_cache_pressure=50
-                echo "vm.vfs_cache_pressure=${vfs_cache_pressure}" >> /etc/sysctl.conf
-                sysctl vm.vfs_cache_pressure=${vfs_cache_pressure} >/dev/null 2>&1
+                if is_zram_active; then
+                    swappiness=100
+                    vfs_cache_pressure=50
+                fi
+
+                apply_memory_tuning "${swappiness}" "${vfs_cache_pressure}"
                 
                 echo -e "${Green}Swap创建成功！${Font}"
                 echo -e "${Green}Swap信息：${Font}"
@@ -1538,6 +2072,9 @@ initialize() {
     
     # 安装基础工具
     install_basic_tools
+
+    # 混合虚拟内存方案（ZRAM + Swap）
+    prompt_hybrid_memory_setup
     
     # 检查网络连接
     check_network_connectivity
@@ -1623,14 +2160,15 @@ system_tools_menu() {
     lang_echo "${Yellow}6.${Font} 磁盘空间清理" "${Yellow}6.${Font} Disk cleanup"
     lang_echo "${Yellow}7.${Font} 系统日志查看" "${Yellow}7.${Font} System logs"
     lang_echo "${Yellow}8.${Font} 时间同步设置" "${Yellow}8.${Font} Time sync"
-    lang_echo "${Yellow}9.${Font} BBR 管理" "${Yellow}9.${Font} BBR management"
-    lang_echo "${Yellow}10.${Font} 返回主菜单" "${Yellow}10.${Font} Back to main menu"
+    lang_echo "${Yellow}9.${Font} 混合内存管理 (ZRAM/Swap)" "${Yellow}9.${Font} Hybrid memory (ZRAM/Swap)"
+    lang_echo "${Yellow}10.${Font} BBR 管理" "${Yellow}10.${Font} BBR management"
+    lang_echo "${Yellow}11.${Font} 返回主菜单" "${Yellow}11.${Font} Back to main menu"
     echo
     echo -e "${Blue}============================================${Font}"
     
     local choice
     while true; do
-        read -p "$(lang_text "请选择操作 [1-10]: " "Choose an action [1-10]: ")" choice
+        read -p "$(lang_text "请选择操作 [1-11]: " "Choose an action [1-11]: ")" choice
         case $choice in
             1)
                 show_system_info
@@ -1665,15 +2203,19 @@ system_tools_menu() {
                 break
                 ;;
             9)
-                bbr_management
+                hybrid_memory_management
                 break
                 ;;
             10)
+                bbr_management
+                break
+                ;;
+            11)
                 echo -e "${Yellow}返回主菜单${Font}"
                 return 0
                 ;;
             *)
-                echo -e "${Red}无效选择，请输入 1-10${Font}"
+                echo -e "${Red}无效选择，请输入 1-11${Font}"
                 ;;
         esac
     done
