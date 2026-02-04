@@ -16,7 +16,6 @@ CHANNEL="main"
 BASE_URL=""
 QUICK_SCRIPT_URL="https://raw.githubusercontent.com/charleslkx/quick-script/main/main.sh"
 V2RAY_ORIGINAL_URL="https://raw.githubusercontent.com/mack-a/v2ray-agent/main/install.sh"
-REMOTE_COMMAND_NAME="v2ray"
 TEMP_DIR="/tmp"
 release=""
 installType=""
@@ -209,250 +208,6 @@ quick_switch_ip_priority() {
     esac
 }
 
-# 安装简易命令（远程运行版本）
-install_quick_command() {
-    echo -e "${Blue}正在安装简易命令...${Font}"
-    
-    local command_name="${REMOTE_COMMAND_NAME}"
-    local vasmaType=false
-    
-    # 显示当前环境信息
-    echo -e "${Green}当前用户：$(whoami)${Font}"
-    echo -e "${Green}安装模式：远程运行${Font}"
-    echo
-    
-    # 创建远程运行脚本内容
-    local remote_script_content='#!/usr/bin/env bash
-# One-Script 远程运行快捷命令
-# 此脚本将直接从远程仓库获取并运行最新版本
-
-# 颜色定义
-Green="\033[32m"
-Font="\033[0m"
-Red="\033[31m"
-Yellow="\033[33m"
-Blue="\033[34m"
-
-# 远程仓库地址
-BASE_URL="https://raw.githubusercontent.com/charleslkx/one-script/'"${CHANNEL}"'"
-
-# 检查网络连接
-check_network() {
-    echo -e "${Blue}正在检查网络连接...${Font}"
-    if ping -c 1 raw.githubusercontent.com >/dev/null 2>&1; then
-        echo -e "${Green}网络连接正常${Font}"
-        return 0
-    else
-        echo -e "${Red}无法连接到远程仓库，请检查网络连接${Font}"
-        return 1
-    fi
-}
-
-# 运行远程脚本
-run_remote_script() {
-    echo -e "${Blue}正在从远程仓库获取最新版本...${Font}"
-    echo -e "${Green}仓库地址：${BASE_URL}/main.sh${Font}"
-    echo
-    
-    # 尝试使用 wget 或 curl 运行远程脚本
-    if command -v wget >/dev/null 2>&1; then
-        echo -e "${Blue}使用 wget 获取脚本...${Font}"
-        bash <(wget -qO- "${BASE_URL}/main.sh" 2>/dev/null) "$@"
-    elif command -v curl >/dev/null 2>&1; then
-        echo -e "${Blue}使用 curl 获取脚本...${Font}"
-        bash <(curl -fsSL "${BASE_URL}/main.sh" 2>/dev/null) "$@"
-    else
-        echo -e "${Red}错误：未找到 wget 或 curl 工具${Font}"
-        echo -e "${Yellow}请安装 wget 或 curl 后重试${Font}"
-        exit 1
-    fi
-}
-
-# 显示帮助信息
-show_help() {
-    echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}      One-Script 远程运行命令${Font}"
-    echo -e "${Blue}============================================${Font}"
-    echo
-    echo -e "${Green}用法：${Font}"
-    echo -e "  v2ray [选项]"
-    echo
-    echo -e "${Green}选项：${Font}"
-    echo -e "  ${Yellow}--help, -h${Font}              显示此帮助信息"
-    echo -e "  ${Yellow}--version, -v${Font}           显示版本信息"
-    echo -e "  ${Yellow}--install-command${Font}       重新安装远程运行命令"
-    echo -e "  ${Yellow}--uninstall-command${Font}     卸载远程运行命令"
-    echo
-    echo -e "${Green}特性：${Font}"
-    echo -e "  • 始终运行最新版本脚本"
-    echo -e "  • 无需本地存储脚本文件"
-    echo -e "  • 自动网络连接检查"
-    echo
-    echo -e "${Green}GitHub仓库：${Font}https://github.com/charleslkx/one-script"
-    echo -e "${Blue}============================================${Font}"
-}
-
-# 主函数
-main() {
-    case "${1:-}" in
-        "--help"|"-h")
-            show_help
-            exit 0
-            ;;
-        "--version"|"-v")
-            echo -e "${Green}One-Script 远程运行命令 v1.0${Font}"
-            echo -e "${Green}GitHub: https://github.com/charleslkx/one-script${Font}"
-            exit 0
-            ;;
-        "--install-command")
-            echo -e "${Yellow}请使用本地脚本的安装命令功能${Font}"
-            exit 0
-            ;;
-        "--uninstall-command")
-            echo -e "${Yellow}请使用本地脚本的卸载命令功能${Font}"
-            exit 0
-            ;;
-    esac
-    
-    # 检查网络连接
-    if ! check_network; then
-        exit 1
-    fi
-    
-    # 运行远程脚本
-    run_remote_script "$@"
-}
-
-# 启动
-main "$@"'
-    
-    # 尝试在 /usr/bin 中创建远程运行命令
-    if [[ -d "/usr/bin/" ]]; then
-        local bin_path="/usr/bin/${command_name}"
-        echo -e "${Green}目标安装路径：${bin_path}${Font}"
-        
-        if [[ ! -f "$bin_path" ]]; then
-            if echo "$remote_script_content" > "$bin_path" 2>/dev/null && chmod 755 "$bin_path" 2>/dev/null; then
-                vasmaType=true
-                echo -e "${Green}在 /usr/bin 中创建远程运行命令成功${Font}"
-            else
-                echo -e "${Yellow}在 /usr/bin 中创建远程运行命令失败${Font}"
-            fi
-        else
-            echo -e "${Yellow}检测到 ${bin_path} 已存在${Font}"
-            echo -e "${Yellow}是否要重新安装？[y/N]:${Font}"
-            read -p "" reinstall_choice
-            if [[ $reinstall_choice =~ ^[Yy]$ ]]; then
-                rm -f "$bin_path"
-                if echo "$remote_script_content" > "$bin_path" 2>/dev/null && chmod 755 "$bin_path" 2>/dev/null; then
-                    vasmaType=true
-                    echo -e "${Green}重新安装远程运行命令成功${Font}"
-                fi
-            fi
-        fi
-    fi
-    
-    # 如果 /usr/bin 失败，尝试 /usr/sbin
-    if [[ "$vasmaType" == "false" && -d "/usr/sbin/" ]]; then
-        local sbin_path="/usr/sbin/${command_name}"
-        echo -e "${Green}尝试在 /usr/sbin 中安装：${sbin_path}${Font}"
-        
-        if [[ ! -f "$sbin_path" ]]; then
-            if echo "$remote_script_content" > "$sbin_path" 2>/dev/null && chmod 755 "$sbin_path" 2>/dev/null; then
-                vasmaType=true
-                echo -e "${Green}在 /usr/sbin 中创建远程运行命令成功${Font}"
-            else
-                echo -e "${Yellow}在 /usr/sbin 中创建远程运行命令失败${Font}"
-            fi
-        fi
-    fi
-    
-    # 如果以上都失败，尝试 /usr/local/bin
-    if [[ "$vasmaType" == "false" ]]; then
-        local local_bin_path="/usr/local/bin/${command_name}"
-        echo -e "${Green}尝试在 /usr/local/bin 中安装：${local_bin_path}${Font}"
-        
-        # 确保目录存在
-        if [[ ! -d "/usr/local/bin" ]]; then
-            echo -e "${Yellow}/usr/local/bin 目录不存在，正在创建...${Font}"
-            mkdir -p /usr/local/bin
-        fi
-        
-        if [[ ! -f "$local_bin_path" ]]; then
-            if echo "$remote_script_content" > "$local_bin_path" 2>/dev/null && chmod 755 "$local_bin_path" 2>/dev/null; then
-                vasmaType=true
-                echo -e "${Green}在 /usr/local/bin 中创建远程运行命令成功${Font}"
-            else
-                echo -e "${Red}在 /usr/local/bin 中创建远程运行命令失败${Font}"
-            fi
-        fi
-    fi
-    
-    # 显示安装结果
-    if [[ "$vasmaType" == "true" ]]; then
-        echo
-        echo -e "${Green}远程运行命令创建成功！${Font}"
-        echo -e "${Yellow}使用方法：${Font}"
-        echo -e "${Blue}  ${command_name}${Font}                # 从远程启动最新版本脚本"
-        echo -e "${Blue}  sudo ${command_name}${Font}           # 以root权限从远程启动脚本"
-        echo -e "${Blue}  ${command_name} --help${Font}         # 查看帮助信息"
-        echo -e "${Blue}  ${command_name} --version${Font}      # 查看版本信息"
-        echo
-        echo -e "${Green}特性：${Font}"
-        echo -e "${Green}  • 始终运行最新版本${Font}"
-        echo -e "${Green}  • 无需本地存储脚本${Font}"
-        echo -e "${Green}  • 自动检查网络连接${Font}"
-        echo
-        echo -e "${Yellow}注意：运行时需要网络连接到 GitHub${Font}"
-    else
-        echo -e "${Red}远程运行命令创建失败！${Font}"
-        echo -e "${Yellow}请检查权限或手动创建${Font}"
-    fi
-}
-
-# 卸载简易命令
-uninstall_quick_command() {
-    local command_name="${REMOTE_COMMAND_NAME}"
-    local removed=false
-    
-    echo -e "${Yellow}正在卸载简易命令...${Font}"
-    
-    # 检查并删除 /usr/bin 中的命令
-    if [[ -f "/usr/bin/${command_name}" ]]; then
-        if rm -f "/usr/bin/${command_name}"; then
-            echo -e "${Green}已从 /usr/bin 中移除 '${command_name}'${Font}"
-            removed=true
-        else
-            echo -e "${Red}从 /usr/bin 中移除 '${command_name}' 失败${Font}"
-        fi
-    fi
-    
-    # 检查并删除 /usr/sbin 中的命令
-    if [[ -f "/usr/sbin/${command_name}" ]]; then
-        if rm -f "/usr/sbin/${command_name}"; then
-            echo -e "${Green}已从 /usr/sbin 中移除 '${command_name}'${Font}"
-            removed=true
-        else
-            echo -e "${Red}从 /usr/sbin 中移除 '${command_name}' 失败${Font}"
-        fi
-    fi
-    
-    # 检查并删除 /usr/local/bin 中的命令
-    if [[ -f "/usr/local/bin/${command_name}" ]]; then
-        if rm -f "/usr/local/bin/${command_name}"; then
-            echo -e "${Green}已从 /usr/local/bin 中移除 '${command_name}'${Font}"
-            removed=true
-        else
-            echo -e "${Red}从 /usr/local/bin 中移除 '${command_name}' 失败${Font}"
-        fi
-    fi
-    
-    if [[ "$removed" == "true" ]]; then
-        echo -e "${Green}简易命令 '${command_name}' 卸载成功！${Font}"
-    else
-        echo -e "${Yellow}简易命令 '${command_name}' 未安装或已被移除${Font}"
-    fi
-}
 
 # 检查root权限
 check_root() {
@@ -1800,26 +1555,16 @@ show_script_menu() {
     echo
     lang_echo "${Green}请选择要运行的脚本：${Font}"
     echo
-    lang_echo "${Green}【代理工具】${Font}"
     lang_echo "${Yellow}1.${Font} V2Ray 安装脚本 ${Blue}${Font}"
     lang_echo "${Yellow}2.${Font} V2Ray 原版安装脚本 ${Blue}${Font}"
     lang_echo "${Yellow}3.${Font} 无交互版本 ${Blue}(quick-script)${Font}"
-    echo
-    lang_echo "${Green}【系统管理】${Font}"
     lang_echo "${Yellow}4.${Font} 混合内存管理 ${Blue}(ZRAM/Swap)${Font}"
     lang_echo "${Yellow}5.${Font} 系统工具 ${Blue}(系统优化和诊断)${Font}"
     lang_echo "${Yellow}6.${Font} 内核安装脚本 (BBR/BBR Plus)"
-    echo
-    lang_echo "${Green}【网络配置】${Font}"
     lang_echo "${Yellow}7.${Font} 快速切换节点IPv4/IPv6优先级"
-    echo
-    lang_echo "${Green}【工具查询】${Font}"
     lang_echo "${Yellow}8.${Font} 查询核心配置路径"
-    echo
-    lang_echo "${Green}【脚本维护】${Font}"
-    lang_echo "${Yellow}9.${Font} 命令管理 ${Blue}(安装/卸载${REMOTE_COMMAND_NAME}快捷命令)${Font}"
-    lang_echo "${Yellow}10.${Font} 更新 main.sh 脚本 ${Blue}(检查脚本更新)${Font}"
-    lang_echo "${Yellow}11.${Font} 退出"
+    lang_echo "${Yellow}9.${Font} 更新 main.sh 脚本 ${Blue}(检查脚本更新)${Font}"
+    lang_echo "${Yellow}10.${Font} 退出"
     echo
     echo -e "${Blue}============================================${Font}"
 }
@@ -1945,19 +1690,15 @@ execute_script() {
             show_config_paths
             ;;
         9)
-            lang_echo "${Green}进入命令管理...${Font}"
-            command_management
-            ;;
-        10)
             lang_echo "${Green}正在更新 main.sh 脚本...${Font}"
             update_main_script
             ;;
-        11)
+        10)
             lang_echo "${Green}感谢使用，再见！${Font}"
             exit 0
             ;;
         *)
-            lang_echo "${Red}无效选择，请输入 1-11${Font}"
+            lang_echo "${Red}无效选择，请输入 1-10${Font}"
             sleep 2
             main_menu
             ;;
@@ -2025,7 +1766,7 @@ setup_crontab_reboot() {
 main_menu() {
     while true; do
         show_script_menu
-        read -p "$(lang_text "请输入您的选择 [1-11]: ")" choice
+        read -p "$(lang_text "请输入您的选择 [1-10]: ")" choice
         execute_script "$choice"
         echo
         if [[ "$choice" != "10" ]]; then
@@ -2947,16 +2688,6 @@ main() {
             configure_zram_swap "${zram_mb}" "${zram_algo}" "${zram_priority}"
             exit 0
             ;;
-        "--install-command")
-            check_root
-            install_quick_command
-            exit 0
-            ;;
-        "--uninstall-command")
-            check_root
-            uninstall_quick_command
-            exit 0
-            ;;
         "--help"|"-h")
             show_help
             exit 0
@@ -2987,20 +2718,11 @@ show_help() {
     echo -e "  ${Yellow}--channel dev|main${Font}      选择运行渠道（默认 main）"
     echo -e "  ${Yellow}--help, -h${Font}              显示此帮助信息"
     echo -e "  ${Yellow}--version, -v${Font}           显示版本信息"
-    echo -e "  ${Yellow}--install-command${Font}       安装简易命令 (${REMOTE_COMMAND_NAME})"
-    echo -e "  ${Yellow}--uninstall-command${Font}     卸载简易命令"
-    echo
-    echo -e "${Green}简易命令：${Font}"
-    echo -e "  安装后可通过 '${Yellow}${REMOTE_COMMAND_NAME}${Font}' 命令启动脚本"
-    echo -e "  使用方法：${Yellow}sudo ${REMOTE_COMMAND_NAME}${Font}"
-    echo -e "  模式：${Yellow}远程运行（始终获取最新版本）${Font}"
-    echo
     echo -e "${Green}功能特性：${Font}"
     echo -e "  • 智能 Swap 内存管理"
     echo -e "  • 远程脚本获取执行"
     echo -e "  • V2Ray 定时重启配置"
     echo -e "  • 脚本自动更新功能"
-    echo -e "  • 远程运行命令安装"
     echo -e "  • 智能 iptables 规则管理"
     echo -e "  • 始终运行最新版本"
     echo
@@ -3133,152 +2855,8 @@ show_version_info() {
     echo -e "  • 远程脚本获取执行"  
     echo -e "  • V2Ray 定时重启配置"
     echo -e "  • 脚本自动更新功能"
-    echo -e "  • 简易命令安装管理"
     echo -e "  • 智能 iptables 规则管理"
     echo -e "  • 优化的工具安装流程"
-    echo -e "${Blue}============================================${Font}"
-    echo
-}
-
-# 命令管理菜单
-command_management() {
-    clear
-    echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}           命令管理${Font}"
-    echo -e "${Blue}============================================${Font}"
-    echo
-    
-    local command_name="${REMOTE_COMMAND_NAME}"
-    local found=false
-    
-    # 检查命令状态
-    echo -e "${Green}简易命令状态检查：${Font}"
-    
-    if [[ -f "/usr/bin/${command_name}" ]]; then
-        echo -e "${Green}  /usr/bin/${command_name} ✓${Font}"
-        found=true
-    fi
-    
-    if [[ -f "/usr/sbin/${command_name}" ]]; then
-        echo -e "${Green}  /usr/sbin/${command_name} ✓${Font}"
-        found=true
-    fi
-    
-    if [[ -f "/usr/local/bin/${command_name}" ]]; then
-        echo -e "${Green}  /usr/local/bin/${command_name} ✓${Font}"
-        found=true
-    fi
-    
-    if [[ "$found" == "true" ]]; then
-        echo -e "${Green}总体状态：${Font}已安装（远程运行模式）"
-        echo -e "${Green}使用方法：${Font}${command_name} 或 sudo ${command_name}"
-        echo -e "${Yellow}特性：始终运行最新版本，无需本地文件${Font}"
-    else
-        echo -e "${Yellow}总体状态：${Font}未安装"
-    fi
-    
-    echo
-    echo -e "${Green}命令管理选项：${Font}"
-    echo -e "${Yellow}1.${Font} 安装远程运行命令 (${command_name})"
-    echo -e "${Yellow}2.${Font} 卸载远程运行命令"
-    echo -e "${Yellow}3.${Font} 查看详细状态"
-    echo -e "${Yellow}4.${Font} 返回主菜单"
-    echo
-    echo -e "${Blue}============================================${Font}"
-    
-    local choice
-    while true; do
-        read -p "请选择操作 [1-4]: " choice
-        case $choice in
-            1)
-                install_quick_command
-                break
-                ;;
-            2)
-                uninstall_quick_command
-                break
-                ;;
-            3)
-                show_command_status
-                break
-                ;;
-            4)
-                echo -e "${Yellow}返回主菜单${Font}"
-                return 0
-                ;;
-            *)
-                echo -e "${Red}无效选择，请输入 1-4${Font}"
-                ;;
-        esac
-    done
-}
-
-# 显示命令状态
-show_command_status() {
-    echo -e "${Blue}============================================${Font}"
-    echo -e "${Green}         简易命令状态信息${Font}"
-    echo -e "${Blue}============================================${Font}"
-    
-    local command_name="${REMOTE_COMMAND_NAME}"
-    local script_path="$(readlink -f "$0")"
-    local found=false
-    
-    echo -e "${Green}当前脚本路径：${Font}${script_path}"
-    echo -e "${Green}简易命令名称：${Font}${command_name}"
-    echo
-    
-    # 检查各个位置的命令
-    echo -e "${Green}命令安装状态：${Font}"
-    
-    if [[ -f "/usr/bin/${command_name}" ]]; then
-        echo -e "${Green}  /usr/bin/${command_name} ✓${Font}"
-        echo -e "${Green}  链接目标：$(readlink "/usr/bin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
-        found=true
-    else
-        echo -e "${Yellow}  /usr/bin/${command_name} ✗${Font}"
-    fi
-    
-    if [[ -f "/usr/sbin/${command_name}" ]]; then
-        echo -e "${Green}  /usr/sbin/${command_name} ✓${Font}"
-        echo -e "${Green}  链接目标：$(readlink "/usr/sbin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
-        found=true
-    else
-        echo -e "${Yellow}  /usr/sbin/${command_name} ✗${Font}"
-    fi
-    
-    if [[ -f "/usr/local/bin/${command_name}" ]]; then
-        echo -e "${Green}  /usr/local/bin/${command_name} ✓${Font}"
-        echo -e "${Green}  链接目标：$(readlink "/usr/local/bin/${command_name}" 2>/dev/null || echo "无法读取")${Font}"
-        found=true
-    else
-        echo -e "${Yellow}  /usr/local/bin/${command_name} ✗${Font}"
-    fi
-    
-    echo
-    if [[ "$found" == "true" ]]; then
-        echo -e "${Green}总体状态：${Font}已安装 ✓（远程运行模式）"
-        echo
-        echo -e "${Green}使用方法：${Font}"
-        echo -e "  ${Blue}${command_name}${Font}                # 从远程启动最新版本脚本"
-        echo -e "  ${Blue}sudo ${command_name}${Font}           # 以root权限从远程启动脚本"
-        echo -e "  ${Blue}${command_name} --help${Font}         # 查看帮助信息"
-        echo -e "  ${Blue}${command_name} --version${Font}      # 查看版本信息"
-        echo
-        echo -e "${Green}特性：${Font}"
-        echo -e "  • 始终运行最新版本"
-        echo -e "  • 无需本地存储脚本"
-        echo -e "  • 自动检查网络连接"
-    else
-        echo -e "${Yellow}总体状态：${Font}未安装"
-        echo
-        echo -e "${Yellow}安装后可使用：${Font}"
-        echo -e "  ${Blue}sudo ${command_name}${Font}           # 从远程启动脚本"
-    fi
-    
-    echo
-    echo -e "${Yellow}PATH 环境变量：${Font}"
-    echo -e "${Blue}$(echo $PATH | tr ':' '\n' | grep -E '(usr/bin|usr/sbin|usr/local/bin)' || echo "未找到相关路径")${Font}"
-    
     echo -e "${Blue}============================================${Font}"
     echo
 }
