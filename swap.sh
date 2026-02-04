@@ -5,6 +5,10 @@ Green="\033[32m"
 Font="\033[0m"
 Red="\033[31m" 
 
+clear() {
+    :
+}
+
 #root权限
 root_need(){
     if [[ $EUID -ne 0 ]]; then

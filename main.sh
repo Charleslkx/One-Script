@@ -8,6 +8,10 @@ Red="\033[31m"
 Yellow="\033[33m"
 Blue="\033[34m"
 
+clear() {
+    :
+}
+
 CHANNEL="main"
 BASE_URL=""
 QUICK_SCRIPT_URL="https://raw.githubusercontent.com/charleslkx/quick-script/main/main.sh"
@@ -22,6 +26,7 @@ updateReleaseInfoChange=""
 ZRAM_SERVICE_FILE="/etc/systemd/system/one-script-zram.service"
 ZRAM_SCRIPT_PATH="/usr/local/bin/one-script-zram"
 ZRAM_ENV_FILE="/etc/one-script/zram.env"
+SKIP_CLEAR_ONCE="false"
 
 normalize_channel() {
     local channel
@@ -1761,7 +1766,11 @@ create_swap_file() {
 
 # 显示脚本选择菜单
 show_script_menu() {
-    clear
+    if [[ "${SKIP_CLEAR_ONCE}" == "true" ]]; then
+        SKIP_CLEAR_ONCE="false"
+    else
+        clear
+    fi
     echo -e "${Blue}============================================${Font}"
     lang_echo "${Green}      One-Script 脚本管理工具${Font}"
     echo -e "${Blue}============================================${Font}"
@@ -2098,6 +2107,7 @@ initialize() {
     # auto_create_swap
     
     echo -e "${Green}环境初始化完成！${Font}"
+    SKIP_CLEAR_ONCE="true"
     sleep 2
 }
 

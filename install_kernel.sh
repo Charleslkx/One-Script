@@ -43,6 +43,10 @@ if [[ $(/usr/bin/id -u) -ne 0 ]]; then
   sudoCmd="sudo"
 fi
 
+clear() {
+  :
+}
+
 ensure_locale() {
   local target_locales=("C.UTF-8 UTF-8" "en_US.UTF-8 UTF-8")
 
