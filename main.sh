@@ -107,11 +107,13 @@ run_remote_script() {
     shift
 
     if command_exists wget; then
-        bash <(wget -qO- "$url" 2>/dev/null) "$@"
+        ONE_SCRIPT_CHANNEL="${CHANNEL}" ONE_SCRIPT_BASE_URL="${BASE_URL}" \
+            bash <(wget -qO- "$url" 2>/dev/null) "$@"
         return $?
     fi
     if command_exists curl; then
-        bash <(curl -fsSL "$url" 2>/dev/null) "$@"
+        ONE_SCRIPT_CHANNEL="${CHANNEL}" ONE_SCRIPT_BASE_URL="${BASE_URL}" \
+            bash <(curl -fsSL "$url" 2>/dev/null) "$@"
         return $?
     fi
     return 1
@@ -1511,10 +1513,13 @@ disable_zram_swap() {
 }
 
 hybrid_memory_management() {
+    local mode="${1:-menu}"
     if [[ "${release}" != "debian" && "${release}" != "ubuntu" ]]; then
         echo -e "${Yellow}当前系统非 Debian/Ubuntu，无法使用混合内存管理${Font}"
         read -p "按回车键返回..."
-        system_tools_menu
+        if [[ "${mode}" == "menu" ]]; then
+            system_tools_menu
+        fi
         return
     fi
 
@@ -1526,7 +1531,11 @@ hybrid_memory_management() {
         echo -e "${Yellow}1.${Font} 重新运行混合方案向导"
         echo -e "${Yellow}2.${Font} 调整 ZRAM 大小/算法"
         echo -e "${Yellow}3.${Font} 停用 ZRAM"
-        echo -e "${Yellow}4.${Font} 返回系统工具"
+        if [[ "${mode}" == "menu" ]]; then
+            echo -e "${Yellow}4.${Font} 返回系统工具"
+        else
+            echo -e "${Yellow}4.${Font} 退出"
+        fi
 
         local choice
         read -p "请选择操作 [1-4]: " choice
@@ -1543,7 +1552,9 @@ hybrid_memory_management() {
                 disable_zram_swap
                 ;;
             4)
-                system_tools_menu
+                if [[ "${mode}" == "menu" ]]; then
+                    system_tools_menu
+                fi
                 return
                 ;;
             *)
@@ -1795,7 +1806,7 @@ show_script_menu() {
     lang_echo "${Yellow}3.${Font} 无交互版本 ${Blue}(quick-script)${Font}"
     echo
     lang_echo "${Green}【系统管理】${Font}"
-    lang_echo "${Yellow}4.${Font} Swap 管理脚本 ${Blue}(虚拟内存管理)${Font}"
+    lang_echo "${Yellow}4.${Font} 混合内存管理 ${Blue}(ZRAM/Swap)${Font}"
     lang_echo "${Yellow}5.${Font} 系统工具 ${Blue}(系统优化和诊断)${Font}"
     lang_echo "${Yellow}6.${Font} 内核安装脚本 (BBR/BBR Plus)"
     echo
@@ -1893,7 +1904,7 @@ execute_script() {
             fi
             ;;
         4)
-            lang_echo "${Green}正在启动 Swap 管理脚本...${Font}"
+            lang_echo "${Green}正在启动 混合内存管理...${Font}"
             lang_echo "${Yellow}正在从远程仓库获取...${Font}"
             if run_remote_script "${BASE_URL}/swap.sh"; then
                 lang_echo "${Green}脚本执行完成${Font}"
@@ -2901,6 +2912,41 @@ main() {
 
     # 处理命令行参数
     case "${1:-}" in
+        "--hybrid-memory")
+            check_root
+            check_su_login
+            check_ovz
+            check_system_environment
+            install_basic_tools
+            hybrid_memory_management "standalone"
+            exit 0
+            ;;
+        "--zram-status")
+            check_root
+            check_su_login
+            check_ovz
+            check_system_environment
+            show_zram_swap_status
+            exit 0
+            ;;
+        "--zram-disable")
+            check_root
+            check_su_login
+            check_ovz
+            check_system_environment
+            disable_zram_swap
+            exit 0
+            ;;
+        "--zram-config")
+            check_root
+            check_su_login
+            check_ovz
+            check_system_environment
+            install_basic_tools
+            read -r zram_mb zram_algo zram_priority < <(prompt_zram_config)
+            configure_zram_swap "${zram_mb}" "${zram_algo}" "${zram_priority}"
+            exit 0
+            ;;
         "--install-command")
             check_root
             install_quick_command

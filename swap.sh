@@ -25,6 +25,30 @@ ovz_no(){
     fi
 }
 
+run_hybrid_memory_tool() {
+    local action="${1:---hybrid-memory}"
+    local base_url="${ONE_SCRIPT_BASE_URL:-}"
+    local channel="${ONE_SCRIPT_CHANNEL:-}"
+    if [[ -z "${base_url}" ]]; then
+        if [[ -n "${channel}" ]]; then
+            base_url="https://raw.githubusercontent.com/charleslkx/one-script/${channel}"
+        else
+            base_url="https://raw.githubusercontent.com/charleslkx/one-script/main"
+        fi
+    fi
+
+    if command -v wget >/dev/null 2>&1; then
+        bash <(wget -qO- "${base_url}/main.sh" 2>/dev/null) "${action}"
+        return $?
+    fi
+    if command -v curl >/dev/null 2>&1; then
+        bash <(curl -fsSL "${base_url}/main.sh" 2>/dev/null) "${action}"
+        return $?
+    fi
+    echo -e "${Red}错误：未找到 wget 或 curl 工具${Font}"
+    return 1
+}
+
 add_swap(){
 echo -e "${Green}请输入需要添加的swap，建议为内存的2倍！${Font}"
 read -p "请输入swap数值:" swapsize
@@ -44,7 +68,14 @@ if [ $? -ne 0 ]; then
          cat /proc/swaps
          cat /proc/meminfo | grep Swap
 else
-	echo -e "${Red}swapfile已存在，swap设置失败，请先运行脚本删除swap后重新设置！${Font}"
+    echo -e "${Yellow}检测到已有 swapfile，是否替换？[y/N]: ${Font}"
+    read -r replace_choice
+    if [[ $replace_choice =~ ^[Yy]$ ]]; then
+        del_swap
+        add_swap
+    else
+        echo -e "${Yellow}已取消调整 swap${Font}"
+    fi
 fi
 }
 
@@ -72,20 +103,36 @@ ovz_no
 clear
 echo -e "———————————————————————————————————————"
 echo -e "${Green}Linux VPS一键添加/删除swap脚本${Font}"
-echo -e "${Green}1、添加swap${Font}"
-echo -e "${Green}2、删除swap${Font}"
+echo -e "${Green}1、查看ZRAM/Swap状态${Font}"
+echo -e "${Green}2、调整ZRAM${Font}"
+echo -e "${Green}3、停用ZRAM${Font}"
+echo -e "${Green}4、添加/调整swap${Font}"
+echo -e "${Green}5、删除swap${Font}"
+echo -e "${Green}6、混合内存管理 (ZRAM/Swap)${Font}"
 echo -e "———————————————————————————————————————"
-read -p "请输入数字 [1-2]:" num
+read -p "请输入数字 [1-6]:" num
 case "$num" in
     1)
-    add_swap
+    run_hybrid_memory_tool --zram-status
     ;;
     2)
+    run_hybrid_memory_tool --zram-config
+    ;;
+    3)
+    run_hybrid_memory_tool --zram-disable
+    ;;
+    4)
+    add_swap
+    ;;
+    5)
     del_swap
+    ;;
+    6)
+    run_hybrid_memory_tool
     ;;
     *)
     clear
-    echo -e "${Green}请输入正确数字 [1-2]${Font}"
+    echo -e "${Green}请输入正确数字 [1-6]${Font}"
     sleep 2s
     main
     ;;
